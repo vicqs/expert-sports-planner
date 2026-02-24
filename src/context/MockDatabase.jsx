@@ -1,245 +1,622 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { STORAGE_KEYS, getFromStorage, setToStorage } from "../utils/storage";
 
 const MockDatabaseContext = createContext();
 
 export const useMockDatabase = () => {
-    const context = useContext(MockDatabaseContext);
-    if (!context) {
-        throw new Error('useMockDatabase must be used within a MockDatabaseProvider');
-    }
-    return context;
+  const context = useContext(MockDatabaseContext);
+  if (!context) {
+    throw new Error(
+      "useMockDatabase must be used within a MockDatabaseProvider",
+    );
+  }
+  return context;
 };
 
 export const MockDatabaseProvider = ({ children }) => {
-    // Load from local storage to persist across reloads
-    const [clients, setClients] = useState(() => {
-        const saved = localStorage.getItem('expert_planner_clients');
-        return saved ? JSON.parse(saved) : [];
-    });
+  // Load from local storage to persist across reloads
+  const [clients, setClients] = useState(() => {
+    return getFromStorage(STORAGE_KEYS.CLIENTS, []);
+  });
 
-    useEffect(() => {
-        localStorage.setItem('expert_planner_clients', JSON.stringify(clients));
-    }, [clients]);
+  const [gymAvailability, setGymAvailability] = useState(() => {
+    return getFromStorage(STORAGE_KEYS.GYM_AVAILABILITY, []);
+  });
 
-    const addClientRequest = (clientData) => {
-        const newClient = {
-            id: crypto.randomUUID(),
-            ...clientData,
-            status: 'PENDING', // PENDING, COMPLETED
-            submittedAt: new Date().toISOString(),
-            plan: null
-        };
-        setClients(prev => [...prev, newClient]);
-        return newClient.id;
-    };
+  const [gymBookings, setGymBookings] = useState(() => {
+    return getFromStorage(STORAGE_KEYS.GYM_BOOKINGS, []);
+  });
 
-    const updateClientPlan = (clientId, planText, planObject) => {
-        setClients(prev => prev.map(c =>
-            c.id === clientId
-                ? {
-                    ...c,
-                    status: 'COMPLETED',
-                    plan: planText,
-                    planObject: planObject,
-                    completedAt: new Date().toISOString()
-                }
-                : c
-        ));
-    };
+  const [appointments, setAppointments] = useState(() => {
+    return getFromStorage(STORAGE_KEYS.APPOINTMENTS, []);
+  });
 
-    const toggleSessionCompletion = (clientId, weekIndex, dayIndex) => {
-        setClients(prev => prev.map(client => {
-            if (client.id !== clientId) return client;
+  const [appointmentAvailability, setAppointmentAvailability] = useState(() => {
+    return getFromStorage(STORAGE_KEYS.APPOINTMENT_AVAILABILITY, []);
+  });
 
-            const newPlanObject = [...client.planObject];
-            const day = newPlanObject[weekIndex].days[dayIndex];
+  // Sistema de solicitudes atleta-entrenador
+  const [athleteRequests, setAthleteRequests] = useState(() => {
+    return getFromStorage("athleteRequests", []);
+  });
 
-            // Toggle completion status
-            day.completed = !day.completed;
+  // Persist all state changes to localStorage
+  useEffect(() => {
+    setToStorage(STORAGE_KEYS.CLIENTS, clients);
+  }, [clients]);
 
-            // Calculate new progress
-            const totalSessions = newPlanObject.reduce((acc, week) =>
-                acc + week.days.filter(d => d.sessionType !== 'REST').length, 0);
+  useEffect(() => {
+    setToStorage(STORAGE_KEYS.GYM_AVAILABILITY, gymAvailability);
+  }, [gymAvailability]);
 
-            const completedSessions = newPlanObject.reduce((acc, week) =>
-                acc + week.days.filter(d => d.completed).length, 0);
+  useEffect(() => {
+    setToStorage(STORAGE_KEYS.GYM_BOOKINGS, gymBookings);
+  }, [gymBookings]);
 
-            const progress = totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0;
+  useEffect(() => {
+    setToStorage(STORAGE_KEYS.APPOINTMENTS, appointments);
+  }, [appointments]);
 
-            return {
-                ...client,
-                planObject: newPlanObject,
-                progress: progress
-            };
-        }));
-    };
-
-    const updateSessionNote = (clientId, weekIndex, dayIndex, note) => {
-        setClients(prev => prev.map(client => {
-            if (client.id !== clientId) return client;
-            const newPlanObject = [...client.planObject];
-            newPlanObject[weekIndex].days[dayIndex].note = note;
-            return {
-                ...client,
-                planObject: newPlanObject
-            };
-        }));
-    };
-
-    const [gymAvailability, setGymAvailability] = useState([]); // { date: 'YYYY-MM-DD', slots: [] }
-    const [gymBookings, setGymBookings] = useState([]); // { id, athleteId, date, slotId, status }
-
-    // ... existing client methods ...
-
-    // Gym Methods
-    const updateGymSchedule = (date, slots) => {
-        setGymAvailability(prev => {
-            const existingIndex = prev.findIndex(d => d.date === date);
-            if (existingIndex >= 0) {
-                const newSchedule = [...prev];
-                newSchedule[existingIndex] = { date, slots };
-                return newSchedule;
-            }
-            return [...prev, { date, slots }];
-        });
-    };
-
-    const getGymSchedule = (date) => {
-        return gymAvailability.find(d => d.date === date)?.slots || [];
-    };
-
-    const bookGymSlot = (athleteId, date, slotId) => {
-        // Check if already booked
-        const existingBooking = gymBookings.find(b =>
-            b.athleteId === athleteId && b.date === date && b.status !== 'CANCELLED'
-        );
-        if (existingBooking) return { success: false, message: 'Ya tienes una reserva para este día.' };
-
-        // Check availability
-        const daySchedule = gymAvailability.find(d => d.date === date);
-        const slot = daySchedule?.slots.find(s => s.id === slotId);
-
-        if (!slot || slot.reserved >= slot.capacity) {
-            return { success: false, message: 'Cupos agotados.' };
-        }
-
-        // Create booking
-        const newBooking = {
-            id: Date.now().toString(),
-            athleteId,
-            date,
-            slotId,
-            status: 'CONFIRMED',
-            timestamp: new Date().toISOString()
-        };
-
-        setGymBookings(prev => [...prev, newBooking]);
-
-        // Update slot reserved count
-        setGymAvailability(prev => prev.map(d => {
-            if (d.date !== date) return d;
-            return {
-                ...d,
-                slots: d.slots.map(s => s.id === slotId ? { ...s, reserved: s.reserved + 1 } : s)
-            };
-        }));
-
-        return { success: true, booking: newBooking };
-    };
-
-    const cancelGymBooking = (bookingId) => {
-        const booking = gymBookings.find(b => b.id === bookingId);
-        if (!booking) return;
-
-        setGymBookings(prev => prev.map(b =>
-            b.id === bookingId ? { ...b, status: 'CANCELLED' } : b
-        ));
-
-        // Decrease reserved count
-        setGymAvailability(prev => prev.map(d => {
-            if (d.date !== booking.date) return d;
-            return {
-                ...d,
-                slots: d.slots.map(s => s.id === booking.slotId ? { ...s, reserved: Math.max(0, s.reserved - 1) } : s)
-            };
-        }));
-    };
-
-    const [appointments, setAppointments] = useState([]); // { id, athleteId, date, time, type, status, notes }
-
-    // ... existing gym methods ...
-
-    // Appointment Methods
-    const addAppointment = (appointmentData) => {
-        const newAppointment = {
-            id: Date.now().toString(),
-            status: 'SCHEDULED',
-            ...appointmentData
-        };
-        setAppointments(prev => [...prev, newAppointment]);
-        return { success: true, appointment: newAppointment };
-    };
-
-    const updateAppointmentStatus = (id, status) => {
-        setAppointments(prev => prev.map(a =>
-            a.id === id ? { ...a, status } : a
-        ));
-    };
-
-    const getTrainerAppointments = (date) => {
-        return appointments.filter(a => a.date === date && a.status !== 'CANCELLED');
-    };
-
-    // Appointment Availability
-    const [appointmentAvailability, setAppointmentAvailability] = useState([]); // { date, slots: [{id, start, end}] }
-
-    const updateAppointmentAvailability = (date, slots) => {
-        setAppointmentAvailability(prev => {
-            const existingIndex = prev.findIndex(d => d.date === date);
-            if (existingIndex >= 0) {
-                const newSchedule = [...prev];
-                newSchedule[existingIndex] = { date, slots };
-                return newSchedule;
-            }
-            return [...prev, { date, slots }];
-        });
-    };
-
-    const getAppointmentAvailability = (date) => {
-        return appointmentAvailability.find(d => d.date === date)?.slots || [];
-    };
-
-    const getAthleteAppointments = (athleteId) => {
-        return appointments.filter(a => a.athleteId === athleteId && a.status !== 'CANCELLED');
-    };
-
-    const getPendingClients = () => clients.filter(c => c.status === 'PENDING');
-    const getCompletedClients = () => clients.filter(c => c.status === 'COMPLETED');
-
-    return (
-        <MockDatabaseContext.Provider value={{
-            clients,
-            addClientRequest,
-            updateClientPlan,
-            toggleSessionCompletion,
-            updateSessionNote,
-            getPendingClients,
-            getCompletedClients,
-            gymAvailability,
-            gymBookings,
-            updateGymSchedule,
-            getGymSchedule,
-            bookGymSlot,
-            cancelGymBooking,
-            appointments,
-            addAppointment,
-            updateAppointmentStatus,
-            getTrainerAppointments,
-            getAthleteAppointments,
-            updateAppointmentAvailability,
-            getAppointmentAvailability
-        }}>
-            {children}
-        </MockDatabaseContext.Provider>
+  useEffect(() => {
+    setToStorage(
+      STORAGE_KEYS.APPOINTMENT_AVAILABILITY,
+      appointmentAvailability,
     );
+  }, [appointmentAvailability]);
+
+  useEffect(() => {
+    setToStorage("athleteRequests", athleteRequests);
+  }, [athleteRequests]);
+
+  const addClientRequest = (clientData, trainerId = null) => {
+    const newClient = {
+      id: crypto.randomUUID(),
+      ...clientData,
+      trainerId: trainerId || clientData.trainerId || null,
+      status: "PENDING", // PENDING, ACTIVE, COMPLETED, DELETED
+      submittedAt: new Date().toISOString(),
+      plan: null,
+      planDuration: clientData.planDuration || 4, // weeks
+    };
+    setClients((prev) => [...prev, newClient]);
+    return newClient.id;
+  };
+
+  const updateClientPlan = (clientId, planText, planObject) => {
+    const client = clients.find((c) => c.id === clientId);
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + (client?.planDuration || 4) * 7); // weeks to days
+
+    setClients((prev) =>
+      prev.map((c) =>
+        c.id === clientId
+          ? {
+              ...c,
+              status: "ACTIVE",
+              plan: planText,
+              planObject: planObject,
+              planCreatedAt: new Date().toISOString(),
+              startDate: startDate.toISOString(),
+              endDate: endDate.toISOString(),
+              progress: 0,
+            }
+          : c,
+      ),
+    );
+  };
+
+  const toggleSessionCompletion = (clientId, weekIndex, dayIndex) => {
+    setClients((prev) =>
+      prev.map((client) => {
+        if (client.id !== clientId) return client;
+
+        const newPlanObject = [...client.planObject];
+        const day = newPlanObject[weekIndex].days[dayIndex];
+
+        // Toggle completion status
+        day.completed = !day.completed;
+
+        // Calculate new progress
+        const totalSessions = newPlanObject.reduce(
+          (acc, week) =>
+            acc + week.days.filter((d) => d.sessionType !== "REST").length,
+          0,
+        );
+
+        const completedSessions = newPlanObject.reduce(
+          (acc, week) => acc + week.days.filter((d) => d.completed).length,
+          0,
+        );
+
+        const progress =
+          totalSessions > 0
+            ? Math.round((completedSessions / totalSessions) * 100)
+            : 0;
+
+        return {
+          ...client,
+          planObject: newPlanObject,
+          progress: progress,
+        };
+      }),
+    );
+  };
+
+  const updateSessionNote = (clientId, weekIndex, dayIndex, note) => {
+    setClients((prev) =>
+      prev.map((client) => {
+        if (client.id !== clientId) return client;
+        const newPlanObject = [...client.planObject];
+        newPlanObject[weekIndex].days[dayIndex].note = note;
+        return {
+          ...client,
+          planObject: newPlanObject,
+        };
+      }),
+    );
+  };
+
+  // Gym Methods
+  const updateGymSchedule = (date, slots) => {
+    setGymAvailability((prev) => {
+      const existingIndex = prev.findIndex((d) => d.date === date);
+      if (existingIndex >= 0) {
+        const newSchedule = [...prev];
+        newSchedule[existingIndex] = { date, slots };
+        return newSchedule;
+      }
+      return [...prev, { date, slots }];
+    });
+  };
+
+  const getGymSchedule = (date) => {
+    return gymAvailability.find((d) => d.date === date)?.slots || [];
+  };
+
+  const bookGymSlot = (athleteId, date, slotId) => {
+    // Check if already booked
+    const existingBooking = gymBookings.find(
+      (b) =>
+        b.athleteId === athleteId &&
+        b.date === date &&
+        b.status !== "CANCELLED",
+    );
+    if (existingBooking)
+      return {
+        success: false,
+        message: "Ya tienes una reserva para este día.",
+      };
+
+    // Check availability
+    const daySchedule = gymAvailability.find((d) => d.date === date);
+    const slot = daySchedule?.slots.find((s) => s.id === slotId);
+
+    if (!slot || slot.reserved >= slot.capacity) {
+      return { success: false, message: "Cupos agotados." };
+    }
+
+    // Create booking
+    const newBooking = {
+      id: Date.now().toString(),
+      athleteId,
+      date,
+      slotId,
+      status: "CONFIRMED",
+      timestamp: new Date().toISOString(),
+    };
+
+    setGymBookings((prev) => [...prev, newBooking]);
+
+    // Update slot reserved count
+    setGymAvailability((prev) =>
+      prev.map((d) => {
+        if (d.date !== date) return d;
+        return {
+          ...d,
+          slots: d.slots.map((s) =>
+            s.id === slotId ? { ...s, reserved: s.reserved + 1 } : s,
+          ),
+        };
+      }),
+    );
+
+    return { success: true, booking: newBooking };
+  };
+
+  const cancelGymBooking = (bookingId) => {
+    const booking = gymBookings.find((b) => b.id === bookingId);
+    if (!booking) return;
+
+    setGymBookings((prev) =>
+      prev.map((b) => (b.id === bookingId ? { ...b, status: "CANCELLED" } : b)),
+    );
+
+    // Decrease reserved count
+    setGymAvailability((prev) =>
+      prev.map((d) => {
+        if (d.date !== booking.date) return d;
+        return {
+          ...d,
+          slots: d.slots.map((s) =>
+            s.id === booking.slotId
+              ? { ...s, reserved: Math.max(0, s.reserved - 1) }
+              : s,
+          ),
+        };
+      }),
+    );
+  };
+
+  // Appointment Methods
+  const addAppointment = (appointmentData) => {
+    const newAppointment = {
+      id: Date.now().toString(),
+      status: "SCHEDULED",
+      ...appointmentData,
+    };
+    setAppointments((prev) => [...prev, newAppointment]);
+    return { success: true, appointment: newAppointment };
+  };
+
+  const updateAppointmentStatus = (id, status) => {
+    setAppointments((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, status } : a)),
+    );
+  };
+
+  const getTrainerAppointments = (date) => {
+    return appointments.filter(
+      (a) => a.date === date && a.status !== "CANCELLED",
+    );
+  };
+
+  // Appointment Availability Management
+  const updateAppointmentAvailability = (date, slots) => {
+    setAppointmentAvailability((prev) => {
+      const existingIndex = prev.findIndex((d) => d.date === date);
+      if (existingIndex >= 0) {
+        const newSchedule = [...prev];
+        newSchedule[existingIndex] = { date, slots };
+        return newSchedule;
+      }
+      return [...prev, { date, slots }];
+    });
+  };
+
+  const getAppointmentAvailability = (date) => {
+    return appointmentAvailability.find((d) => d.date === date)?.slots || [];
+  };
+
+  const getAthleteAppointments = (athleteId) => {
+    return appointments.filter(
+      (a) => a.athleteId === athleteId && a.status !== "CANCELLED",
+    );
+  };
+
+  const getPendingClients = (trainerId = null) => {
+    if (trainerId) {
+      return clients.filter(
+        (c) => c.status === "PENDING" && c.trainerId === trainerId,
+      );
+    }
+    return clients.filter((c) => c.status === "PENDING");
+  };
+
+  const getCompletedClients = (trainerId = null) => {
+    if (trainerId) {
+      return clients.filter(
+        (c) => c.status === "COMPLETED" && c.trainerId === trainerId,
+      );
+    }
+    return clients.filter((c) => c.status === "COMPLETED");
+  };
+
+  /**
+   * Get all active plans (within date range)
+   * @param {string|null} trainerId - Filter by trainer ID (optional)
+   * @param {string|null} athleteId - Filter by athlete ID (optional)
+   */
+  const getActivePlans = (trainerId = null, athleteId = null) => {
+    const now = new Date();
+    return clients.filter((c) => {
+      if (c.status !== "ACTIVE" || !c.planObject) return false;
+      if (!c.startDate || !c.endDate) return true; // legacy plans
+
+      // Filter by trainerId if provided
+      if (trainerId && c.trainerId !== trainerId) return false;
+
+      // Filter by athleteId if provided
+      if (athleteId && c.id !== athleteId) return false;
+
+      const startDate = new Date(c.startDate);
+      const endDate = new Date(c.endDate);
+      return now >= startDate && now <= endDate;
+    });
+  };
+
+  /**
+   * Get all completed plans
+   * @param {string|null} trainerId - Filter by trainer ID (optional)
+   */
+  const getCompletedPlans = (trainerId = null) => {
+    if (trainerId) {
+      return clients.filter(
+        (c) =>
+          c.status === "COMPLETED" && c.planObject && c.trainerId === trainerId,
+      );
+    }
+    return clients.filter((c) => c.status === "COMPLETED" && c.planObject);
+  };
+
+  /**
+   * Get athlete bookings by athleteId
+   */
+  const getAthleteGymBookings = (athleteId) => {
+    return gymBookings.filter(
+      (b) => b.athleteId === athleteId && b.status !== "CANCELLED",
+    );
+  };
+
+  /**
+   * Delete a plan (mark as deleted)
+   */
+  const deletePlan = (clientId) => {
+    setClients((prev) =>
+      prev.map((c) =>
+        c.id === clientId
+          ? {
+              ...c,
+              status: "DELETED",
+              deletedAt: new Date().toISOString(),
+            }
+          : c,
+      ),
+    );
+  };
+
+  /**
+   * Complete a plan manually
+   */
+  const completePlan = (clientId) => {
+    setClients((prev) =>
+      prev.map((c) =>
+        c.id === clientId
+          ? {
+              ...c,
+              status: "COMPLETED",
+              completedAt: new Date().toISOString(),
+            }
+          : c,
+      ),
+    );
+  };
+
+  /**
+   * Auto-complete expired plans
+   */
+  const autoCompletePlans = () => {
+    const now = new Date();
+    setClients((prev) =>
+      prev.map((c) => {
+        if (c.status === "ACTIVE" && c.endDate) {
+          const endDate = new Date(c.endDate);
+          if (now > endDate) {
+            return {
+              ...c,
+              status: "COMPLETED",
+              completedAt: now.toISOString(),
+            };
+          }
+        }
+        return c;
+      }),
+    );
+  };
+
+  // ===== SISTEMA DE SOLICITUDES ATLETA-ENTRENADOR =====
+
+  /**
+   * Obtener todos los entrenadores disponibles
+   */
+  const getAllTrainers = () => {
+    const users = getFromStorage("users", []);
+    return users
+      .filter((u) => u.role === "TRAINER")
+      .map((trainer) => ({
+        id: trainer.id,
+        name: trainer.name,
+        email: trainer.email,
+        code: trainer.id.substring(0, 8).toUpperCase(), // Código único
+      }));
+  };
+
+  /**
+   * Enviar solicitud de atleta a entrenador
+   */
+  const sendTrainerRequest = (athleteId, trainerId, message = "") => {
+    const users = getFromStorage("users", []);
+    const athlete = users.find((u) => u.id === athleteId);
+    const trainer = users.find((u) => u.id === trainerId);
+
+    if (!athlete || !trainer) {
+      return { success: false, message: "Usuario no encontrado" };
+    }
+
+    // Verificar si ya tiene una solicitud pendiente o aceptada
+    const existing = athleteRequests.find(
+      (r) =>
+        r.athleteId === athleteId &&
+        r.trainerId === trainerId &&
+        (r.status === "PENDING" || r.status === "ACCEPTED"),
+    );
+
+    if (existing) {
+      return {
+        success: false,
+        message:
+          existing.status === "ACCEPTED"
+            ? "Ya estás vinculado con este entrenador"
+            : "Ya tienes una solicitud pendiente con este entrenador",
+      };
+    }
+
+    const newRequest = {
+      id: crypto.randomUUID(),
+      athleteId,
+      trainerId,
+      athleteName: athlete.name,
+      athleteEmail: athlete.email,
+      trainerName: trainer.name,
+      message,
+      status: "PENDING", // PENDING, ACCEPTED, REJECTED
+      createdAt: new Date().toISOString(),
+    };
+
+    setAthleteRequests((prev) => [...prev, newRequest]);
+    return { success: true, request: newRequest };
+  };
+
+  /**
+   * Obtener solicitudes pendientes de un entrenador
+   */
+  const getTrainerRequests = (trainerId, status = "PENDING") => {
+    return athleteRequests.filter(
+      (r) => r.trainerId === trainerId && r.status === status,
+    );
+  };
+
+  /**
+   * Aceptar solicitud de atleta
+   */
+  const acceptTrainerRequest = (requestId) => {
+    setAthleteRequests((prev) =>
+      prev.map((r) =>
+        r.id === requestId
+          ? {
+              ...r,
+              status: "ACCEPTED",
+              acceptedAt: new Date().toISOString(),
+            }
+          : r,
+      ),
+    );
+  };
+
+  /**
+   * Rechazar solicitud de atleta
+   */
+  const rejectTrainerRequest = (requestId) => {
+    setAthleteRequests((prev) =>
+      prev.map((r) =>
+        r.id === requestId
+          ? {
+              ...r,
+              status: "REJECTED",
+              rejectedAt: new Date().toISOString(),
+            }
+          : r,
+      ),
+    );
+  };
+
+  /**
+   * Obtener atletas aceptados de un entrenador
+   */
+  const getTrainerAthletes = (trainerId) => {
+    return athleteRequests.filter(
+      (r) => r.trainerId === trainerId && r.status === "ACCEPTED",
+    );
+  };
+
+  /**
+   * Quitar un atleta (el entrenador lo remueve)
+   */
+  const removeAthlete = (trainerId, athleteId) => {
+    setAthleteRequests((prev) =>
+      prev.map((r) =>
+        r.trainerId === trainerId &&
+        r.athleteId === athleteId &&
+        r.status === "ACCEPTED"
+          ? {
+              ...r,
+              status: "REMOVED",
+              removedAt: new Date().toISOString(),
+            }
+          : r,
+      ),
+    );
+  };
+
+  /**
+   * Obtener el entrenador asignado de un atleta
+   */
+  const getAthleteTrainer = (athleteId) => {
+    const accepted = athleteRequests.find(
+      (r) => r.athleteId === athleteId && r.status === "ACCEPTED",
+    );
+
+    if (!accepted) return null;
+
+    return {
+      id: accepted.trainerId,
+      name: accepted.trainerName,
+      requestId: accepted.id,
+    };
+  };
+
+  /**
+   * Obtener solicitud pendiente de un atleta
+   */
+  const getAthletePendingRequest = (athleteId) => {
+    return athleteRequests.find(
+      (r) => r.athleteId === athleteId && r.status === "PENDING",
+    );
+  };
+
+  return (
+    <MockDatabaseContext.Provider
+      value={{
+        clients,
+        addClientRequest,
+        updateClientPlan,
+        toggleSessionCompletion,
+        updateSessionNote,
+        getPendingClients,
+        getCompletedClients,
+        getActivePlans,
+        gymAvailability,
+        gymBookings,
+        updateGymSchedule,
+        getGymSchedule,
+        bookGymSlot,
+        cancelGymBooking,
+        getAthleteGymBookings,
+        appointments,
+        addAppointment,
+        updateAppointmentStatus,
+        getTrainerAppointments,
+        getAthleteAppointments,
+        updateAppointmentAvailability,
+        getAppointmentAvailability,
+        deletePlan,
+        completePlan,
+        autoCompletePlans,
+        getCompletedPlans,
+        // Sistema de solicitudes atleta-entrenador
+        athleteRequests,
+        getAllTrainers,
+        sendTrainerRequest,
+        getTrainerRequests,
+        acceptTrainerRequest,
+        rejectTrainerRequest,
+        getTrainerAthletes,
+        removeAthlete,
+        getAthleteTrainer,
+        getAthletePendingRequest,
+      }}
+    >
+      {children}
+    </MockDatabaseContext.Provider>
+  );
 };

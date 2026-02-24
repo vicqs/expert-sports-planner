@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reset Admin - Expert Sports Planner</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+          Cantarell, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+
+      .container {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        max-width: 600px;
+        width: 100%;
+        padding: 40px;
+      }
+
+      h1 {
+        color: #1a202c;
+        margin-bottom: 10px;
+        font-size: 28px;
+      }
+
+      .subtitle {
+        color: #718096;
+        margin-bottom: 30px;
+        font-size: 14px;
+      }
+
+      .info-box {
+        background: #f7fafc;
+        border-left: 4px solid #4299e1;
+        padding: 16px;
+        margin-bottom: 24px;
+        border-radius: 4px;
+      }
+
+      .info-box h3 {
+        color: #2d3748;
+        margin-bottom: 8px;
+        font-size: 16px;
+      }
+
+      .info-box p {
+        color: #4a5568;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+
+      .warning-box {
+        background: #fffaf0;
+        border-left: 4px solid #ed8936;
+        padding: 16px;
+        margin-bottom: 24px;
+        border-radius: 4px;
+      }
+
+      .warning-box h3 {
+        color: #c05621;
+        margin-bottom: 8px;
+        font-size: 16px;
+      }
+
+      .warning-box p {
+        color: #744210;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+
+      .status {
+        background: #edf2f7;
+        padding: 16px;
+        border-radius: 8px;
+        margin-bottom: 24px;
+      }
+
+      .status-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid #cbd5e0;
+      }
+
+      .status-item:last-child {
+        border-bottom: none;
+      }
+
+      .status-label {
+        color: #4a5568;
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      .status-value {
+        color: #2d3748;
+        font-size: 14px;
+        font-family: "Courier New", monospace;
+      }
+
+      .button-group {
+        display: grid;
+        gap: 12px;
+        margin-top: 24px;
+      }
+
+      button {
+        padding: 14px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .btn-danger {
+        background: #f56565;
+        color: white;
+      }
+
+      .btn-danger:hover {
+        background: #e53e3e;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(245, 101, 101, 0.4);
+      }
+
+      .btn-secondary {
+        background: #4299e1;
+        color: white;
+      }
+
+      .btn-secondary:hover {
+        background: #3182ce;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(66, 153, 225, 0.4);
+      }
+
+      .btn-success {
+        background: #48bb78;
+        color: white;
+      }
+
+      .btn-success:hover {
+        background: #38a169;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
+      }
+
+      .log {
+        background: #1a202c;
+        color: #48bb78;
+        padding: 16px;
+        border-radius: 8px;
+        font-family: "Courier New", monospace;
+        font-size: 13px;
+        max-height: 200px;
+        overflow-y: auto;
+        margin-top: 20px;
+        display: none;
+      }
+
+      .log.show {
+        display: block;
+      }
+
+      .log-line {
+        margin: 4px 0;
+      }
+
+      .log-error {
+        color: #fc8181;
+      }
+
+      .log-success {
+        color: #68d391;
+      }
+
+      .log-info {
+        color: #63b3ed;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🔧 Reset Super Admin</h1>
+      <p class="subtitle">
+        Herramienta de mantenimiento para Expert Sports Planner
+      </p>
+
+      <div class="info-box">
+        <h3>ℹ️ ¿Cuándo usar esta herramienta?</h3>
+        <p>
+          Usa esta página si cambiaste las credenciales del administrador en
+          <code>.env.local</code>
+          y el login no funciona. Esta herramienta actualizará o recreará el
+          super admin con las nuevas credenciales.
+        </p>
+      </div>
+
+      <div class="warning-box">
+        <h3>⚠️ Advertencia</h3>
+        <p>
+          Estas acciones modificarán o eliminarán datos de localStorage.
+          Asegúrate de entender lo que hace cada botón antes de usarlo.
+        </p>
+      </div>
+
+      <div class="status">
+        <h3 style="color: #2d3748; margin-bottom: 12px; font-size: 16px">
+          Estado Actual
+        </h3>
+        <div class="status-item">
+          <span class="status-label">Usuarios registrados:</span>
+          <span class="status-value" id="userCount">Cargando...</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Super Admin existe:</span>
+          <span class="status-value" id="adminExists">Cargando...</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Email del Admin:</span>
+          <span class="status-value" id="adminEmail">Cargando...</span>
+        </div>
+      </div>
+
+      <div class="button-group">
+        <button class="btn-success" onclick="checkStatus()">
+          🔄 Actualizar Estado
+        </button>
+        <button class="btn-secondary" onclick="updateAdmin()">
+          🔧 Actualizar Credenciales del Admin
+        </button>
+        <button class="btn-danger" onclick="resetAdmin()">
+          🗑️ Eliminar Admin (se recreará al recargar)
+        </button>
+        <button class="btn-danger" onclick="clearAll()">
+          ⚠️ Limpiar Todo localStorage (PELIGRO)
+        </button>
+      </div>
+
+      <div class="log" id="log"></div>
+    </div>
+
+    <script>
+      const log = document.getElementById("log");
+
+      function addLog(message, type = "info") {
+        const line = document.createElement("div");
+        line.className = `log-line log-${type}`;
+        line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+        log.appendChild(line);
+        log.classList.add("show");
+        log.scrollTop = log.scrollHeight;
+      }
+
+      function simpleHash(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+          const char = str.charCodeAt(i);
+          hash = (hash << 5) - hash + char;
+          hash = hash & hash;
+        }
+        return hash.toString(36);
+      }
+
+      function checkStatus() {
+        try {
+          const usersStr = localStorage.getItem("users");
+          const users = usersStr ? JSON.parse(usersStr) : [];
+
+          const admin = users.find(
+            (u) => u.id === "admin-super-user" || u.role === "ADMIN",
+          );
+
+          document.getElementById("userCount").textContent = users.length;
+          document.getElementById("adminExists").textContent = admin
+            ? "✅ Sí"
+            : "❌ No";
+          document.getElementById("adminEmail").textContent =
+            admin?.email || "N/A";
+
+          addLog(
+            `Estado verificado: ${users.length} usuarios, Admin: ${admin ? "existe" : "no existe"}`,
+            "info",
+          );
+        } catch (error) {
+          addLog(`Error al verificar estado: ${error.message}`, "error");
+        }
+      }
+
+      function updateAdmin() {
+        try {
+          const usersStr = localStorage.getItem("users");
+          let users = usersStr ? JSON.parse(usersStr) : [];
+
+          const adminIndex = users.findIndex(
+            (u) => u.id === "admin-super-user" || u.role === "ADMIN",
+          );
+
+          // ⚠️ IMPORTANTE: Ingresa las credenciales de tu .env.local
+          // NO hardcodear credenciales en este archivo
+          const adminEmail = prompt(
+            "Ingresa el email del administrador:",
+            "admin@admin.com",
+          );
+          if (!adminEmail) {
+            addLog("❌ Operación cancelada: No se ingresó email", "error");
+            return;
+          }
+
+          const adminPassword = prompt("Ingresa la contraseña del .env.local:");
+          if (!adminPassword) {
+            addLog("❌ Operación cancelada: No se ingresó contraseña", "error");
+            return;
+          }
+
+          const adminName =
+            prompt("Ingresa el nombre del administrador:", "Administrador") ||
+            "Administrador";
+
+          const passwordHash = simpleHash(adminPassword);
+
+          if (adminIndex !== -1) {
+            users[adminIndex] = {
+              ...users[adminIndex],
+              email: adminEmail,
+              passwordHash: passwordHash,
+              name: adminName,
+            };
+
+            localStorage.setItem("users", JSON.stringify(users));
+            addLog(
+              "✅ Credenciales del admin actualizadas correctamente",
+              "success",
+            );
+            addLog(`   Email: ${adminEmail}`, "success");
+            addLog(`   Password hash: ${passwordHash}`, "info");
+          } else {
+            addLog(
+              '❌ No se encontró el admin. Usa "Eliminar Admin" y recarga la app.',
+              "error",
+            );
+          }
+
+          checkStatus();
+        } catch (error) {
+          addLog(`Error al actualizar admin: ${error.message}`, "error");
+        }
+      }
+
+      function resetAdmin() {
+        if (
+          !confirm(
+            "¿Estás seguro de eliminar el super admin? Se recreará al recargar la aplicación.",
+          )
+        ) {
+          return;
+        }
+
+        try {
+          const usersStr = localStorage.getItem("users");
+          let users = usersStr ? JSON.parse(usersStr) : [];
+
+          const beforeCount = users.length;
+          users = users.filter(
+            (u) => u.id !== "admin-super-user" && u.role !== "ADMIN",
+          );
+          const afterCount = users.length;
+
+          localStorage.setItem("users", JSON.stringify(users));
+
+          addLog(
+            `✅ Admin eliminado (${beforeCount - afterCount} usuario eliminado)`,
+            "success",
+          );
+          addLog(
+            "ℹ️  Recarga la aplicación principal para recrear el admin",
+            "info",
+          );
+
+          checkStatus();
+        } catch (error) {
+          addLog(`Error al resetear admin: ${error.message}`, "error");
+        }
+      }
+
+      function clearAll() {
+        if (
+          !confirm(
+            "⚠️ PELIGRO: Esto eliminará TODOS los datos de localStorage. ¿Estás absolutamente seguro?",
+          )
+        ) {
+          return;
+        }
+
+        if (
+          !confirm(
+            "Última advertencia: Se perderán usuarios, planes, reservas, etc. ¿Continuar?",
+          )
+        ) {
+          return;
+        }
+
+        try {
+          const keys = Object.keys(localStorage);
+          keys.forEach((key) => {
+            addLog(`Eliminando: ${key}`, "info");
+          });
+
+          localStorage.clear();
+
+          addLog("✅ localStorage completamente limpiado", "success");
+          addLog(
+            "ℹ️  Recarga la aplicación para inicializar desde cero",
+            "info",
+          );
+
+          checkStatus();
+        } catch (error) {
+          addLog(`Error al limpiar localStorage: ${error.message}`, "error");
+        }
+      }
+
+      // Cargar estado inicial
+      window.addEventListener("load", checkStatus);
+    </script>
+  </body>
+</html>

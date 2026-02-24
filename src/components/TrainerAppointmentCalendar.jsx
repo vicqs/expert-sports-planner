@@ -1,181 +1,226 @@
-import React, { useState } from 'react';
-import { useMockDatabase } from '../context/MockDatabase';
-import { Card, Button } from './ui';
-import { Calendar, Clock, User, CheckCircle, XCircle } from 'lucide-react';
+import React, { useState } from "react";
+import { useMockDatabase } from "../context/MockDatabase";
+import { Card, Button, useToast } from "./ui";
+import { Calendar, Clock, User, CheckCircle, XCircle } from "lucide-react";
 
 const TrainerAppointmentCalendar = () => {
-    const { getTrainerAppointments, updateAppointmentStatus, updateAppointmentAvailability, getAppointmentAvailability } = useMockDatabase();
-    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-    const [view, setView] = useState('appointments'); // 'appointments' | 'availability'
-    const [availSlots, setAvailSlots] = useState([]);
+  const {
+    getTrainerAppointments,
+    updateAppointmentStatus,
+    updateAppointmentAvailability,
+    getAppointmentAvailability,
+  } = useMockDatabase();
+  const { addToast } = useToast();
+  const [selectedDate, setSelectedDate] = useState(
+    new Date().toISOString().split("T")[0],
+  );
+  const [view, setView] = useState("appointments"); // 'appointments' | 'availability'
+  const [availSlots, setAvailSlots] = useState([]);
 
-    // Load availability when date changes or view changes
-    React.useEffect(() => {
-        if (view === 'availability') {
-            const slots = getAppointmentAvailability(selectedDate);
-            setAvailSlots(slots.length > 0 ? slots : []);
-        }
-    }, [selectedDate, view, getAppointmentAvailability]);
+  // Load availability when date changes or view changes
+  React.useEffect(() => {
+    if (view === "availability") {
+      const slots = getAppointmentAvailability(selectedDate);
+      setAvailSlots(slots.length > 0 ? slots : []);
+    }
+  }, [selectedDate, view, getAppointmentAvailability]);
 
-    // In a real app, we'd fetch for a range or the selected date
-    // For this mock, we'll filter all appointments by date
-    const appointments = getTrainerAppointments(selectedDate);
+  // In a real app, we'd fetch for a range or the selected date
+  // For this mock, we'll filter all appointments by date
+  const appointments = getTrainerAppointments(selectedDate);
 
-    const handleStatusChange = (id, status) => {
-        updateAppointmentStatus(id, status);
+  const handleStatusChange = (id, status) => {
+    updateAppointmentStatus(id, status);
+  };
+
+  const handleAddSlot = () => {
+    let newStart = "09:00";
+    let newEnd = "10:00";
+
+    // Si ya hay bloques, calcular la siguiente hora basándose en el último
+    if (availSlots.length > 0) {
+      const lastSlot = availSlots[availSlots.length - 1];
+      const [hours, minutes] = lastSlot.end.split(":").map(Number);
+      newStart = lastSlot.end; // Empieza donde termina el último
+      // Agregar 1 hora
+      const nextHour = hours + 1;
+      newEnd = `${String(nextHour).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+    }
+
+    const newSlot = {
+      id: Date.now().toString(),
+      start: newStart,
+      end: newEnd,
     };
+    setAvailSlots([...availSlots, newSlot]);
+  };
 
-    const handleAddSlot = () => {
-        const newSlot = {
-            id: Date.now().toString(),
-            start: '09:00',
-            end: '10:00'
-        };
-        setAvailSlots([...availSlots, newSlot]);
-    };
+  const handleUpdateSlot = (id, field, value) => {
+    setAvailSlots(
+      availSlots.map((s) => (s.id === id ? { ...s, [field]: value } : s)),
+    );
+  };
 
-    const handleUpdateSlot = (id, field, value) => {
-        setAvailSlots(availSlots.map(s => s.id === id ? { ...s, [field]: value } : s));
-    };
+  const handleDeleteSlot = (id) => {
+    setAvailSlots(availSlots.filter((s) => s.id !== id));
+  };
 
-    const handleDeleteSlot = (id) => {
-        setAvailSlots(availSlots.filter(s => s.id !== id));
-    };
+  const handleSaveAvailability = () => {
+    updateAppointmentAvailability(selectedDate, availSlots);
+    addToast("Disponibilidad guardada correctamente", "success");
+  };
 
-    const handleSaveAvailability = () => {
-        updateAppointmentAvailability(selectedDate, availSlots);
-        alert('Disponibilidad guardada correctamente'); // Will replace with Toast later if context allows
-    };
+  return (
+    <div className="trainer-calendar">
+      <div className="calendar-header">
+        <h2>
+          {view === "appointments"
+            ? "Calendario de Citas"
+            : "Configurar Disponibilidad"}
+        </h2>
+        <div className="header-controls">
+          <div className="date-selector">
+            <label>Fecha:</label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="date-input"
+            />
+          </div>
+          <div className="view-toggle">
+            <Button
+              variant={view === "appointments" ? "primary" : "ghost"}
+              size="sm"
+              onClick={() => setView("appointments")}
+            >
+              Citas
+            </Button>
+            <Button
+              variant={view === "availability" ? "primary" : "ghost"}
+              size="sm"
+              onClick={() => setView("availability")}
+            >
+              Disponibilidad
+            </Button>
+          </div>
+        </div>
+      </div>
 
-    return (
-        <div className="trainer-calendar">
-            <div className="calendar-header">
-                <h2>{view === 'appointments' ? 'Calendario de Citas' : 'Configurar Disponibilidad'}</h2>
-                <div className="header-controls">
-                    <div className="date-selector">
-                        <label>Fecha:</label>
-                        <input
-                            type="date"
-                            value={selectedDate}
-                            onChange={(e) => setSelectedDate(e.target.value)}
-                            className="date-input"
-                        />
+      {view === "appointments" ? (
+        <div className="appointments-section">
+          {appointments.length === 0 ? (
+            <Card className="empty-state">
+              <p>No hay citas programadas para este día.</p>
+            </Card>
+          ) : (
+            <div className="appointments-list">
+              {appointments.map((app) => (
+                <Card key={app.id} className="appointment-card-trainer">
+                  <div className="app-time">
+                    <Clock size={16} />
+                    <span>{app.time}</span>
+                    <span className="duration">({app.duration} min)</span>
+                  </div>
+                  <div className="app-info">
+                    <h4>{app.typeName}</h4>
+                    <div className="athlete-info">
+                      <User size={14} />
+                      <span>Atleta ID: {app.athleteId}</span>
+                      {/* In real app, we'd join with user table to get name */}
                     </div>
-                    <div className="view-toggle">
+                    {app.notes && <p className="notes">"{app.notes}"</p>}
+                  </div>
+                  <div className="app-actions">
+                    {app.status === "SCHEDULED" && (
+                      <>
                         <Button
-                            variant={view === 'appointments' ? 'primary' : 'ghost'}
-                            size="sm"
-                            onClick={() => setView('appointments')}
+                          variant="ghost"
+                          size="sm"
+                          className="action-btn success"
+                          onClick={() =>
+                            handleStatusChange(app.id, "COMPLETED")
+                          }
                         >
-                            Citas
+                          <CheckCircle size={18} />
                         </Button>
                         <Button
-                            variant={view === 'availability' ? 'primary' : 'ghost'}
-                            size="sm"
-                            onClick={() => setView('availability')}
+                          variant="ghost"
+                          size="sm"
+                          className="action-btn danger"
+                          onClick={() =>
+                            handleStatusChange(app.id, "CANCELLED")
+                          }
                         >
-                            Disponibilidad
+                          <XCircle size={18} />
                         </Button>
-                    </div>
-                </div>
-            </div>
-
-            {view === 'appointments' ? (
-                <div className="appointments-section">
-                    {appointments.length === 0 ? (
-                        <Card className="empty-state">
-                            <p>No hay citas programadas para este día.</p>
-                        </Card>
-                    ) : (
-                        <div className="appointments-list">
-                            {appointments.map(app => (
-                                <Card key={app.id} className="appointment-card-trainer">
-                                    <div className="app-time">
-                                        <Clock size={16} />
-                                        <span>{app.time}</span>
-                                        <span className="duration">({app.duration} min)</span>
-                                    </div>
-                                    <div className="app-info">
-                                        <h4>{app.typeName}</h4>
-                                        <div className="athlete-info">
-                                            <User size={14} />
-                                            <span>Atleta ID: {app.athleteId}</span>
-                                            {/* In real app, we'd join with user table to get name */}
-                                        </div>
-                                        {app.notes && (
-                                            <p className="notes">"{app.notes}"</p>
-                                        )}
-                                    </div>
-                                    <div className="app-actions">
-                                        {app.status === 'SCHEDULED' && (
-                                            <>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="action-btn success"
-                                                    onClick={() => handleStatusChange(app.id, 'COMPLETED')}
-                                                >
-                                                    <CheckCircle size={18} />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="action-btn danger"
-                                                    onClick={() => handleStatusChange(app.id, 'CANCELLED')}
-                                                >
-                                                    <XCircle size={18} />
-                                                </Button>
-                                            </>
-                                        )}
-                                        {app.status === 'COMPLETED' && (
-                                            <span className="badge badge-success">Completada</span>
-                                        )}
-                                    </div>
-                                </Card>
-                            ))}
-                        </div>
+                      </>
                     )}
+                    {app.status === "COMPLETED" && (
+                      <span className="badge badge-success">Completada</span>
+                    )}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="availability-section">
+          <Card className="availability-card">
+            <div className="slots-list">
+              {availSlots.length === 0 && (
+                <p className="empty-text">
+                  No hay horarios definidos. Agrega bloques de tiempo
+                  disponibles.
+                </p>
+              )}
+              {availSlots.map((slot, index) => (
+                <div key={slot.id} className="slot-item">
+                  <span className="slot-label">Bloque {index + 1}</span>
+                  <input
+                    type="time"
+                    value={slot.start}
+                    onChange={(e) =>
+                      handleUpdateSlot(slot.id, "start", e.target.value)
+                    }
+                    className="time-input"
+                  />
+                  <span>-</span>
+                  <input
+                    type="time"
+                    value={slot.end}
+                    onChange={(e) =>
+                      handleUpdateSlot(slot.id, "end", e.target.value)
+                    }
+                    className="time-input"
+                  />
+                  <button
+                    className="delete-btn"
+                    onClick={() => handleDeleteSlot(slot.id)}
+                  >
+                    ×
+                  </button>
                 </div>
-            ) : (
-                <div className="availability-section">
-                    <Card className="availability-card">
-                        <div className="slots-list">
-                            {availSlots.length === 0 && (
-                                <p className="empty-text">No hay horarios definidos. Agrega bloques de tiempo disponibles.</p>
-                            )}
-                            {availSlots.map((slot, index) => (
-                                <div key={slot.id} className="slot-item">
-                                    <span className="slot-label">Bloque {index + 1}</span>
-                                    <input
-                                        type="time"
-                                        value={slot.start}
-                                        onChange={(e) => handleUpdateSlot(slot.id, 'start', e.target.value)}
-                                        className="time-input"
-                                    />
-                                    <span>-</span>
-                                    <input
-                                        type="time"
-                                        value={slot.end}
-                                        onChange={(e) => handleUpdateSlot(slot.id, 'end', e.target.value)}
-                                        className="time-input"
-                                    />
-                                    <button className="delete-btn" onClick={() => handleDeleteSlot(slot.id)}>×</button>
-                                </div>
-                            ))}
-                        </div>
-                        <div className="avail-actions">
-                            <Button variant="secondary" size="sm" onClick={handleAddSlot}>
-                                + Agregar Bloque
-                            </Button>
-                            <Button variant="primary" size="sm" onClick={handleSaveAvailability}>
-                                Guardar Disponibilidad
-                            </Button>
-                        </div>
-                    </Card>
-                </div>
-            )}
+              ))}
+            </div>
+            <div className="avail-actions">
+              <Button variant="secondary" size="sm" onClick={handleAddSlot}>
+                + Agregar Bloque
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleSaveAvailability}
+              >
+                Guardar Disponibilidad
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
 
-            <style>{`
+      <style>{`
                 .trainer-calendar {
                     padding: 1rem;
                 }
@@ -301,8 +346,8 @@ const TrainerAppointmentCalendar = () => {
                     padding-top: 1rem;
                 }
             `}</style>
-        </div>
-    );
+    </div>
+  );
 };
 
 export default TrainerAppointmentCalendar;

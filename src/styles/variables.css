@@ -2,48 +2,35 @@
   /* ===== Color Palette 2025 ===== */
 
   /* Primary Gradient: Purple → Blue */
-  --color-primary-purple: #8B5CF6;
-  --color-primary-blue: #3B82F6;
+  --color-primary-purple: #8b5cf6;
+  --color-primary-blue: #3b82f6;
   --color-primary: var(--color-primary-blue);
-  --color-primary-hover: #2563EB;
-  --color-primary-gradient: linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%);
+  --color-primary-hover: #2563eb;
+  --color-primary-gradient: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
+  --color-primary-glow: rgba(59, 130, 246, 0.4);
+  --color-primary-bg: rgba(59, 130, 246, 0.1);
 
   /* Neon Accents */
-  --color-accent-lime: #84CC16;
-  --color-accent-cyan: #22D3EE;
+  --color-accent-lime: #84cc16;
+  --color-accent-cyan: #22d3ee;
   --color-accent: var(--color-accent-lime);
-
-  /* Dark Mode (Default) */
-  --color-bg: #0F172A;
-  --color-bg-subtle: #1E293B;
-  --color-bg-elevated: #334155;
-  --color-surface: #1E293B;
-  --color-surface-hover: #334155;
-  --color-surface-glass: rgba(30, 41, 59, 0.7);
-
-  /* Text Colors */
-  --color-text: #F1F5F9;
-  --color-text-muted: #94A3B8;
-  --color-text-subtle: #64748B;
-
-  /* Borders */
-  --color-border: #334155;
-  --color-border-hover: #475569;
-  --color-border-subtle: #1E293B;
+  --color-accent-bg: rgba(132, 204, 22, 0.1);
 
   /* Feedback Colors */
-  --color-success: #10B981;
+  --color-success: #10b981;
   --color-success-bg: rgba(16, 185, 129, 0.1);
-  --color-warning: #F59E0B;
+  --color-warning: #f59e0b;
   --color-warning-bg: rgba(245, 158, 11, 0.1);
-  --color-error: #EF4444;
+  --color-error: #ef4444;
   --color-error-bg: rgba(239, 68, 68, 0.1);
-  --color-info: #3B82F6;
+  --color-info: #3b82f6;
   --color-info-bg: rgba(59, 130, 246, 0.1);
 
   /* ===== Typography ===== */
-  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  --font-sans:
+    "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", "Consolas", monospace;
 
   /* Font Sizes - Mobile-First */
   --text-xs: 0.75rem;
@@ -110,9 +97,12 @@
 
   /* ===== Shadows (Elevated UI) ===== */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+  --shadow-md:
+    0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+  --shadow-lg:
+    0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+  --shadow-xl:
+    0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
   --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
   --shadow-glow: 0 0 20px rgba(139, 92, 246, 0.4);
   --shadow-glow-accent: 0 0 20px rgba(132, 204, 22, 0.4);
@@ -138,26 +128,82 @@
   --z-tooltip: 1600;
 }
 
-/* Light Theme (Optional) */
+/* ===== DARK THEME (Default) ===== */
+:root,
+[data-theme="dark"] {
+  --color-bg: #0f172a;
+  --color-bg-subtle: #1e293b;
+  --color-bg-elevated: #334155;
+  --color-bg-primary: #0f172a;
+  --color-bg-secondary: #1e293b;
+
+  --color-surface: #1e293b;
+  --color-surface-hover: #334155;
+  --color-surface-elevated: #475569;
+  --color-surface-glass: rgba(30, 41, 59, 0.7);
+
+  --color-text: #f1f5f9;
+  --color-text-primary: #f1f5f9;
+  --color-text-secondary: #e2e8f0;
+  --color-text-muted: #94a3b8;
+  --color-text-subtle: #64748b;
+
+  --color-border: #334155;
+  --color-border-hover: #475569;
+  --color-border-subtle: #1e293b;
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md:
+    0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+  --shadow-lg:
+    0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+  --shadow-xl:
+    0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+}
+
+/* ===== LIGHT THEME ===== */
 [data-theme="light"] {
-  --color-bg: #FFFFFF;
-  --color-bg-subtle: #F8FAFC;
-  --color-bg-elevated: #F1F5F9;
-  --color-surface: #FFFFFF;
-  --color-surface-hover: #F8FAFC;
-  --color-surface-glass: rgba(255, 255, 255, 0.8);
+  --color-bg: #ffffff;
+  --color-bg-subtle: #f8fafc;
+  --color-bg-elevated: #f1f5f9;
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f8fafc;
 
-  --color-text: #0F172A;
-  --color-text-muted: #64748B;
-  --color-text-subtle: #94A3B8;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f8fafc;
+  --color-surface-elevated: #f1f5f9;
+  --color-surface-glass: rgba(255, 255, 255, 0.85);
 
-  --color-border: #E2E8F0;
-  --color-border-hover: #CBD5E1;
-  --color-border-subtle: #F1F5F9;
+  --color-text: #0f172a;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #1e293b;
+  --color-text-muted: #64748b;
+  --color-text-subtle: #94a3b8;
+
+  --color-border: #e2e8f0;
+  --color-border-hover: #cbd5e1;
+  --color-border-subtle: #f1f5f9;
 
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  --shadow-md:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-lg:
+    0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  --shadow-xl:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
   --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+/* Smooth theme transitions */
+:root {
+  color-scheme: light dark;
+}
+
+* {
+  transition:
+    background-color var(--transition-normal),
+    color var(--transition-normal),
+    border-color var(--transition-normal),
+    box-shadow var(--transition-normal);
 }
