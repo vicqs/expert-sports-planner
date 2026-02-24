@@ -1,0 +1,17 @@
+{
+    "name": "AntiGravity - Expert Sports Planner",
+    "short_name": "AntiGravity",
+    "description": "Sistema experto de planificación deportiva para atletas y entrenadores",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0F172A",
+    "theme_color": "#8B5CF6",
+    "orientation": "portrait-primary",
+    "icons": [],
+    "categories": [
+        "sports",
+        "fitness",
+        "health"
+    ],
+    "screenshots": []
+}
