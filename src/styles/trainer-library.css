@@ -1,0 +1,570 @@
+/* ============================================
+   TRAINER LIBRARY - Estilos para biblioteca de ejercicios y equipamiento
+   ============================================ */
+
+/* Sub-tabs en CoachDashboard */
+.sub-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid var(--color-border);
+  padding-bottom: 0;
+}
+
+.sub-tab-btn {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0.75rem 1.5rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  font-size: 0.9375rem;
+}
+
+.sub-tab-btn:hover {
+  color: var(--color-text);
+  background: rgba(139, 92, 246, 0.05);
+}
+
+.sub-tab-btn.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  background: rgba(139, 92, 246, 0.05);
+}
+
+/* Trainer Library Sections */
+.trainer-library {
+  margin-top: 1rem;
+}
+
+.trainer-library .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.trainer-library .header-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.trainer-library .header-content svg {
+  color: var(--color-primary);
+}
+
+.trainer-library .subtitle {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+/* Toolbar */
+.exercises-toolbar,
+.equipment-toolbar {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 250px;
+  padding: 0.625rem 1rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.search-box svg {
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 0.9375rem;
+  color: var(--color-text);
+  outline: none;
+}
+
+.category-filter,
+.status-filter,
+.filter-select {
+  padding: 0.625rem 1rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text);
+  font-size: 0.9375rem;
+  cursor: pointer;
+}
+
+/* Empty State */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  text-align: center;
+  gap: 1rem;
+}
+
+.empty-icon {
+  color: var(--color-text-muted);
+  opacity: 0.5;
+}
+
+.empty-state h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--color-text);
+}
+
+.empty-state p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  max-width: 400px;
+}
+
+/* Exercise List */
+.exercise-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.exercise-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 0.875rem;
+  background: var(--color-bg-secondary);
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.exercise-item:hover {
+  background: var(--color-surface);
+}
+
+.exercise-name {
+  flex: 1;
+  font-size: 0.875rem;
+  color: var(--color-text);
+}
+
+.remove-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.remove-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+/* Library Warning Banner */
+.library-warning-banner {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.library-warning-banner svg {
+  color: #f59e0b;
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.library-warning-banner strong {
+  display: block;
+  color: var(--color-text);
+  margin-bottom: 0.25rem;
+}
+
+.library-warning-banner p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+/* Modal Styles for Selection */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal-content.large {
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  background: var(--color-bg);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-subtitle {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  margin-top: 0.25rem;
+}
+
+/* Category Tabs in Modal */
+.category-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.category-tab {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0.625rem 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.category-tab:hover {
+  background: var(--color-bg-secondary);
+  border-color: var(--color-primary);
+}
+
+.category-tab.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+}
+
+.category-tab .badge {
+  padding: 0.125rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.category-tab .badge.new {
+  background: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+}
+
+.category-tab .badge.existing {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.category-tab.active .badge {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+/* Exercise Selection List */
+.exercise-selection-list,
+.equipment-selection-list {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1rem;
+  background: var(--color-surface);
+}
+
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.list-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.text-btn {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.text-btn:hover {
+  text-decoration: underline;
+}
+
+.text-btn.danger {
+  color: #ef4444;
+}
+
+/* Exercise Items in Selection Modal */
+.exercise-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.exercise-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.exercise-item:hover:not(.disabled) {
+  background: var(--color-bg-secondary);
+  border-color: var(--color-primary);
+}
+
+.exercise-item.selected {
+  background: rgba(139, 92, 246, 0.1);
+  border-color: var(--color-primary);
+}
+
+.exercise-item.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.exercise-checkbox {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.checkbox-empty {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--color-border);
+  border-radius: 4px;
+}
+
+.check-icon {
+  color: var(--color-primary);
+}
+
+.check-icon.existing {
+  color: #22c55e;
+}
+
+.already-badge {
+  margin-left: auto;
+  padding: 0.25rem 0.625rem;
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Equipment Grid in Modal */
+.equipment-grid-modal {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.equipment-card-modal {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.equipment-card-modal:hover:not(.disabled) {
+  background: var(--color-bg-secondary);
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+}
+
+.equipment-card-modal.selected {
+  background: rgba(139, 92, 246, 0.1);
+  border-color: var(--color-primary);
+}
+
+.equipment-card-modal.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.equipment-icon-small {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.equipment-info-modal {
+  flex: 1;
+}
+
+.equipment-info-modal h4 {
+  margin: 0 0 0.25rem 0;
+  font-size: 0.9375rem;
+  color: var(--color-text);
+}
+
+.equipment-info-modal .category {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.meta-info {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+}
+
+.meta-info .status {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.meta-info .status.disponible {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+}
+
+.meta-info .status.mantenimiento {
+  background: rgba(251, 191, 36, 0.1);
+  color: #f59e0b;
+}
+
+.meta-info .quantity {
+  color: var(--color-text-secondary);
+}
+
+/* Filters Row */
+.filters-row {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.filters-row .search-box {
+  flex: 1;
+  min-width: 200px;
+}
+
+/* No Results */
+.no-results {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  color: var(--color-text-secondary);
+  gap: 1rem;
+}
+
+.no-results svg {
+  opacity: 0.3;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sub-tabs {
+    overflow-x: auto;
+  }
+
+  .sub-tab-btn {
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  .trainer-library .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .exercises-toolbar,
+  .equipment-toolbar {
+    flex-direction: column;
+  }
+
+  .search-box {
+    min-width: 100%;
+  }
+
+  .modal-content.large {
+    max-width: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .equipment-grid-modal {
+    grid-template-columns: 1fr;
+  }
+
+  .category-tabs {
+    flex-wrap: nowrap;
+  }
+}

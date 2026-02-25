@@ -1,0 +1,185 @@
+/* Mobile Devices Specific Fixes - iPhone XR, Android comunes */
+
+/* iPhone XR / 11 / XS Max - 414px width */
+@media (max-width: 414px) {
+  .admin-dashboard {
+    padding: 0.5rem !important;
+  }
+
+  /* Header compacto */
+  .admin-header {
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+    gap: 0.625rem;
+  }
+
+  .admin-title h1 {
+    font-size: 1.125rem !important;
+  }
+
+  .admin-title p {
+    font-size: 0.6875rem !important;
+  }
+
+  /* Tabs ultra compactos */
+  .nav-btn {
+    padding: 0.5rem 0.625rem !important;
+    font-size: 0.6875rem !important;
+    gap: 0.375rem !important;
+  }
+
+  .nav-btn svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
+
+  /* Section headers compactos */
+  .section-header h2 {
+    font-size: 1.125rem !important;
+  }
+
+  /* Grids forzados a 1 columna */
+  .exercises-grid,
+  .equipment-grid,
+  .stats-grid,
+  .analytics-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.875rem !important;
+  }
+
+  /* Cards más compactas */
+  .equipment-card,
+  .stat-card,
+  .analytics-card {
+    padding: 0.875rem !important;
+  }
+
+  .category-card {
+    margin-bottom: 0.875rem;
+  }
+
+  /* Reducir padding de listas */
+  .exercise-list {
+    padding: 0.625rem !important;
+  }
+
+  /* Buttons más compactos pero táctiles */
+  .btn-primary,
+  .btn-secondary {
+    font-size: 0.8125rem !important;
+    padding: 0.625rem 1rem !important;
+  }
+
+  /* Search bar compacto */
+  .search-bar input {
+    padding: 0.5rem 0.75rem 0.5rem 2.25rem !important;
+    font-size: 0.8125rem !important;
+  }
+
+  .search-bar svg {
+    left: 0.625rem !important;
+  }
+}
+
+/* iPhone SE / 5 - 375px y menor */
+@media (max-width: 375px) {
+  .admin-dashboard {
+    padding: 0.375rem !important;
+  }
+
+  .admin-title h1 {
+    font-size: 1rem !important;
+  }
+
+  .nav-btn {
+    padding: 0.5rem !important;
+    font-size: 0.625rem !important;
+  }
+
+  .section-header {
+    gap: 0.5rem !important;
+  }
+
+  .section-header h2 {
+    font-size: 1rem !important;
+  }
+}
+
+/* iPhone 14 Pro Max / Plus - 430px */
+@media (min-width: 415px) and (max-width: 430px) {
+  .admin-dashboard {
+    padding: 0.625rem;
+  }
+
+  .nav-btn {
+    padding: 0.625rem 0.75rem;
+    font-size: 0.75rem;
+  }
+}
+
+/* Landscape orientation en móviles */
+@media (max-height: 500px) and (orientation: landscape) {
+  .admin-dashboard {
+    padding: 0.5rem;
+  }
+
+  .admin-header {
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .admin-nav {
+    margin-bottom: 0.5rem;
+  }
+
+  .admin-content {
+    padding-top: 0.5rem;
+  }
+
+  .category-header {
+    padding: 0.75rem !important;
+  }
+
+  .exercise-list {
+    max-height: 200px !important;
+  }
+}
+
+/* Asegurar que NUNCA haya scroll horizontal */
+@media (max-width: 768px) {
+  body {
+    overflow-x: hidden;
+  }
+
+  .admin-dashboard,
+  .admin-content,
+  .admin-exercises,
+  .admin-equipment,
+  .admin-users,
+  .admin-analytics,
+  .admin-overview {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+  }
+
+  /* Todos los grids responsive */
+  .exercises-grid,
+  .equipment-grid,
+  .stats-grid,
+  .analytics-grid,
+  .quick-stats-row {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* Todas las cards responsive */
+  .card,
+  .stat-card,
+  .equipment-card,
+  .category-card,
+  .analytics-card,
+  .quick-stat {
+    max-width: 100%;
+    width: 100%;
+  }
+}

@@ -17,3 +17,4 @@ export {
 export { useAthleteId, clearAthleteSession } from "../utils/auth";
 export { useModal, useConfirm } from "./useModal";
 export { default as useTheme } from "./useTheme";
+export { useTrainerLibrary } from "./useTrainerLibrary";

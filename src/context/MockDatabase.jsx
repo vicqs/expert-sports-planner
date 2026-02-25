@@ -40,6 +40,17 @@ export const MockDatabaseProvider = ({ children }) => {
     return getFromStorage("athleteRequests", []);
   });
 
+  // Limpiar solicitudes antiguas con trainerId incorrecto (una sola vez)
+  useEffect(() => {
+    const cleanupKey = "athleteRequests_cleanup_v1";
+    const cleanupDone = localStorage.getItem(cleanupKey);
+
+    if (!cleanupDone) {
+      setAthleteRequests([]);
+      localStorage.setItem(cleanupKey, "true");
+    }
+  }, []);
+
   // Persist all state changes to localStorage
   useEffect(() => {
     setToStorage(STORAGE_KEYS.CLIENTS, clients);
@@ -424,10 +435,10 @@ export const MockDatabaseProvider = ({ children }) => {
     return users
       .filter((u) => u.role === "TRAINER")
       .map((trainer) => ({
-        id: trainer.id,
+        id: trainer.trainerId, // Usar trainerId en lugar de id para que coincida con getTrainerId()
         name: trainer.name,
         email: trainer.email,
-        code: trainer.id.substring(0, 8).toUpperCase(), // Código único
+        code: (trainer.trainerId || trainer.id).substring(0, 8).toUpperCase(), // Código único
       }));
   };
 
@@ -437,10 +448,20 @@ export const MockDatabaseProvider = ({ children }) => {
   const sendTrainerRequest = (athleteId, trainerId, message = "") => {
     const users = getFromStorage("users", []);
     const athlete = users.find((u) => u.id === athleteId);
-    const trainer = users.find((u) => u.id === trainerId);
+    const trainer = users.find((u) => u.trainerId === trainerId);
 
     if (!athlete || !trainer) {
       return { success: false, message: "Usuario no encontrado" };
+    }
+
+    // Verificar que el atleta tenga email y contraseña
+    if (!athlete.email || !athlete.passwordHash) {
+      return {
+        success: false,
+        requiresCompletion: true,
+        message:
+          "Debes completar tu registro con email y contraseña antes de enviar solicitudes",
+      };
     }
 
     // Verificar si ya tiene una solicitud pendiente o aceptada
@@ -474,6 +495,7 @@ export const MockDatabaseProvider = ({ children }) => {
     };
 
     setAthleteRequests((prev) => [...prev, newRequest]);
+
     return { success: true, request: newRequest };
   };
 

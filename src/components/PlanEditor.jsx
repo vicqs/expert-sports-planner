@@ -16,6 +16,7 @@ import {
   SYMBOLS,
 } from "../utils/constants";
 import { formatPlanToText } from "../utils/generator";
+import { useAuth } from "../context/AuthContext";
 import GymSessionEditor from "./GymSessionEditor";
 import AthleticsBuilder from "./AthleticsBuilder";
 import { Button } from "./ui";
@@ -23,6 +24,9 @@ import { Button } from "./ui";
 import { useToast } from "./ui/Toast";
 
 const PlanEditor = ({ initialPlan, clientData, onSave, onCancel }) => {
+  const { getTrainerId } = useAuth();
+  const trainerId = getTrainerId();
+
   const [plan, setPlan] = useState(initialPlan);
   const [activeTab, setActiveTab] = useState("edit"); // 'edit' | 'preview'
   const [expandedWeek, setExpandedWeek] = useState(0);
@@ -473,6 +477,7 @@ const PlanEditor = ({ initialPlan, clientData, onSave, onCancel }) => {
                                         session={day.session}
                                         weekNum={week.weekNum}
                                         weightUnit={weightUnit}
+                                        trainerId={trainerId}
                                         onChange={(updatedSession) =>
                                           updateDay(
                                             wIndex,

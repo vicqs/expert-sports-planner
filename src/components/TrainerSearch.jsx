@@ -42,7 +42,6 @@ const TrainerSearch = ({ onCancel }) => {
 
   const handleSendRequest = (trainer) => {
     const result = sendTrainerRequest(currentUser.id, trainer.id);
-
     if (result.success) {
       addToast(`Solicitud enviada a ${trainer.name}`, "success");
       setPendingRequest(result.request);

@@ -1,14 +1,26 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, Dumbbell, X } from "lucide-react";
+import { Plus, Trash2, Dumbbell, X, AlertCircle } from "lucide-react";
 import { ALL_GYM_EXERCISES } from "../utils/constants";
+import { useTrainerLibrary } from "../hooks";
 import { Button } from "./ui";
+import "@/styles/trainer-library.css";
 
 const GymSessionEditor = ({
   session,
   weekNum,
   weightUnit = "lb",
   onChange,
+  trainerId = null, // ID del entrenador para filtrar ejercicios
 }) => {
+  // Obtener biblioteca del entrenador si trainerId está disponible
+  const library = trainerId ? useTrainerLibrary(trainerId) : null;
+
+  // Usar ejercicios de biblioteca si existe, sino todos los ejercicios
+  const availableExercises =
+    library && !library.isEmpty()
+      ? library.getAllSelectedExercises()
+      : ALL_GYM_EXERCISES;
+
   const [localSession, setLocalSession] = useState(
     session || {
       title: "SESIÓN DE GIMNASIO",
@@ -140,6 +152,21 @@ const GymSessionEditor = ({
         />
       </div>
 
+      {/* Banner informativo si biblioteca está vacía */}
+      {library && library.isEmpty() && (
+        <div className="library-warning-banner">
+          <AlertCircle size={20} />
+          <div>
+            <strong>Configura tu biblioteca de ejercicios</strong>
+            <p>
+              Ve a Configuración para seleccionar los ejercicios que usarás en
+              tus planes. Por ahora se muestran todos los ejercicios
+              disponibles.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="exercises-grid">
         {(localSession.exercises || []).map((ex, i) => {
           const group = getMuscleGroup(ex.name);
@@ -192,11 +219,14 @@ const GymSessionEditor = ({
                       </button>
                     )}
                     <datalist id={`exercise-list-${i}`}>
-                      {ALL_GYM_EXERCISES.filter((e) => {
-                        const searchTerm = (ex.name || "").toLowerCase().trim();
-                        if (!searchTerm) return true;
-                        return e.toLowerCase().includes(searchTerm);
-                      })
+                      {availableExercises
+                        .filter((e) => {
+                          const searchTerm = (ex.name || "")
+                            .toLowerCase()
+                            .trim();
+                          if (!searchTerm) return true;
+                          return e.toLowerCase().includes(searchTerm);
+                        })
                         .slice(0, 100)
                         .map((e) => (
                           <option key={e} value={e} />

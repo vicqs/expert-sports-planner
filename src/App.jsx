@@ -3,7 +3,6 @@ import Layout from "./components/Layout";
 import RoleSelector from "./components/RoleSelector";
 import CoachDashboard from "./components/CoachDashboard";
 import AthleteDashboard from "./components/AthleteDashboard";
-import AdminDashboard from "./components/AdminDashboard";
 import AuthPage from "./components/AuthPage";
 import PricingPage from "./components/PricingPage";
 import DemoBanner from "./components/DemoBanner";
@@ -12,6 +11,7 @@ import { MockDatabaseProvider } from "./context/MockDatabase";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ToastProvider } from "./components/ui/Toast";
 import { ROLES } from "./utils/auth";
+import { AdminDashboard } from "./admin";
 
 function AppContent() {
   const {

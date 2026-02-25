@@ -11,11 +11,15 @@ import {
   UserCheck,
   UserX,
   X,
+  Settings,
 } from "lucide-react";
 import PlanEditor from "./PlanEditor";
 import TrainerScheduleConfig from "./TrainerScheduleConfig";
 import TrainerAppointmentCalendar from "./TrainerAppointmentCalendar";
+import TrainerExerciseLibrary from "./TrainerExerciseLibrary";
+import TrainerEquipmentLibrary from "./TrainerEquipmentLibrary";
 import { Card, Button, useToast } from "./ui";
+import "@/styles/trainer-library.css";
 
 const CoachDashboard = ({ onExit }) => {
   const {
@@ -24,7 +28,7 @@ const CoachDashboard = ({ onExit }) => {
     getActivePlans,
     updateClientPlan,
     autoCompletePlans,
-    getTrainerRequests,
+    athleteRequests: allAthleteRequests,
     acceptTrainerRequest,
     rejectTrainerRequest,
     getTrainerAthletes,
@@ -32,7 +36,8 @@ const CoachDashboard = ({ onExit }) => {
   } = useMockDatabase();
   const { currentUser, getTrainerId, getUserLimits } = useAuth();
   const { addToast } = useToast();
-  const [activeTab, setActiveTab] = useState("planes"); // planes, horarios, citas, solicitudes-atletas, mis-atletas
+  const [activeTab, setActiveTab] = useState("planes"); // planes, horarios, citas, solicitudes-atletas, mis-atletas, configuracion
+  const [activeSubTab, setActiveSubTab] = useState("ejercicios"); // Para sub-tabs en configuración
   const [selectedClient, setSelectedClient] = useState(null);
   const [currentPlanObject, setCurrentPlanObject] = useState(null);
 
@@ -47,8 +52,10 @@ const CoachDashboard = ({ onExit }) => {
   const activePlans = getActivePlans(trainerId);
   const completed = getCompletedClients(trainerId);
 
-  // Nuevas funciones para solicitudes de atletas
-  const athleteRequests = getTrainerRequests(trainerId, "PENDING");
+  // Filtrar solicitudes pendientes reactivamente
+  const athleteRequests = allAthleteRequests.filter(
+    (r) => r.trainerId === trainerId && r.status === "PENDING",
+  );
   const myAthletes = getTrainerAthletes(trainerId);
 
   // Calcular límites
@@ -185,6 +192,13 @@ const CoachDashboard = ({ onExit }) => {
             >
               Citas
             </button>
+            <button
+              className={`tab-btn ${activeTab === "configuracion" ? "active" : ""}`}
+              onClick={() => setActiveTab("configuracion")}
+            >
+              <Settings size={18} />
+              Configuración
+            </button>
           </div>
         </div>
       </div>
@@ -315,6 +329,36 @@ const CoachDashboard = ({ onExit }) => {
         <TrainerScheduleConfig />
       ) : activeTab === "citas" ? (
         <TrainerAppointmentCalendar />
+      ) : activeTab === "configuracion" ? (
+        <div className="section">
+          <div className="section-title">
+            <Settings size={20} />
+            <h3>Configuración de Biblioteca</h3>
+          </div>
+
+          {/* Sub-tabs para Ejercicios y Equipamiento */}
+          <div className="sub-tabs">
+            <button
+              className={`sub-tab-btn ${activeSubTab === "ejercicios" ? "active" : ""}`}
+              onClick={() => setActiveSubTab("ejercicios")}
+            >
+              Ejercicios
+            </button>
+            <button
+              className={`sub-tab-btn ${activeSubTab === "equipamiento" ? "active" : ""}`}
+              onClick={() => setActiveSubTab("equipamiento")}
+            >
+              Equipamiento
+            </button>
+          </div>
+
+          {/* Renderizado condicional de sub-secciones */}
+          {activeSubTab === "ejercicios" ? (
+            <TrainerExerciseLibrary trainerId={trainerId} />
+          ) : (
+            <TrainerEquipmentLibrary trainerId={trainerId} />
+          )}
+        </div>
       ) : (
         <>
           <div className="section">

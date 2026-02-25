@@ -145,3 +145,34 @@
   display: flex;
   align-items: center;
 }
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .btn-lg {
+    min-height: var(--touch-target-comfortable);
+    padding: var(--space-3) var(--space-6);
+    font-size: var(--text-base);
+  }
+
+  .btn-md {
+    min-height: var(--touch-target-min);
+    padding: var(--space-2) var(--space-5);
+    font-size: var(--text-sm);
+  }
+
+  .btn-sm {
+    min-height: 40px;
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-xs);
+  }
+}
+
+@media (max-width: 480px) {
+  .btn {
+    font-size: 0.875rem;
+  }
+
+  .btn-sm {
+    min-height: 44px;
+  }
+}

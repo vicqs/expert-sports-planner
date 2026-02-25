@@ -229,9 +229,14 @@ export const registerUser = ({
 }) => {
   const users = getAllUsers();
 
-  // Verificar si el email ya existe
-  if (users.find((u) => u.email === email)) {
+  // Verificar si el email ya existe (solo si se proporciona)
+  if (email && users.find((u) => u.email === email)) {
     throw new Error("Este email ya está registrado");
+  }
+
+  // Verificar si el nombre ya existe
+  if (users.find((u) => u.name.toLowerCase() === name.toLowerCase())) {
+    throw new Error("Este nombre ya está en uso");
   }
 
   const now = new Date();
@@ -240,8 +245,8 @@ export const registerUser = ({
 
   const newUser = {
     id: crypto.randomUUID(),
-    email,
-    passwordHash: simpleHash(password),
+    email: email || null,
+    passwordHash: password ? simpleHash(password) : null,
     name,
     role,
     trainerId: role === ROLES.ATHLETE ? null : crypto.randomUUID(),
@@ -264,9 +269,18 @@ export const registerUser = ({
 // Iniciar sesión
 export const loginUser = (email, password) => {
   const users = getAllUsers();
-  const passwordHash = simpleHash(password);
 
-  // Buscar usuario
+  // Si no hay contraseña, intentar login por nombre (atletas sin perfil completo)
+  if (!password) {
+    const user = users.find((u) => u.name === email && !u.passwordHash);
+    if (user) {
+      return user;
+    }
+  }
+
+  const passwordHash = password ? simpleHash(password) : null;
+
+  // Buscar usuario por email y contraseña
   const user = users.find(
     (u) => u.email === email && u.passwordHash === passwordHash,
   );
@@ -292,6 +306,32 @@ export const loginUser = (email, password) => {
 // Cerrar sesión
 export const logoutUser = () => {
   setCurrentUser(null);
+};
+
+// Completar perfil de usuario (agregar email y contraseña)
+export const completeUserProfile = (userId, email, password) => {
+  const users = getAllUsers();
+
+  // Verificar si el email ya existe
+  if (users.find((u) => u.email === email && u.id !== userId)) {
+    throw new Error("Este email ya está registrado");
+  }
+
+  const userIndex = users.findIndex((u) => u.id === userId);
+  if (userIndex === -1) {
+    throw new Error("Usuario no encontrado");
+  }
+
+  const updatedUser = {
+    ...users[userIndex],
+    email,
+    passwordHash: simpleHash(password),
+  };
+
+  users[userIndex] = updatedUser;
+  saveUsers(users);
+
+  return updatedUser;
 };
 
 // Actualizar suscripción de usuario
