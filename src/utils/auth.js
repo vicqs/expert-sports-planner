@@ -138,10 +138,12 @@ export const initializeSuperAdmin = () => {
   const adminName = import.meta.env.VITE_ADMIN_NAME || "Administrador";
 
   // Validar que las credenciales estén configuradas
-  if (!ADMIN_PASSWORD) {
-    console.error("❌ ERROR: VITE_ADMIN_PASSWORD no está configurada");
+  if (!ADMIN_PASSWORD || !adminEmail) {
     console.error(
-      "   Copia .env.example a .env.local y configura las credenciales",
+      "❌ ERROR: Variables de entorno NO configuradas correctamente",
+    );
+    console.error(
+      "   Verifica que .env.local existe y el servidor se reinició",
     );
     throw new Error(
       "Credenciales de administrador no configuradas. Ver .env.example",
@@ -179,11 +181,7 @@ export const initializeSuperAdmin = () => {
 
       saveUsers(users);
 
-      console.log(
-        "✅ Super administrador actualizado desde variables de entorno",
-      );
-      console.log(`   Email: ${adminEmail}`);
-      console.log("   Contraseña: [Configurada en .env.local]");
+      console.log("✅ Super admin actualizado desde .env.local");
 
       return users[existingAdminIndex];
     }
@@ -217,9 +215,7 @@ export const initializeSuperAdmin = () => {
   users.push(superAdmin);
   saveUsers(users);
 
-  console.log("✅ Super administrador creado desde variables de entorno");
-  console.log(`   Email: ${adminEmail}`);
-  console.log("   Contraseña: [Configurada en .env.local]");
+  console.log("✅ Super admin creado desde .env.local");
 
   return superAdmin;
 };
@@ -268,8 +264,11 @@ export const registerUser = ({
 // Iniciar sesión
 export const loginUser = (email, password) => {
   const users = getAllUsers();
+  const passwordHash = simpleHash(password);
+
+  // Buscar usuario
   const user = users.find(
-    (u) => u.email === email && u.passwordHash === simpleHash(password),
+    (u) => u.email === email && u.passwordHash === passwordHash,
   );
 
   if (!user) {
