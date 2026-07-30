@@ -26,9 +26,9 @@ const AthleteDashboard = ({ onExit }) => {
   } = useMockDatabase();
   const { currentUser } = useAuth();
   const [view, setView] = useState("home"); // home, trainer-search, plan-detail, gym-booking, appointments
-  const [selectedPlan, setSelectedPlan] = useState(null);
-  const [myTrainer, setMyTrainer] = useState(null);
-  const [pendingRequest, setPendingRequest] = useState(null);
+  const [selectedPlan, setSelectedPlan] = useState<any>(null);
+  const [myTrainer, setMyTrainer] = useState<any>(null);
+  const [pendingRequest, setPendingRequest] = useState<any>(null);
 
   // Auto-complete expired plans on component mount / cambio de usuario.
   // Las funciones del contexto MockDatabase no están memoizadas (se recrean

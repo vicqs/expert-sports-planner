@@ -4,7 +4,7 @@ import { X, Search, Check } from "lucide-react";
 import "@/admin/styles/modals.css";
 import "@/styles/trainer-library.css";
 
-const CATEGORY_LABELS = {
+const CATEGORY_LABELS: Record<string, string> = {
   LOWER: "Tren Inferior",
   UPPER_PUSH: "Tren Superior - Empuje",
   UPPER_PULL: "Tren Superior - Jalón",
@@ -21,11 +21,17 @@ const ExerciseSelectorModal = ({
   getMasterExercises,
   addExercises,
   onClose,
+}: {
+  trainerId?: string;
+  selectedExercises: any;
+  getMasterExercises: any;
+  addExercises: (category: string, exercises: any) => void;
+  onClose: () => void;
 }) => {
-  const masterExercises = getMasterExercises;
+  const masterExercises: any = getMasterExercises;
 
   // Estado local para las selecciones temporales
-  const [tempSelections, setTempSelections] = useState({});
+  const [tempSelections, setTempSelections] = useState<Record<string, any>>({});
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState("LOWER");
 

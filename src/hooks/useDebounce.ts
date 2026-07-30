@@ -28,11 +28,14 @@ export const useDebounce = (value, delay = 500) => {
  * @param {number} delay - Delay in milliseconds
  * @returns {Function} Debounced function
  */
-export const useDebouncedCallback = (callback, delay = 500) => {
-  const timeoutRef = useRef(null);
+export const useDebouncedCallback = (
+  callback: (...args: any[]) => void,
+  delay = 500,
+) => {
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const debouncedCallback = useCallback(
-    (...args) => {
+    (...args: any[]) => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }

@@ -26,7 +26,11 @@ const API_CONFIG = {
  * Base API client for future HTTP calls
  */
 class ApiClient {
-  constructor(config) {
+  baseUrl: any;
+  timeout: any;
+  useMock: any;
+
+  constructor(config: any) {
     this.baseUrl = config.BASE_URL;
     this.timeout = config.TIMEOUT;
     this.useMock = config.USE_MOCK;
@@ -38,14 +42,14 @@ class ApiClient {
    * @param {Object} options - Fetch options
    * @returns {Promise} Response data
    */
-  async request(endpoint, options = {}) {
+  async request(endpoint: string, options: any = {}) {
     if (this.useMock) {
       // In mock mode, this would be handled by MockDatabase
       throw new Error("Mock mode - use MockDatabase context");
     }
 
     const url = `${this.baseUrl}${endpoint}`;
-    const config = {
+    const config: any = {
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -73,7 +77,7 @@ class ApiClient {
    * @returns {Object} Auth headers
    */
   getAuthHeaders() {
-    const session = getCurrentSession();
+    const session: any = getCurrentSession();
     if (session && session.token) {
       return {
         Authorization: `Bearer ${session.token}`,
@@ -82,25 +86,25 @@ class ApiClient {
     return {};
   }
 
-  async get(endpoint) {
+  async get(endpoint: string) {
     return this.request(endpoint, { method: "GET" });
   }
 
-  async post(endpoint, data) {
+  async post(endpoint: string, data: any) {
     return this.request(endpoint, {
       method: "POST",
       body: JSON.stringify(data),
     });
   }
 
-  async put(endpoint, data) {
+  async put(endpoint: string, data: any) {
     return this.request(endpoint, {
       method: "PUT",
       body: JSON.stringify(data),
     });
   }
 
-  async delete(endpoint) {
+  async delete(endpoint: string) {
     return this.request(endpoint, { method: "DELETE" });
   }
 }
@@ -112,7 +116,10 @@ const apiClient = new ApiClient(API_CONFIG);
  * Handles all client and plan related operations
  */
 export class ClientService {
-  constructor(mockDb = null) {
+  mockDb: any;
+  useMock: any;
+
+  constructor(mockDb: any = null) {
     this.mockDb = mockDb;
     this.useMock = API_CONFIG.USE_MOCK;
   }
@@ -123,7 +130,7 @@ export class ClientService {
    */
   async getClients() {
     if (this.useMock) {
-      const session = getCurrentSession();
+      const session: any = getCurrentSession();
       const allClients = this.mockDb.clients;
 
       if (!session) return [];
@@ -150,7 +157,7 @@ export class ClientService {
    */
   async getPendingClients() {
     if (this.useMock) {
-      const session = getCurrentSession();
+      const session: any = getCurrentSession();
       if (session?.role !== USER_ROLES.COACH) {
         return [];
       }
@@ -165,7 +172,7 @@ export class ClientService {
    */
   async getCompletedClients() {
     if (this.useMock) {
-      const session = getCurrentSession();
+      const session: any = getCurrentSession();
       if (session?.role !== USER_ROLES.COACH) {
         return [];
       }
@@ -180,7 +187,7 @@ export class ClientService {
    */
   async getActivePlans() {
     if (this.useMock) {
-      const session = getCurrentSession();
+      const session: any = getCurrentSession();
       if (session?.role !== USER_ROLES.ATHLETE) {
         return [];
       }
@@ -198,7 +205,7 @@ export class ClientService {
    * Add client request (athlete only)
    */
   async addClientRequest(clientData) {
-    const session = getCurrentSession();
+    const session: any = getCurrentSession();
 
     if (this.useMock) {
       // Add athlete ID to the request
@@ -219,7 +226,7 @@ export class ClientService {
    * Update client plan (coach only)
    */
   async updateClientPlan(clientId, planText, planObject) {
-    const session = getCurrentSession();
+    const session: any = getCurrentSession();
 
     if (session?.role !== USER_ROLES.COACH) {
       throw new Error("Unauthorized: Only coaches can update plans");
@@ -239,7 +246,7 @@ export class ClientService {
    * Toggle session completion (athlete only)
    */
   async toggleSessionCompletion(clientId, weekIndex, dayIndex) {
-    const session = getCurrentSession();
+    const session: any = getCurrentSession();
 
     if (session?.role !== USER_ROLES.ATHLETE) {
       throw new Error("Unauthorized: Only athletes can mark sessions");
@@ -259,7 +266,7 @@ export class ClientService {
    * Update session note (athlete only)
    */
   async updateSessionNote(clientId, weekIndex, dayIndex, note) {
-    const session = getCurrentSession();
+    const session: any = getCurrentSession();
 
     if (session?.role !== USER_ROLES.ATHLETE) {
       throw new Error("Unauthorized: Only athletes can update notes");
@@ -282,7 +289,10 @@ export class ClientService {
  * Handles gym bookings and availability
  */
 export class GymService {
-  constructor(mockDb = null) {
+  mockDb: any;
+  useMock: any;
+
+  constructor(mockDb: any = null) {
     this.mockDb = mockDb;
     this.useMock = API_CONFIG.USE_MOCK;
   }
@@ -302,7 +312,7 @@ export class GymService {
    * Update gym schedule (coach only)
    */
   async updateGymSchedule(date, slots) {
-    const session = getCurrentSession();
+    const session: any = getCurrentSession();
 
     if (session?.role !== USER_ROLES.COACH) {
       throw new Error("Unauthorized: Only coaches can update gym schedule");
@@ -319,7 +329,7 @@ export class GymService {
    * Book gym slot (athlete only)
    */
   async bookGymSlot(date, slotId) {
-    const session = getCurrentSession();
+    const session: any = getCurrentSession();
 
     if (!session || session.role !== USER_ROLES.ATHLETE) {
       throw new Error("Unauthorized: Only athletes can book slots");
@@ -340,7 +350,7 @@ export class GymService {
    * Cancel gym booking (athlete only)
    */
   async cancelGymBooking(bookingId) {
-    const session = getCurrentSession();
+    const session: any = getCurrentSession();
 
     if (!session || session.role !== USER_ROLES.ATHLETE) {
       throw new Error("Unauthorized: Only athletes can cancel bookings");
@@ -357,7 +367,7 @@ export class GymService {
    * Get athlete's gym bookings
    */
   async getAthleteGymBookings() {
-    const session = getCurrentSession();
+    const session: any = getCurrentSession();
 
     if (!session || session.role !== USER_ROLES.ATHLETE) {
       return [];
@@ -374,7 +384,7 @@ export class GymService {
    * Get all gym bookings (coach only)
    */
   async getAllGymBookings() {
-    const session = getCurrentSession();
+    const session: any = getCurrentSession();
 
     if (session?.role !== USER_ROLES.COACH) {
       return [];
@@ -393,7 +403,10 @@ export class GymService {
  * Handles appointment scheduling
  */
 export class AppointmentService {
-  constructor(mockDb = null) {
+  mockDb: any;
+  useMock: any;
+
+  constructor(mockDb: any = null) {
     this.mockDb = mockDb;
     this.useMock = API_CONFIG.USE_MOCK;
   }
@@ -402,7 +415,7 @@ export class AppointmentService {
    * Add appointment (athlete only)
    */
   async addAppointment(appointmentData) {
-    const session = getCurrentSession();
+    const session: any = getCurrentSession();
 
     if (!session || session.role !== USER_ROLES.ATHLETE) {
       throw new Error("Unauthorized: Only athletes can create appointments");
@@ -425,7 +438,7 @@ export class AppointmentService {
    * Get athlete's appointments
    */
   async getAthleteAppointments() {
-    const session = getCurrentSession();
+    const session: any = getCurrentSession();
 
     if (!session || session.role !== USER_ROLES.ATHLETE) {
       return [];
@@ -442,7 +455,7 @@ export class AppointmentService {
    * Get trainer's appointments for a date (coach only)
    */
   async getTrainerAppointments(date) {
-    const session = getCurrentSession();
+    const session: any = getCurrentSession();
 
     if (session?.role !== USER_ROLES.COACH) {
       return [];
@@ -459,7 +472,7 @@ export class AppointmentService {
    * Update appointment status (coach only)
    */
   async updateAppointmentStatus(id, status) {
-    const session = getCurrentSession();
+    const session: any = getCurrentSession();
 
     if (session?.role !== USER_ROLES.COACH) {
       throw new Error(
@@ -489,7 +502,7 @@ export class AppointmentService {
    * Update appointment availability (coach only)
    */
   async updateAppointmentAvailability(date, slots) {
-    const session = getCurrentSession();
+    const session: any = getCurrentSession();
 
     if (session?.role !== USER_ROLES.COACH) {
       throw new Error(

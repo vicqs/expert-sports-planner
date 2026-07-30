@@ -143,32 +143,34 @@ const TrainerExerciseLibrary = ({ trainerId }) => {
         </Card>
       ) : (
         <div className="exercises-grid">
-          {Object.entries(filteredExercises).map(([category, exercises]) => {
-            if (!exercises || exercises.length === 0) return null;
+          {Object.entries(filteredExercises as Record<string, any[]>).map(
+            ([category, exercises]) => {
+              if (!exercises || exercises.length === 0) return null;
 
-            return (
-              <Card key={category} className="category-card">
-                <div className="category-header">
-                  <h3>{CATEGORY_LABELS[category] || category}</h3>
-                  <span className="exercise-count">{exercises.length}</span>
-                </div>
-                <ul className="exercise-list">
-                  {exercises.map((exerciseName) => (
-                    <li key={exerciseName} className="exercise-item">
-                      <span className="exercise-name">{exerciseName}</span>
-                      <button
-                        onClick={() => handleRemove(category, exerciseName)}
-                        className="remove-btn"
-                        title="Quitar de mi biblioteca"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-            );
-          })}
+              return (
+                <Card key={category} className="category-card">
+                  <div className="category-header">
+                    <h3>{CATEGORY_LABELS[category] || category}</h3>
+                    <span className="exercise-count">{exercises.length}</span>
+                  </div>
+                  <ul className="exercise-list">
+                    {exercises.map((exerciseName: string) => (
+                      <li key={exerciseName} className="exercise-item">
+                        <span className="exercise-name">{exerciseName}</span>
+                        <button
+                          onClick={() => handleRemove(category, exerciseName)}
+                          className="remove-btn"
+                          title="Quitar de mi biblioteca"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              );
+            },
+          )}
         </div>
       )}
 

@@ -8,6 +8,12 @@ import "./Card.css";
  * @param {string} gradient - Optional gradient overlay: 'purple-blue' | 'radial'
  * @param {ReactNode} children - Card content
  */
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  glass?: boolean;
+  hover?: boolean;
+  gradient?: string | null;
+}
+
 const Card = ({
   glass = false,
   hover = false,
@@ -15,7 +21,7 @@ const Card = ({
   className = "",
   children,
   ...props
-}) => {
+}: CardProps) => {
   const cardClass = [
     "card",
     glass && "card-glass",

@@ -13,8 +13,8 @@ const GymBookingSystem = ({ athleteId }) => {
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0],
   );
-  const [availableSlots, setAvailableSlots] = useState([]);
-  const [myBookings, setMyBookings] = useState([]);
+  const [availableSlots, setAvailableSlots] = useState<any[]>([]);
+  const [myBookings, setMyBookings] = useState<any[]>([]);
   const [confirmMessage, setConfirmMessage] = useState("");
 
   useEffect(() => {

@@ -17,8 +17,8 @@ import { useMockDatabase } from "../context/MockDatabase";
 const PlanDetail = ({ plan, client, onBack }) => {
   const [activeTab, setActiveTab] = useState("calendar"); // calendar, exercises
   const [selectedWeek, setSelectedWeek] = useState(0);
-  const [selectedDayDetail, setSelectedDayDetail] = useState(null);
-  const [noteModal, setNoteModal] = useState(null); // { weekIndex, dayIndex, note }
+  const [selectedDayDetail, setSelectedDayDetail] = useState<any>(null);
+  const [noteModal, setNoteModal] = useState<any>(null); // { weekIndex, dayIndex, note }
   const [showFinishModal, setShowFinishModal] = useState(false);
   const { toggleSessionCompletion, updateSessionNote, completePlan } =
     useMockDatabase();
@@ -56,7 +56,9 @@ const PlanDetail = ({ plan, client, onBack }) => {
     if (!client.endDate) return null;
     const now = new Date();
     const end = new Date(client.endDate);
-    const diff = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+    const diff = Math.ceil(
+      (end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+    );
     return diff;
   };
 

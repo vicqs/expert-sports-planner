@@ -6,14 +6,17 @@ import { useState, useEffect, useCallback } from "react";
  * @param {boolean} immediate - Execute immediately on mount
  * @returns {Object} Async state and execution function
  */
-export const useAsync = (asyncFunction, immediate = false) => {
+export const useAsync = (
+  asyncFunction: (...args: any[]) => Promise<any>,
+  immediate = false,
+) => {
   const [status, setStatus] = useState("idle"); // 'idle' | 'pending' | 'success' | 'error'
-  const [data, setData] = useState(null);
-  const [error, setError] = useState(null);
+  const [data, setData] = useState<unknown>(null);
+  const [error, setError] = useState<unknown>(null);
 
   // The execute function wraps asyncFunction and handles settings state
   const execute = useCallback(
-    async (...params) => {
+    async (...params: any[]) => {
       setStatus("pending");
       setData(null);
       setError(null);

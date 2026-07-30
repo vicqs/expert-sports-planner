@@ -20,11 +20,18 @@ interface AuthResult {
   error?: string;
 }
 
+interface RegisterInput {
+  email?: string | null;
+  password?: string | null;
+  name: string;
+  role?: User["role"];
+}
+
 interface AuthState {
   currentUser: User | null;
   loading: boolean;
   error: string | null;
-  register: (userData: Record<string, unknown>) => Promise<AuthResult>;
+  register: (userData: RegisterInput) => Promise<AuthResult>;
   login: (email: string, password: string) => Promise<AuthResult>;
   quickAdminLogin: () => Promise<AuthResult>;
   logout: () => void;

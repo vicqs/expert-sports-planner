@@ -1,7 +1,15 @@
 import React from "react";
 import TopBar from "./TopBar";
 
-const Layout = ({ children, onExit, userRole }) => {
+const Layout = ({
+  children,
+  onExit,
+  userRole,
+}: {
+  children?: React.ReactNode;
+  onExit?: () => void;
+  userRole?: string;
+}) => {
   return (
     <div className="layout">
       {onExit && <TopBar onExit={onExit} userRole={userRole} />}

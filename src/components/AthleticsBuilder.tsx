@@ -131,7 +131,7 @@ const AthleticsBuilder = ({ session, unit = "km", onChange }) => {
     paceMod: "", // '↓', '↘', ''
   });
 
-  const [segments, setSegments] = useState([]);
+  const [segments, setSegments] = useState<any[]>([]);
 
   // Sync segments from mainBlock if empty on mount (optional, complex parsing)
   // For now, we start empty or rely on manual addition.

@@ -17,7 +17,7 @@ const EquipmentManager = () => {
   const { equipment, addEquipment, updateEquipment, deleteEquipment } =
     useEquipment();
   const [showModal, setShowModal] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
+  const [editingItem, setEditingItem] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [formData, setFormData] = useState({
     name: "",

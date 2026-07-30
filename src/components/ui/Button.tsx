@@ -10,6 +10,15 @@ import "./Button.css";
  * @param {ReactNode} leftIcon - Icon before text
  * @param {ReactNode} rightIcon - Icon after text
  */
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: string;
+  size?: string;
+  loading?: boolean;
+  leftIcon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
+  icon?: React.ReactNode;
+}
+
 const Button = ({
   variant = "primary",
   size = "md",
@@ -19,7 +28,7 @@ const Button = ({
   rightIcon,
   className = "",
   ...props
-}) => {
+}: ButtonProps) => {
   const sizeClass = {
     sm: "btn-sm",
     md: "btn-md",

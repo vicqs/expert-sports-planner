@@ -119,14 +119,14 @@ const generateGymSession = (dayIndex, _weekNum) => {
  */
 export const generatePlan = (userData) => {
   const weeks = PLAN_CONFIG.DEFAULT_WEEKS;
-  const plan = [];
+  const plan: any[] = [];
 
   for (let w = 0; w < weeks; w++) {
-    const weekDays = [];
+    const weekDays: any[] = [];
 
     for (let d = 0; d < PLAN_CONFIG.DAYS_PER_WEEK; d++) {
       const dayIndex = d;
-      let session = null;
+      let session: any = null;
       let isGym = false;
 
       // Determine if it's a gym day or athletics day

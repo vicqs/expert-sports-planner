@@ -7,7 +7,13 @@ import "./BottomNav.css";
  * @param {string} activeTab - Currently active tab
  * @param {function} onTabChange - Handler for tab changes
  */
-const BottomNav = ({ activeTab = "entrenamientos", onTabChange }) => {
+const BottomNav = ({
+  activeTab = "entrenamientos",
+  onTabChange,
+}: {
+  activeTab?: string;
+  onTabChange: (id: string) => void;
+}) => {
   const tabs = [
     {
       id: "entrenamientos",

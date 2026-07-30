@@ -16,14 +16,14 @@ export const STORAGE_KEYS = {
 
 /**
  * Safely get data from localStorage
- * @param {string} key - Storage key
- * @param {*} defaultValue - Default value if key doesn't exist or parsing fails
- * @returns {*} Parsed data or default value
  */
-export const getFromStorage = (key, defaultValue = null) => {
+export const getFromStorage = <T = unknown>(
+  key: string,
+  defaultValue: T,
+): T => {
   try {
     const item = localStorage.getItem(key);
-    return item ? JSON.parse(item) : defaultValue;
+    return item ? (JSON.parse(item) as T) : defaultValue;
   } catch (error) {
     console.error(`Error reading from localStorage (${key}):`, error);
     return defaultValue;
@@ -32,11 +32,8 @@ export const getFromStorage = (key, defaultValue = null) => {
 
 /**
  * Safely set data to localStorage
- * @param {string} key - Storage key
- * @param {*} value - Value to store
- * @returns {boolean} Success status
  */
-export const setToStorage = (key, value) => {
+export const setToStorage = (key: string, value: unknown): boolean => {
   try {
     localStorage.setItem(key, JSON.stringify(value));
     return true;
@@ -48,9 +45,8 @@ export const setToStorage = (key, value) => {
 
 /**
  * Remove data from localStorage
- * @param {string} key - Storage key
  */
-export const removeFromStorage = (key) => {
+export const removeFromStorage = (key: string): boolean => {
   try {
     localStorage.removeItem(key);
     return true;

@@ -14,25 +14,33 @@ const EquipmentSelectorModal = ({
   getMasterEquipment,
   addEquipments,
   onClose,
+}: {
+  trainerId?: string;
+  selectedEquipment: any[];
+  getMasterEquipment: () => any[];
+  addEquipments: (ids: any[]) => void;
+  onClose: () => void;
 }) => {
   const allEquipment = getMasterEquipment();
 
   // Estado local para las selecciones temporales
-  const [tempSelections, setTempSelections] = useState([]);
+  const [tempSelections, setTempSelections] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
 
   // Obtener categorías únicas
-  const categories = [...new Set(allEquipment.map((item) => item.category))];
+  const categories = [
+    ...new Set(allEquipment.map((item: any) => item.category)),
+  ];
 
   // Verificar si un equipamiento ya está seleccionado
-  const isAlreadySelected = (id) => {
+  const isAlreadySelected = (id: any) => {
     return selectedEquipment.includes(id);
   };
 
   // Verificar si está en selecciones temporales
-  const isTempSelected = (id) => {
+  const isTempSelected = (id: any) => {
     return tempSelections.includes(id);
   };
 

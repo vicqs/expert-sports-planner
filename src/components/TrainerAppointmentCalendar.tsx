@@ -15,7 +15,7 @@ const TrainerAppointmentCalendar = () => {
     new Date().toISOString().split("T")[0],
   );
   const [view, setView] = useState("appointments"); // 'appointments' | 'availability'
-  const [availSlots, setAvailSlots] = useState([]);
+  const [availSlots, setAvailSlots] = useState<any[]>([]);
 
   // Load availability when date changes or view changes
   React.useEffect(() => {

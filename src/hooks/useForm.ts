@@ -81,7 +81,7 @@ export const useForm = (initialValues, onSubmit) => {
 
       try {
         await onSubmit(values);
-      } catch (error) {
+      } catch (error: any) {
         if (error.errors) {
           // Handle validation errors object
           setErrors(error.errors);

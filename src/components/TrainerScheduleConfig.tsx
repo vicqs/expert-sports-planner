@@ -9,7 +9,7 @@ const TrainerScheduleConfig = () => {
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0],
   );
-  const [slots, setSlots] = useState([]);
+  const [slots, setSlots] = useState<any[]>([]);
 
   useEffect(() => {
     const existingSlots = getGymSchedule(selectedDate);

@@ -7,8 +7,8 @@ import PlanViewer from "./PlanViewer";
 const IntakeForm = ({ onCancel, trainerId = null }) => {
   const [step, setStep] = useState(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [clientId, setClientId] = useState(null);
-  const [completedPlan, setCompletedPlan] = useState(null);
+  const [clientId, setClientId] = useState<any>(null);
+  const [completedPlan, setCompletedPlan] = useState<any>(null);
   const { clients, addClientRequest } = useMockDatabase();
 
   const [formData, setFormData] = useState({

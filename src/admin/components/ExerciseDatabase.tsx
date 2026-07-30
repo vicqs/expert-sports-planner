@@ -16,7 +16,7 @@ const ExerciseDatabase = () => {
   } = useCustomExercises();
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [showModal, setShowModal] = useState(false);
-  const [editingExercise, setEditingExercise] = useState(null);
+  const [editingExercise, setEditingExercise] = useState<any>(null);
   const [formData, setFormData] = useState({
     name: "",
     category: "LOWER",
@@ -45,7 +45,10 @@ const ExerciseDatabase = () => {
   const filteredCategory =
     selectedCategory === "all" ? categories : [selectedCategory];
 
-  const openModal = (category = null, exerciseName = null) => {
+  const openModal = (
+    category: string | null = null,
+    exerciseName: string | null = null,
+  ) => {
     if (category && exerciseName) {
       setEditingExercise({ category, name: exerciseName });
       setFormData({

@@ -15,9 +15,9 @@ const TrainerSearch = ({ onCancel }) => {
   const { addToast } = useToast();
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [trainers, setTrainers] = useState([]);
-  const [pendingRequest, setPendingRequest] = useState(null);
-  const [currentTrainer, setCurrentTrainer] = useState(null);
+  const [trainers, setTrainers] = useState<any[]>([]);
+  const [pendingRequest, setPendingRequest] = useState<any>(null);
+  const [currentTrainer, setCurrentTrainer] = useState<any>(null);
 
   // Las funciones de MockDatabase no están memoizadas; este efecto está
   // pensado para ejecutarse una sola vez al montar el componente.

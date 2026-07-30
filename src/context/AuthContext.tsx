@@ -8,7 +8,7 @@ import {
   trialDaysRemaining as trialDaysRemainingFor,
 } from "../store/useAuthStore";
 
-const AuthContext = createContext();
+const AuthContext = createContext<any>(null);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -18,7 +18,7 @@ export const useAuth = () => {
   return context;
 };
 
-export const AuthProvider = ({ children }) => {
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const currentUser = useAuthStore((state) => state.currentUser);
   const loading = useAuthStore((state) => state.loading);
   const error = useAuthStore((state) => state.error);

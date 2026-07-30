@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, CheckCircle, AlertCircle, Info } from "lucide-react";
 
-const ToastContext = createContext(null);
+const ToastContext = createContext<any>(null);
 
 export const useToast = () => {
   const context = useContext(ToastContext);
@@ -12,15 +12,15 @@ export const useToast = () => {
   return context;
 };
 
-export const ToastProvider = ({ children }) => {
-  const [toasts, setToasts] = useState([]);
+export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
+  const [toasts, setToasts] = useState<any[]>([]);
 
-  const removeToast = useCallback((id) => {
+  const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
   const addToast = useCallback(
-    (message, type = "info", duration = 3000) => {
+    (message: string, type = "info", duration = 3000) => {
       const id = Date.now().toString();
       setToasts((prev) => [...prev, { id, message, type }]);
 
@@ -59,7 +59,13 @@ export const ToastProvider = ({ children }) => {
   );
 };
 
-const ToastItem = ({ toast, onRemove }) => {
+const ToastItem = ({
+  toast,
+  onRemove,
+}: {
+  toast: any;
+  onRemove: (id: string) => void;
+}) => {
   const icons = {
     success: <CheckCircle size={20} className="text-success" />,
     error: <AlertCircle size={20} className="text-error" />,

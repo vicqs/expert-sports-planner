@@ -14,7 +14,7 @@ const AppointmentScheduler = ({ athleteId }) => {
   const { addAppointment, getAthleteAppointments } = useMockDatabase();
   const { addToast } = useToast();
   const [step, setStep] = useState(1); // 1: Type, 2: Date/Time, 3: Confirm
-  const [selectedType, setSelectedType] = useState(null);
+  const [selectedType, setSelectedType] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
   const [notes, setNotes] = useState("");

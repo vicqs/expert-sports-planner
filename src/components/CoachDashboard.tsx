@@ -37,8 +37,8 @@ const CoachDashboard = ({ onExit: _onExit }) => {
   const { addToast } = useToast();
   const [activeTab, setActiveTab] = useState("planes"); // planes, horarios, citas, solicitudes-atletas, mis-atletas, configuracion
   const [activeSubTab, setActiveSubTab] = useState("ejercicios"); // Para sub-tabs en configuración
-  const [selectedClient, setSelectedClient] = useState(null);
-  const [currentPlanObject, setCurrentPlanObject] = useState(null);
+  const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [currentPlanObject, setCurrentPlanObject] = useState<any>(null);
 
   const trainerId = getTrainerId();
 

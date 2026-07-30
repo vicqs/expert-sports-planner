@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { STORAGE_KEYS, getFromStorage, setToStorage } from "../utils/storage";
 import { mockClients, mockAthleteRequests } from "../utils/mockProfiles";
 
-const MockDatabaseContext = createContext();
+const MockDatabaseContext = createContext<any>(null);
 
 export const useMockDatabase = () => {
   const context = useContext(MockDatabaseContext);
@@ -14,31 +14,37 @@ export const useMockDatabase = () => {
   return context;
 };
 
-export const MockDatabaseProvider = ({ children }) => {
+export const MockDatabaseProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
   // Load from local storage to persist across reloads
-  const [clients, setClients] = useState(() => {
-    return getFromStorage(STORAGE_KEYS.CLIENTS, []);
+  const [clients, setClients] = useState<any[]>(() => {
+    return getFromStorage<any[]>(STORAGE_KEYS.CLIENTS, []);
   });
 
-  const [gymAvailability, setGymAvailability] = useState(() => {
-    return getFromStorage(STORAGE_KEYS.GYM_AVAILABILITY, []);
+  const [gymAvailability, setGymAvailability] = useState<any[]>(() => {
+    return getFromStorage<any[]>(STORAGE_KEYS.GYM_AVAILABILITY, []);
   });
 
-  const [gymBookings, setGymBookings] = useState(() => {
-    return getFromStorage(STORAGE_KEYS.GYM_BOOKINGS, []);
+  const [gymBookings, setGymBookings] = useState<any[]>(() => {
+    return getFromStorage<any[]>(STORAGE_KEYS.GYM_BOOKINGS, []);
   });
 
-  const [appointments, setAppointments] = useState(() => {
-    return getFromStorage(STORAGE_KEYS.APPOINTMENTS, []);
+  const [appointments, setAppointments] = useState<any[]>(() => {
+    return getFromStorage<any[]>(STORAGE_KEYS.APPOINTMENTS, []);
   });
 
-  const [appointmentAvailability, setAppointmentAvailability] = useState(() => {
-    return getFromStorage(STORAGE_KEYS.APPOINTMENT_AVAILABILITY, []);
-  });
+  const [appointmentAvailability, setAppointmentAvailability] = useState<any[]>(
+    () => {
+      return getFromStorage<any[]>(STORAGE_KEYS.APPOINTMENT_AVAILABILITY, []);
+    },
+  );
 
   // Sistema de solicitudes atleta-entrenador
-  const [athleteRequests, setAthleteRequests] = useState(() => {
-    return getFromStorage("athleteRequests", []);
+  const [athleteRequests, setAthleteRequests] = useState<any[]>(() => {
+    return getFromStorage<any[]>("athleteRequests", []);
   });
 
   // Limpiar solicitudes antiguas con trainerId incorrecto (una sola vez)
@@ -453,7 +459,7 @@ export const MockDatabaseProvider = ({ children }) => {
    * Obtener todos los entrenadores disponibles
    */
   const getAllTrainers = () => {
-    const users = getFromStorage("users", []);
+    const users = getFromStorage<any[]>("users", []);
     return users
       .filter((u) => u.role === "TRAINER")
       .map((trainer) => ({
@@ -468,7 +474,7 @@ export const MockDatabaseProvider = ({ children }) => {
    * Enviar solicitud de atleta a entrenador
    */
   const sendTrainerRequest = (athleteId, trainerId, message = "") => {
-    const users = getFromStorage("users", []);
+    const users = getFromStorage<any[]>("users", []);
     const athlete = users.find((u) => u.id === athleteId);
     const trainer = users.find((u) => u.trainerId === trainerId);
 

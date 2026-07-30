@@ -1,11 +1,12 @@
 // Sistema de autenticación multi-tenant con localStorage
 // En producción, esto se reemplazaría con un backend real
+import type { User } from "../types";
 
 export const ROLES = {
   TRAINER: "TRAINER",
   ATHLETE: "ATHLETE",
   ADMIN: "ADMIN",
-};
+} as const;
 
 // Mantener compatibilidad con código anterior
 export const USER_ROLES = {
@@ -18,14 +19,14 @@ export const SUBSCRIPTION_PLANS = {
   BASIC: "BASIC",
   PRO: "PRO",
   GYM: "GYM",
-};
+} as const;
 
 export const SUBSCRIPTION_STATUS = {
   ACTIVE: "ACTIVE",
   TRIAL: "TRIAL",
   EXPIRED: "EXPIRED",
   CANCELLED: "CANCELLED",
-};
+} as const;
 
 export const PLAN_LIMITS = {
   FREE: {
@@ -96,13 +97,13 @@ const hashPassword = async (password) => {
 };
 
 // Obtener usuario actual desde localStorage
-export const getCurrentUser = () => {
+export const getCurrentUser = (): User | null => {
   const userStr = localStorage.getItem("currentUser");
   return userStr ? JSON.parse(userStr) : null;
 };
 
 // Guardar usuario actual
-export const setCurrentUser = (user) => {
+export const setCurrentUser = (user: User | null) => {
   if (user) {
     localStorage.setItem("currentUser", JSON.stringify(user));
   } else {
@@ -111,13 +112,13 @@ export const setCurrentUser = (user) => {
 };
 
 // Obtener todos los usuarios registrados
-export const getAllUsers = () => {
+export const getAllUsers = (): User[] => {
   const usersStr = localStorage.getItem("users");
   return usersStr ? JSON.parse(usersStr) : [];
 };
 
 // Guardar usuarios
-const saveUsers = (users) => {
+const saveUsers = (users: User[]) => {
   localStorage.setItem("users", JSON.stringify(users));
 };
 
@@ -220,7 +221,12 @@ export const registerUser = async ({
   password,
   name,
   role = ROLES.TRAINER,
-}) => {
+}: {
+  email?: string | null;
+  password?: string | null;
+  name: string;
+  role?: User["role"];
+}): Promise<User> => {
   const users = getAllUsers();
 
   // Verificar si el email ya existe (solo si se proporciona)
@@ -261,7 +267,10 @@ export const registerUser = async ({
 };
 
 // Iniciar sesión
-export const loginUser = async (email, password) => {
+export const loginUser = async (
+  email: string,
+  password?: string | null,
+): Promise<User> => {
   const users = getAllUsers();
 
   // Si no hay contraseña, intentar login por nombre (atletas sin perfil completo)
@@ -286,7 +295,7 @@ export const loginUser = async (email, password) => {
   // Verificar si el trial expiró
   if (user.subscription.status === SUBSCRIPTION_STATUS.TRIAL) {
     const now = new Date();
-    const trialEnd = new Date(user.subscription.trialEndsAt);
+    const trialEnd = new Date(user.subscription.trialEndsAt ?? 0);
     if (now > trialEnd) {
       user.subscription.status = SUBSCRIPTION_STATUS.EXPIRED;
       const updatedUsers = users.map((u) => (u.id === user.id ? user : u));
@@ -415,7 +424,7 @@ export const getTrialDaysRemaining = (user) => {
 
   const now = new Date();
   const trialEnd = new Date(user.subscription.trialEndsAt);
-  const diffTime = trialEnd - now;
+  const diffTime = trialEnd.getTime() - now.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
   return Math.max(0, diffDays);

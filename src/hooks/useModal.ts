@@ -34,12 +34,14 @@ export const useModal = (initialState = false) => {
  * @param {Function} onConfirm - Function to execute on confirmation
  * @returns {Object} Confirmation dialog state and handlers
  */
-export const useConfirm = (onConfirm) => {
+export const useConfirm = (onConfirm?: () => void | Promise<void>) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [pendingAction, setPendingAction] = useState(null);
+  const [pendingAction, setPendingAction] = useState<
+    (() => void | Promise<void>) | null
+  >(null);
 
-  const confirm = useCallback((action) => {
+  const confirm = useCallback((action: () => void | Promise<void>) => {
     setPendingAction(() => action);
     setIsOpen(true);
   }, []);

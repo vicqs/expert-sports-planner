@@ -12,9 +12,9 @@ import {
 } from "lucide-react";
 import { ROLES } from "../utils/auth";
 
-const AuthPage = ({ onSuccess }) => {
+const AuthPage = ({ onSuccess }: { onSuccess?: (role?: string) => void }) => {
   const [isLoginMode, setIsLoginMode] = useState(true);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<Record<string, any>>({
     email: "",
     password: "",
     name: "",

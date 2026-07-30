@@ -194,7 +194,7 @@ export const useTrainerLibrary = (trainerId) => {
    * Obtener todos los ejercicios seleccionados como array plano
    */
   const getAllSelectedExercises = () => {
-    const all = [];
+    const all: string[] = [];
     Object.keys(selectedExercises).forEach((category) => {
       all.push(...selectedExercises[category]);
     });

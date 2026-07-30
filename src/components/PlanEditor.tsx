@@ -29,7 +29,7 @@ const PlanEditor = ({ initialPlan, clientData, onSave, onCancel }) => {
   const [plan, setPlan] = useState(initialPlan);
   const [activeTab, setActiveTab] = useState("edit"); // 'edit' | 'preview'
   const [expandedWeek, setExpandedWeek] = useState(0);
-  const [expandedDay, setExpandedDay] = useState(null);
+  const [expandedDay, setExpandedDay] = useState<any>(null);
   const [planUnit, setPlanUnit] = useState("km"); // 'km' or 'mi'
   const [weightUnit, setWeightUnit] = useState("lb"); // 'lb' or 'kg'
   const { addToast } = useToast();

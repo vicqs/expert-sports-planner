@@ -11,7 +11,13 @@ import {
 } from "lucide-react";
 import { SUBSCRIPTION_PLANS, PLAN_FEATURES } from "../utils/auth";
 
-const PricingPage = ({ onBack, onSelectPlan }) => {
+const PricingPage = ({
+  onBack,
+  onSelectPlan,
+}: {
+  onBack?: () => void;
+  onSelectPlan?: (planId: string) => void;
+}) => {
   const { currentUser, upgradePlan } = useAuth();
 
   const plans = [

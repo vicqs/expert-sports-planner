@@ -16,6 +16,13 @@ const ProgressRing = ({
   label = "",
   showPercent = true,
   className = "",
+}: {
+  progress?: number;
+  size?: number;
+  stroke?: number;
+  label?: React.ReactNode;
+  showPercent?: boolean;
+  className?: string;
 }) => {
   const normalizedRadius = (size - stroke) / 2;
   const circumference = normalizedRadius * 2 * Math.PI;

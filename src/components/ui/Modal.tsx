@@ -27,17 +27,29 @@ const Modal = ({
   footer,
   size = "md", // sm, md, lg, xl
   className = "",
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  title?: React.ReactNode;
+  children?: React.ReactNode;
+  variant?: string;
+  showCloseButton?: boolean;
+  closeOnBackdrop?: boolean;
+  closeOnEscape?: boolean;
+  footer?: React.ReactNode;
+  size?: string;
+  className?: string;
 }) => {
-  const modalRef = useRef(null);
-  const previousFocusRef = useRef(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   // Store previous focus and restore on close
   useEffect(() => {
     if (isOpen) {
-      previousFocusRef.current = document.activeElement;
+      previousFocusRef.current = document.activeElement as HTMLElement | null;
       // Focus first focusable element in modal
       setTimeout(() => {
-        const firstFocusable = modalRef.current?.querySelector(
+        const firstFocusable = modalRef.current?.querySelector<HTMLElement>(
           'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
         );
         firstFocusable?.focus();
@@ -52,7 +64,7 @@ const Modal = ({
   useEffect(() => {
     if (!isOpen || !closeOnEscape) return;
 
-    const handleEscape = (e) => {
+    const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         onClose();
       }
@@ -74,7 +86,7 @@ const Modal = ({
     };
   }, [isOpen]);
 
-  const handleBackdropClick = (e) => {
+  const handleBackdropClick = (e: React.MouseEvent) => {
     if (closeOnBackdrop && e.target === e.currentTarget) {
       onClose();
     }

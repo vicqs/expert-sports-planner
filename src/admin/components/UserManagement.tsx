@@ -10,10 +10,10 @@ const UserManagement = () => {
   const filteredUsers = allUsers.filter(
     (user) =>
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()),
+      (user.email ?? "").toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
-  const handleViewUser = (userId) => {
+  const handleViewUser = (userId: string) => {
     console.log("View user:", userId);
     // Implementar vista de detalles del usuario
   };

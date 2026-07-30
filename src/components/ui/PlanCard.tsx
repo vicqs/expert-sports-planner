@@ -3,7 +3,7 @@ import { Card, Button } from "./index";
 import { ChevronRight, Trophy, Clock } from "lucide-react";
 import "./PlanCard.css";
 
-const PlanCard = ({ plan, onClick }) => {
+const PlanCard = ({ plan, onClick }: { plan: any; onClick: () => void }) => {
   const isCompleted = plan.status === "completed"; // Or logic based on dates
   const isActive = plan.status === "active" || !isCompleted; // Simplified for now
 
