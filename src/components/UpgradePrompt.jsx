@@ -1,20 +1,13 @@
 import React from "react";
 import { useAuth } from "../context/AuthContext";
-import { Lock, Zap, CheckCircle, X } from "lucide-react";
+import { Lock, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { SUBSCRIPTION_PLANS, PLAN_FEATURES } from "../utils/auth";
 import { Button } from "./ui";
 
-const UpgradePrompt = ({ show, onClose, onUpgrade, feature, message }) => {
+const UpgradePrompt = ({ show, onClose, onUpgrade: _onUpgrade, message }) => {
   const { currentUser } = useAuth();
 
   if (!show || !currentUser) return null;
-
-  const currentPlan = currentUser.subscription.plan;
-  const recommendedPlan =
-    feature === "unlimited_plans"
-      ? SUBSCRIPTION_PLANS.BASIC
-      : SUBSCRIPTION_PLANS.PRO;
 
   return (
     <AnimatePresence>

@@ -9,7 +9,7 @@ import "@/styles/trainer-library.css";
  * Permite selección múltiple
  */
 const EquipmentSelectorModal = ({
-  trainerId,
+  trainerId: _trainerId,
   selectedEquipment,
   getMasterEquipment,
   addEquipments,

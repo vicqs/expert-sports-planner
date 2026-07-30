@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useMockDatabase } from "../context/MockDatabase";
 import { useAuth } from "../context/AuthContext";
-import { Button, Card, useToast } from "./ui";
+import { Button, Card } from "./ui";
 import TrainerSearch from "./TrainerSearch";
 import PlanCard from "./ui/PlanCard";
 import PlanDetail from "./PlanDetail";
@@ -25,13 +25,15 @@ const AthleteDashboard = ({ onExit }) => {
     getAthletePendingRequest,
   } = useMockDatabase();
   const { currentUser } = useAuth();
-  const { addToast } = useToast();
   const [view, setView] = useState("home"); // home, trainer-search, plan-detail, gym-booking, appointments
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [myTrainer, setMyTrainer] = useState(null);
   const [pendingRequest, setPendingRequest] = useState(null);
 
-  // Auto-complete expired plans on component mount
+  // Auto-complete expired plans on component mount / cambio de usuario.
+  // Las funciones del contexto MockDatabase no están memoizadas (se recrean
+  // en cada render), por lo que incluirlas en el array causaría un loop de
+  // efectos; se ejecuta intencionalmente solo cuando cambia el usuario.
   useEffect(() => {
     autoCompletePlans();
 
@@ -42,6 +44,7 @@ const AthleteDashboard = ({ onExit }) => {
     // Verificar si tiene solicitud pendiente
     const pending = getAthletePendingRequest(currentUser?.id);
     setPendingRequest(pending);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.id]);
 
   // Get athlete's active plans - ahora solo muestra planes si tiene entrenador

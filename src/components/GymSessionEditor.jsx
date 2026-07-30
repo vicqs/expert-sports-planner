@@ -2,22 +2,22 @@ import React, { useState, useEffect } from "react";
 import { Plus, Trash2, Dumbbell, X, AlertCircle } from "lucide-react";
 import { ALL_GYM_EXERCISES } from "../utils/constants";
 import { useTrainerLibrary } from "../hooks";
-import { Button } from "./ui";
 import "@/styles/trainer-library.css";
 
 const GymSessionEditor = ({
   session,
-  weekNum,
+  weekNum: _weekNum,
   weightUnit = "lb",
   onChange,
   trainerId = null, // ID del entrenador para filtrar ejercicios
 }) => {
   // Obtener biblioteca del entrenador si trainerId está disponible
-  const library = trainerId ? useTrainerLibrary(trainerId) : null;
+  // El hook siempre debe llamarse (reglas de Hooks); maneja trainerId nulo internamente
+  const library = useTrainerLibrary(trainerId);
 
   // Usar ejercicios de biblioteca si existe, sino todos los ejercicios
   const availableExercises =
-    library && !library.isEmpty()
+    trainerId && library && !library.isEmpty()
       ? library.getAllSelectedExercises()
       : ALL_GYM_EXERCISES;
 

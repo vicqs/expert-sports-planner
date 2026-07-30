@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useMockDatabase } from "../context/MockDatabase";
 import { Button, Card, useToast } from "./ui";
-import { Calendar, Clock, Plus, Trash2, Save } from "lucide-react";
+import { Plus, Trash2, Save } from "lucide-react";
 
 const TrainerScheduleConfig = () => {
   const { updateGymSchedule, getGymSchedule } = useMockDatabase();

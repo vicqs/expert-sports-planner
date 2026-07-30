@@ -83,22 +83,16 @@ export const PLAN_FEATURES = {
 // Hash de contraseñas usando Web Crypto API (mejor que simpleHash pero aún no es producción)
 // En producción usar bcrypt o argon2 en el backend
 const hashPassword = async (password) => {
+  if (!globalThis.crypto?.subtle) {
+    throw new Error(
+      "El hashing seguro requiere un contexto seguro (HTTPS/localhost).",
+    );
+  }
   const encoder = new TextEncoder();
   const data = encoder.encode(password);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-};
-
-// Versión síncrona para compatibilidad (menos segura)
-const simpleHash = (str) => {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash = hash & hash;
-  }
-  return hash.toString(36);
 };
 
 // Obtener usuario actual desde localStorage
@@ -128,17 +122,17 @@ const saveUsers = (users) => {
 };
 
 // Inicializar super usuario administrador
-export const initializeSuperAdmin = () => {
+export const initializeSuperAdmin = async () => {
   const users = getAllUsers();
 
   // Leer credenciales desde variables de entorno (configuradas en .env.local)
   // ⚠️ IMPORTANTE: .env.local NO debe subirse a Git (está en .gitignore)
   const adminEmail = import.meta.env.VITE_ADMIN_EMAIL;
-  const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD;
+  const ADMIN_PASSWORD_HASH = import.meta.env.VITE_ADMIN_PASSWORD_HASH;
   const adminName = import.meta.env.VITE_ADMIN_NAME || "Administrador";
 
   // Validar que las credenciales estén configuradas
-  if (!ADMIN_PASSWORD || !adminEmail) {
+  if (!ADMIN_PASSWORD_HASH || !adminEmail) {
     console.error(
       "❌ ERROR: Variables de entorno NO configuradas correctamente",
     );
@@ -158,7 +152,7 @@ export const initializeSuperAdmin = () => {
   );
 
   const now = new Date();
-  const newPasswordHash = simpleHash(ADMIN_PASSWORD);
+  const newPasswordHash = ADMIN_PASSWORD_HASH;
 
   // Si existe el admin, verificar si las credenciales cambiaron
   if (existingAdminIndex !== -1) {
@@ -221,7 +215,7 @@ export const initializeSuperAdmin = () => {
 };
 
 // Registrar nuevo usuario
-export const registerUser = ({
+export const registerUser = async ({
   email,
   password,
   name,
@@ -246,7 +240,7 @@ export const registerUser = ({
   const newUser = {
     id: crypto.randomUUID(),
     email: email || null,
-    passwordHash: password ? simpleHash(password) : null,
+    passwordHash: password ? await hashPassword(password) : null,
     name,
     role,
     trainerId: role === ROLES.ATHLETE ? null : crypto.randomUUID(),
@@ -267,7 +261,7 @@ export const registerUser = ({
 };
 
 // Iniciar sesión
-export const loginUser = (email, password) => {
+export const loginUser = async (email, password) => {
   const users = getAllUsers();
 
   // Si no hay contraseña, intentar login por nombre (atletas sin perfil completo)
@@ -278,7 +272,7 @@ export const loginUser = (email, password) => {
     }
   }
 
-  const passwordHash = password ? simpleHash(password) : null;
+  const passwordHash = password ? await hashPassword(password) : null;
 
   // Buscar usuario por email y contraseña
   const user = users.find(
@@ -309,7 +303,7 @@ export const logoutUser = () => {
 };
 
 // Completar perfil de usuario (agregar email y contraseña)
-export const completeUserProfile = (userId, email, password) => {
+export const completeUserProfile = async (userId, email, password) => {
   const users = getAllUsers();
 
   // Verificar si el email ya existe
@@ -325,7 +319,7 @@ export const completeUserProfile = (userId, email, password) => {
   const updatedUser = {
     ...users[userIndex],
     email,
-    passwordHash: simpleHash(password),
+    passwordHash: await hashPassword(password),
   };
 
   users[userIndex] = updatedUser;

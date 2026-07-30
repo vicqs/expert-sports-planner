@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   ChevronDown,
   ChevronUp,
@@ -13,7 +13,6 @@ import {
   SESSION_TYPES,
   TRAINING_TYPES,
   TRAINING_COMPATIBILITY,
-  SYMBOLS,
 } from "../utils/constants";
 import { formatPlanToText } from "../utils/generator";
 import { useAuth } from "../context/AuthContext";

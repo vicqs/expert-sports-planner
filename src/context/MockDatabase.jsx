@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { STORAGE_KEYS, getFromStorage, setToStorage } from "../utils/storage";
+import { mockClients, mockAthleteRequests } from "../utils/mockProfiles";
 
 const MockDatabaseContext = createContext();
 
@@ -49,6 +50,27 @@ export const MockDatabaseProvider = ({ children }) => {
       setAthleteRequests([]);
       localStorage.setItem(cleanupKey, "true");
     }
+  }, []);
+
+  // Sembrar datos de demostración (mock) una sola vez: un entrenador y dos
+  // atletas de prueba, usados por el "modo vista previa" del super admin.
+  useEffect(() => {
+    const seedKey = "mock_profiles_seeded_v1";
+    if (localStorage.getItem(seedKey)) return;
+
+    setClients((prev) => {
+      const existingIds = new Set(prev.map((c) => c.id));
+      const toAdd = mockClients.filter((c) => !existingIds.has(c.id));
+      return toAdd.length ? [...prev, ...toAdd] : prev;
+    });
+
+    setAthleteRequests((prev) => {
+      const existingIds = new Set(prev.map((r) => r.id));
+      const toAdd = mockAthleteRequests.filter((r) => !existingIds.has(r.id));
+      return toAdd.length ? [...prev, ...toAdd] : prev;
+    });
+
+    localStorage.setItem(seedKey, "true");
   }, []);
 
   // Persist all state changes to localStorage

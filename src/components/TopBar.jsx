@@ -14,8 +14,8 @@ import "./TopBar.css";
  * - Backdrop blur for depth
  * - Touch-friendly targets (48px min)
  */
-const TopBar = ({ onExit, userName, userRole }) => {
-  const { theme, toggleTheme, isDark } = useTheme();
+const TopBar = ({ onExit, userName: _userName, userRole }) => {
+  const { toggleTheme, isDark } = useTheme();
 
   const getRoleBadge = () => {
     if (!userRole) return null;

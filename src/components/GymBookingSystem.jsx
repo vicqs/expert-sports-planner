@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useMockDatabase } from "../context/MockDatabase";
 import { Button, Card, ConfirmDialog, useToast } from "./ui";
 import { useConfirm } from "../hooks";
-import { Calendar, Clock, CheckCircle, AlertCircle } from "lucide-react";
+import { Clock } from "lucide-react";
 
 const GymBookingSystem = ({ athleteId }) => {
   const { getGymSchedule, bookGymSlot, gymBookings, cancelGymBooking } =

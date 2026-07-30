@@ -1,17 +1,34 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import Layout from "./components/Layout";
-import RoleSelector from "./components/RoleSelector";
-import CoachDashboard from "./components/CoachDashboard";
-import AthleteDashboard from "./components/AthleteDashboard";
 import AuthPage from "./components/AuthPage";
-import PricingPage from "./components/PricingPage";
 import DemoBanner from "./components/DemoBanner";
 import BottomNav from "./components/ui/BottomNav";
 import { MockDatabaseProvider } from "./context/MockDatabase";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ToastProvider } from "./components/ui/Toast";
-import { ROLES } from "./utils/auth";
-import { AdminDashboard } from "./admin";
+
+const CoachDashboard = lazy(() => import("./components/CoachDashboard"));
+const AthleteDashboard = lazy(() => import("./components/AthleteDashboard"));
+const PricingPage = lazy(() => import("./components/PricingPage"));
+const AdminDashboard = lazy(() =>
+  import("./admin").then((module) => ({ default: module.AdminDashboard })),
+);
+
+function LoadingScreen() {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: "100vh",
+        color: "var(--color-text-muted)",
+      }}
+    >
+      Cargando...
+    </div>
+  );
+}
 
 function AppContent() {
   const {
@@ -21,6 +38,8 @@ function AppContent() {
     isAthlete,
     isAdmin,
     logout,
+    isPreviewMode,
+    stopPreview,
   } = useAuth();
   const [activeTab, setActiveTab] = useState("entrenamientos");
   const [showPricing, setShowPricing] = useState(false);
@@ -35,13 +54,18 @@ function AppContent() {
     return () => document.body.classList.remove("has-bottom-nav");
   }, [currentUser]);
 
-  const handleAuthSuccess = (user) => {
-    console.log("Usuario autenticado:", user);
+  const handleAuthSuccess = () => {
     setActiveTab("entrenamientos");
   };
 
   const handleExit = () => {
-    logout();
+    // Si el super admin está en modo vista previa, "salir" solo
+    // regresa al panel de administración en lugar de cerrar sesión.
+    if (isPreviewMode()) {
+      stopPreview();
+    } else {
+      logout();
+    }
     setActiveTab("entrenamientos");
     setShowPricing(false);
   };
@@ -57,12 +81,20 @@ function AppContent() {
 
   // Si no está autenticado, mostrar página de auth
   if (!isAuthenticated()) {
-    return <AuthPage onSuccess={handleAuthSuccess} />;
+    return (
+      <Suspense fallback={<LoadingScreen />}>
+        <AuthPage onSuccess={handleAuthSuccess} />
+      </Suspense>
+    );
   }
 
   // Si está en la página de pricing
   if (showPricing) {
-    return <PricingPage onBack={handlePricingBack} />;
+    return (
+      <Suspense fallback={<LoadingScreen />}>
+        <PricingPage onBack={handlePricingBack} />
+      </Suspense>
+    );
   }
 
   const renderContent = () => {
@@ -149,15 +181,57 @@ function AppContent() {
 
   // Si es administrador, mostrar dashboard sin layout
   if (isAdmin()) {
-    return <AdminDashboard onExit={handleExit} />;
+    return (
+      <Suspense fallback={<LoadingScreen />}>
+        <AdminDashboard onExit={handleExit} />
+      </Suspense>
+    );
   }
 
   return (
     <Layout onExit={handleExit} userRole={currentUser?.role}>
-      <div className="animate-fade-in">{renderContent()}</div>
+      {isPreviewMode() && (
+        <div className="preview-mode-banner">
+          <span>
+            🔍 Vista previa (demo) como <strong>{currentUser?.name}</strong>
+          </span>
+          <button type="button" onClick={handleExit}>
+            Volver al panel Admin
+          </button>
+        </div>
+      )}
+      <div className="animate-fade-in">
+        <Suspense fallback={<LoadingScreen />}>{renderContent()}</Suspense>
+      </div>
       {currentUser && !isAdmin() && (
         <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
       )}
+      <style>{`
+        .preview-mode-banner {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 1rem;
+          padding: 0.65rem 1.25rem;
+          background: var(--color-primary-gradient, #4f46e5);
+          color: #fff;
+          font-size: 0.9rem;
+          flex-wrap: wrap;
+          margin-bottom: 20px;
+        }
+        .preview-mode-banner button {
+          background: rgba(255, 255, 255, 0.2);
+          border: 1px solid rgba(255, 255, 255, 0.4);
+          color: #fff;
+          padding: 0.35rem 0.9rem;
+          border-radius: var(--radius-md, 6px);
+          cursor: pointer;
+          font-weight: 600;
+        }
+        .preview-mode-banner button:hover {
+          background: rgba(255, 255, 255, 0.3);
+        }
+      `}</style>
     </Layout>
   );
 }

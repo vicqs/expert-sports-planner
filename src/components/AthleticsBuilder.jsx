@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, ArrowRight, Clock } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { SYMBOLS } from "../utils/constants";
 
 const TimeInput = ({ value, onChange }) => {
@@ -21,7 +21,7 @@ const TimeInput = ({ value, onChange }) => {
     if (parsed.m !== local.m || parsed.s !== local.s) {
       setLocal(parsed);
     }
-  }, [value]);
+  }, [value, local.m, local.s]);
 
   const handleChange = (field, val) => {
     const newLocal = { ...local, [field]: val };
@@ -71,7 +71,7 @@ const PaceInput = ({ value, unit, onChange }) => {
     if (parsed.m !== local.m || parsed.s !== local.s) {
       setLocal(parsed);
     }
-  }, [value]);
+  }, [value, local.m, local.s]);
 
   const handleChange = (field, val) => {
     const newLocal = { ...local, [field]: val };

@@ -1,5 +1,11 @@
 @import "./variables.css";
 
+/* Tailwind: se usa como utilidad complementaria (preflight desactivado) para
+   nuevas features y refactors incrementales, sin reescribir todo el CSS existente. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* ===== Global Reset ===== */
 *,
 *::before,

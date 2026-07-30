@@ -1,18 +1,12 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useEffect } from "react";
+import { initializeSuperAdmin, ROLES } from "../utils/auth";
+import { usePreviewStore } from "../store/usePreviewStore";
 import {
-  getCurrentUser,
-  setCurrentUser,
-  loginUser,
-  logoutUser,
-  registerUser,
-  updateSubscription,
-  canAccessFeature,
-  checkLimits,
-  getTrialDaysRemaining,
-  initializeSuperAdmin,
-  ROLES,
-  SUBSCRIPTION_PLANS,
-} from "../utils/auth";
+  useAuthStore,
+  hasFeatureAccess as hasFeatureAccessFor,
+  getUserLimits as getUserLimitsFor,
+  trialDaysRemaining as trialDaysRemainingFor,
+} from "../store/useAuthStore";
 
 const AuthContext = createContext();
 
@@ -25,166 +19,126 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [currentUser, setCurrentUserState] = useState(() => getCurrentUser());
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const currentUser = useAuthStore((state) => state.currentUser);
+  const loading = useAuthStore((state) => state.loading);
+  const error = useAuthStore((state) => state.error);
+  const register = useAuthStore((state) => state.register);
+  const login = useAuthStore((state) => state.login);
+  const quickAdminLogin = useAuthStore((state) => state.quickAdminLogin);
+  const logout = useAuthStore((state) => state.logout);
+  const upgradePlan = useAuthStore((state) => state.upgradePlan);
+  const syncFromStorage = useAuthStore((state) => state.syncFromStorage);
+
+  // Usuario simulado (mock) usado por el super admin para previsualizar
+  // cómo se ve la app como Entrenador o Atleta, sin cerrar su sesión real.
+  const previewUser = usePreviewStore((state) => state.previewUser);
+  const setPreviewUserStore = usePreviewStore((state) => state.startPreview);
+  const clearPreview = usePreviewStore((state) => state.stopPreview);
+
+  // Usuario "efectivo": el simulado si hay vista previa activa, o el real.
+  const effectiveUser = previewUser || currentUser;
 
   // Inicializar super administrador al montar el componente
   useEffect(() => {
-    initializeSuperAdmin();
+    initializeSuperAdmin().catch((err) => {
+      console.error("Error al inicializar super admin:", err);
+    });
   }, []);
 
   // Sincronizar con localStorage
   useEffect(() => {
     const handleStorageChange = () => {
-      setCurrentUserState(getCurrentUser());
+      syncFromStorage();
     };
 
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
-  }, []);
+  }, [syncFromStorage]);
 
   /**
-   * Registrar nuevo usuario
+   * Cerrar sesión (incluye limpiar cualquier vista previa activa)
    */
-  const register = async (userData) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const newUser = registerUser(userData);
-      setCurrentUser(newUser);
-      setCurrentUserState(newUser);
-      return { success: true, user: newUser };
-    } catch (err) {
-      setError(err.message);
-      return { success: false, error: err.message };
-    } finally {
-      setLoading(false);
-    }
+  const handleLogout = () => {
+    logout();
+    clearPreview();
   };
 
   /**
-   * Iniciar sesión
+   * Activar vista previa de un perfil simulado (mock). Solo pensado para
+   * que el super administrador explore cómo se ve la app como Entrenador
+   * o Atleta, sin perder su sesión real.
    */
-  const login = async (email, password) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const user = loginUser(email, password);
-      setCurrentUser(user);
-      setCurrentUserState(user);
-      return { success: true, user };
-    } catch (err) {
-      setError(err.message);
-      return { success: false, error: err.message };
-    } finally {
-      setLoading(false);
-    }
+  const startPreview = (mockUser) => {
+    if (currentUser?.role !== ROLES.ADMIN) return;
+    setPreviewUserStore(mockUser);
   };
 
   /**
-   * Cerrar sesión
+   * Salir de la vista previa y volver al panel de administrador.
    */
-  const logout = () => {
-    logoutUser();
-    setCurrentUserState(null);
-    setError(null);
+  const stopPreview = () => {
+    clearPreview();
   };
 
-  /**
-   * Actualizar plan de suscripción
-   */
-  const upgradePlan = async (newPlan) => {
-    if (!currentUser) {
-      setError("No hay usuario autenticado");
-      return { success: false, error: "No hay usuario autenticado" };
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const updatedUser = updateSubscription(currentUser.id, newPlan);
-      setCurrentUserState(updatedUser);
-      return { success: true, user: updatedUser };
-    } catch (err) {
-      setError(err.message);
-      return { success: false, error: err.message };
-    } finally {
-      setLoading(false);
-    }
-  };
+  const isPreviewMode = () => previewUser !== null;
 
   /**
    * Verificar si el usuario puede acceder a una característica
    */
-  const hasFeatureAccess = (feature) => {
-    return canAccessFeature(currentUser, feature);
-  };
+  const hasFeatureAccess = (feature) =>
+    hasFeatureAccessFor(currentUser, feature);
 
   /**
    * Obtener límites del usuario actual
    */
-  const getUserLimits = (athleteCount, activePlanCount) => {
-    if (!currentUser) return null;
-    return checkLimits(currentUser, athleteCount, activePlanCount);
-  };
+  const getUserLimits = (athleteCount, activePlanCount) =>
+    getUserLimitsFor(currentUser, athleteCount, activePlanCount);
 
   /**
    * Obtener días restantes de trial
    */
-  const trialDaysRemaining = () => {
-    return getTrialDaysRemaining(currentUser);
-  };
+  const trialDaysRemaining = () => trialDaysRemainingFor(currentUser);
 
   /**
    * Verificar si el usuario está autenticado
    */
-  const isAuthenticated = () => {
-    return currentUser !== null;
-  };
+  const isAuthenticated = () => currentUser !== null;
 
   /**
    * Verificar si el usuario es entrenador
    */
-  const isTrainer = () => {
-    return currentUser?.role === ROLES.TRAINER;
-  };
+  const isTrainer = () => effectiveUser?.role === ROLES.TRAINER;
 
   /**
    * Verificar si el usuario es atleta
    */
-  const isAthlete = () => {
-    return currentUser?.role === ROLES.ATHLETE;
-  };
+  const isAthlete = () => effectiveUser?.role === ROLES.ATHLETE;
 
   /**
    * Verificar si el usuario es administrador
    */
-  const isAdmin = () => {
-    return currentUser?.role === ROLES.ADMIN;
-  };
+  const isAdmin = () => effectiveUser?.role === ROLES.ADMIN;
 
   /**
    * Obtener ID del entrenador actual
    */
   const getTrainerId = () => {
-    if (!currentUser) return null;
-    if (currentUser.role === ROLES.TRAINER) {
-      return currentUser.trainerId || currentUser.id;
+    if (!effectiveUser) return null;
+    if (effectiveUser.role === ROLES.TRAINER) {
+      return effectiveUser.trainerId || effectiveUser.id;
     }
-    return currentUser.trainerId;
+    return effectiveUser.trainerId;
   };
 
   const value = {
-    currentUser,
+    currentUser: effectiveUser,
+    realUser: currentUser,
     loading,
     error,
     register,
     login,
-    logout,
+    logout: handleLogout,
+    quickAdminLogin,
     upgradePlan,
     hasFeatureAccess,
     getUserLimits,
@@ -194,6 +148,10 @@ export const AuthProvider = ({ children }) => {
     isAthlete,
     isAdmin,
     getTrainerId,
+    startPreview,
+    stopPreview,
+    isPreviewMode,
+    previewUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

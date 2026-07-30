@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useMockDatabase } from "../context/MockDatabase";
 import { Button, Card, useToast } from "./ui";
-import { Calendar, Clock, User, CheckCircle } from "lucide-react";
+import { Calendar, Clock } from "lucide-react";
 
 const APPOINTMENT_TYPES = [
   { id: "eval", label: "Evaluación Inicial", duration: 60, icon: "📊" },

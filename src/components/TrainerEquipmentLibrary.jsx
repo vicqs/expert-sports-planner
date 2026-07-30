@@ -191,7 +191,7 @@ const TrainerEquipmentLibrary = ({ trainerId }) => {
 
       {filteredEquipment.length === 0 && trainerEquipment.length > 0 && (
         <div className="no-results">
-          <p>No se encontraron resultados para "{searchTerm}"</p>
+          <p>No se encontraron resultados para &ldquo;{searchTerm}&rdquo;</p>
         </div>
       )}
 

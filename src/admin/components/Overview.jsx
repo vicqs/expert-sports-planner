@@ -1,5 +1,5 @@
 import React from "react";
-import { Card } from "@/components/ui";
+import { Card, Button } from "@/components/ui";
 import {
   Users,
   Calendar,
@@ -7,17 +7,52 @@ import {
   Dumbbell,
   Activity,
   Target,
+  Eye,
 } from "lucide-react";
 import {
   GYM_EXERCISES,
   SESSION_TYPES,
   TRAINING_TYPES,
 } from "@/utils/constants";
+import { useAuth } from "@/context/AuthContext";
+import { MOCK_PROFILES } from "@/utils/mockProfiles";
 import "@/admin/styles/overview.css";
 
 const Overview = ({ stats }) => {
+  const { startPreview } = useAuth();
+
   return (
     <div className="admin-overview">
+      <Card className="profile-preview-card" style={{ marginBottom: "1.5rem" }}>
+        <h3 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <Eye size={20} />
+          Simulación de Perfiles (datos de prueba)
+        </h3>
+        <p style={{ color: "var(--color-text-muted)", marginTop: "0.25rem" }}>
+          Ingresa como un perfil de demostración para ver el alcance y
+          comportamiento de la app para Entrenadores y Atletas.
+        </p>
+        <div
+          style={{
+            display: "flex",
+            gap: "0.75rem",
+            flexWrap: "wrap",
+            marginTop: "1rem",
+          }}
+        >
+          {MOCK_PROFILES.map((profile) => (
+            <Button
+              key={profile.key}
+              variant="secondary"
+              onClick={() => startPreview(profile.user)}
+              title={profile.description}
+            >
+              Ver como {profile.label}
+            </Button>
+          ))}
+        </div>
+      </Card>
+
       <div className="stats-grid">
         <Card className="stat-card">
           <div className="stat-icon users">

@@ -16,7 +16,7 @@ const CATEGORY_LABELS = {
  * Permite selección múltiple por categoría
  */
 const ExerciseSelectorModal = ({
-  trainerId,
+  trainerId: _trainerId,
   selectedExercises,
   getMasterExercises,
   addExercises,
@@ -75,7 +75,7 @@ const ExerciseSelectorModal = ({
   // Limpiar selección de una categoría
   const clearCategory = (category) => {
     setTempSelections((prev) => {
-      const { [category]: removed, ...rest } = prev;
+      const { [category]: _removed, ...rest } = prev;
       return rest;
     });
   };

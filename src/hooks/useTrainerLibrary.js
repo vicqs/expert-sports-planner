@@ -140,7 +140,7 @@ export const useTrainerLibrary = (trainerId) => {
 
       // Si la categoría queda vacía, eliminarla
       if (filtered.length === 0) {
-        const { [category]: removed, ...rest } = prev;
+        const { [category]: _removed, ...rest } = prev;
         return rest;
       }
 

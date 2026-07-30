@@ -1,7 +1,15 @@
 import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { Button } from "./ui";
-import { Mail, Lock, User, AlertCircle, LogIn, UserPlus } from "lucide-react";
+import {
+  Mail,
+  Lock,
+  User,
+  AlertCircle,
+  LogIn,
+  UserPlus,
+  Shield,
+} from "lucide-react";
 import { ROLES } from "../utils/auth";
 
 const AuthPage = ({ onSuccess }) => {
@@ -15,7 +23,17 @@ const AuthPage = ({ onSuccess }) => {
   });
   const [formError, setFormError] = useState("");
 
-  const { login, register, loading } = useAuth();
+  const { login, register, loading, quickAdminLogin } = useAuth();
+
+  const handleQuickAdminLogin = async () => {
+    setFormError("");
+    const result = await quickAdminLogin();
+    if (result.success) {
+      onSuccess && onSuccess(result.user);
+    } else {
+      setFormError(result.error);
+    }
+  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -230,6 +248,19 @@ const AuthPage = ({ onSuccess }) => {
             </button>
           </p>
         </div>
+
+        <div className="dev-quick-access">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            leftIcon={<Shield size={16} />}
+            onClick={handleQuickAdminLogin}
+            disabled={loading}
+          >
+            Acceso temporal como Super Admin (dev)
+          </Button>
+        </div>
       </div>
 
       <style>{`
@@ -403,6 +434,12 @@ const AuthPage = ({ onSuccess }) => {
         .auth-footer p {
           margin: 0;
           color: var(--color-text-muted);
+        }
+
+        .dev-quick-access {
+          margin-top: 1rem;
+          text-align: center;
+          opacity: 0.7;
         }
 
         .toggle-btn {

@@ -19,6 +19,8 @@ const TrainerSearch = ({ onCancel }) => {
   const [pendingRequest, setPendingRequest] = useState(null);
   const [currentTrainer, setCurrentTrainer] = useState(null);
 
+  // Las funciones de MockDatabase no están memoizadas; este efecto está
+  // pensado para ejecutarse una sola vez al montar el componente.
   useEffect(() => {
     // Cargar entrenadores
     const allTrainers = getAllTrainers();
@@ -31,6 +33,7 @@ const TrainerSearch = ({ onCancel }) => {
     // Verificar si ya tiene entrenador asignado
     const trainer = getAthleteTrainer(currentUser.id);
     setCurrentTrainer(trainer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filteredTrainers = trainers.filter(

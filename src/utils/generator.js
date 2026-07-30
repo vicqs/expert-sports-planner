@@ -9,8 +9,6 @@ import {
   TRAINING_SCHEDULE,
 } from "./constants";
 
-const getRandomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
-
 /**
  * Generates an athletics training session based on day and athlete profile
  * @param {number} dayIndex - Day of week (0-6)
@@ -18,7 +16,7 @@ const getRandomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
  * @param {string} objective - Training objective
  * @returns {Object|null} Session object or null for rest days
  */
-const generateAthleticsSession = (dayIndex, level, objective) => {
+const generateAthleticsSession = (dayIndex, _level, _objective) => {
   const isQualityDay = TRAINING_SCHEDULE.QUALITY_DAYS.includes(dayIndex);
   const isLongDay = dayIndex === TRAINING_SCHEDULE.LONG_RUN_DAY;
   const isRestDay = TRAINING_SCHEDULE.REST_DAYS.includes(dayIndex);
@@ -60,7 +58,7 @@ const generateAthleticsSession = (dayIndex, level, objective) => {
  * @param {number} weekNum - Week number in the plan
  * @returns {Object|null} Gym session object or null if not a gym day
  */
-const generateGymSession = (dayIndex, weekNum) => {
+const generateGymSession = (dayIndex, _weekNum) => {
   const dayName = DAY_NAMES[dayIndex];
 
   if (dayIndex === TRAINING_SCHEDULE.GYM_DAYS[0]) {

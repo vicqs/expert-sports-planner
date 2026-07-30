@@ -3,15 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useMockDatabase } from "@/context/MockDatabase";
 import { getAllUsers } from "@/utils/auth";
 import { Button } from "@/components/ui";
-import {
-  Shield,
-  TrendingUp,
-  Users,
-  Activity,
-  Dumbbell,
-  BarChart3,
-  Settings,
-} from "lucide-react";
+import { Shield, Settings } from "lucide-react";
 import { useAdminStats, useEquipment } from "@/admin/hooks";
 import Overview from "@/admin/components/Overview";
 import UserManagement from "@/admin/components/UserManagement";

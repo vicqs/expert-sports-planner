@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useMockDatabase } from "../context/MockDatabase";
 import { Card, Button, useToast } from "./ui";
-import { Calendar, Clock, User, CheckCircle, XCircle } from "lucide-react";
+import { Clock, User, CheckCircle, XCircle } from "lucide-react";
 
 const TrainerAppointmentCalendar = () => {
   const {
@@ -129,7 +129,9 @@ const TrainerAppointmentCalendar = () => {
                       <span>Atleta ID: {app.athleteId}</span>
                       {/* In real app, we'd join with user table to get name */}
                     </div>
-                    {app.notes && <p className="notes">"{app.notes}"</p>}
+                    {app.notes && (
+                      <p className="notes">&ldquo;{app.notes}&rdquo;</p>
+                    )}
                   </div>
                   <div className="app-actions">
                     {app.status === "SCHEDULED" && (

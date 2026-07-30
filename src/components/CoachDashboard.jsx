@@ -7,7 +7,6 @@ import {
   Check,
   Clock,
   User,
-  ArrowLeft,
   UserCheck,
   UserX,
   X,
@@ -21,7 +20,7 @@ import TrainerEquipmentLibrary from "./TrainerEquipmentLibrary";
 import { Card, Button, useToast } from "./ui";
 import "@/styles/trainer-library.css";
 
-const CoachDashboard = ({ onExit }) => {
+const CoachDashboard = ({ onExit: _onExit }) => {
   const {
     getPendingClients,
     getCompletedClients,
@@ -34,7 +33,7 @@ const CoachDashboard = ({ onExit }) => {
     getTrainerAthletes,
     removeAthlete,
   } = useMockDatabase();
-  const { currentUser, getTrainerId, getUserLimits } = useAuth();
+  const { getTrainerId, getUserLimits } = useAuth();
   const { addToast } = useToast();
   const [activeTab, setActiveTab] = useState("planes"); // planes, horarios, citas, solicitudes-atletas, mis-atletas, configuracion
   const [activeSubTab, setActiveSubTab] = useState("ejercicios"); // Para sub-tabs en configuración
@@ -43,9 +42,12 @@ const CoachDashboard = ({ onExit }) => {
 
   const trainerId = getTrainerId();
 
-  // Auto-complete expired plans on component mount
+  // Auto-complete expired plans on component mount.
+  // autoCompletePlans no está memoizada en MockDatabase; se ejecuta
+  // intencionalmente una sola vez al montar el componente.
   useEffect(() => {
     autoCompletePlans();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const pending = getPendingClients(trainerId);

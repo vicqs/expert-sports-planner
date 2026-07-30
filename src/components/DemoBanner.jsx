@@ -1,9 +1,9 @@
 import React from "react";
 import { useAuth } from "../context/AuthContext";
-import { AlertCircle, Zap, ArrowRight } from "lucide-react";
+import { AlertCircle, Zap } from "lucide-react";
 import { SUBSCRIPTION_STATUS, SUBSCRIPTION_PLANS } from "../utils/auth";
 
-const DemoBanner = ({ onUpgradeClick }) => {
+const DemoBanner = ({ onUpgradeClick: _onUpgradeClick }) => {
   const { currentUser, trialDaysRemaining } = useAuth();
 
   if (!currentUser) return null;
