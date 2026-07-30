@@ -1,28 +1,29 @@
-import React, { useState, useEffect } from 'react';
-import { ChevronRight, Send, CheckCircle, RefreshCw } from 'lucide-react';
-import { Button } from './ui';
-import { useMockDatabase } from '../context/MockDatabase';
-import PlanViewer from './PlanViewer';
+import React, { useState, useEffect } from "react";
+import { ChevronRight, Send, CheckCircle, RefreshCw } from "lucide-react";
+import { Button } from "./ui";
+import { useMockDatabase } from "../context/MockDatabase";
+import PlanViewer from "./PlanViewer";
 
-const IntakeForm = ({ onSubmit, onCancel }) => {
+const IntakeForm = ({ onCancel, trainerId = null }) => {
   const [step, setStep] = useState(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [clientId, setClientId] = useState(null);
   const [completedPlan, setCompletedPlan] = useState(null);
-  const { clients } = useMockDatabase();
+  const { clients, addClientRequest } = useMockDatabase();
 
   const [formData, setFormData] = useState({
-    name: '',
-    objective: '',
-    level: 'Intermedio',
-    daysPerWeek: 5
+    name: "",
+    objective: "",
+    level: "Intermedio",
+    daysPerWeek: 5,
+    planDuration: 4, // weeks
   });
 
   // Poll for plan completion
   useEffect(() => {
     if (isSubmitted && clientId) {
-      const client = clients.find(c => c.id === clientId);
-      if (client && client.status === 'COMPLETED' && client.plan) {
+      const client = clients.find((c) => c.id === clientId);
+      if (client && client.status === "COMPLETED" && client.plan) {
         setCompletedPlan(client.plan);
       }
     }
@@ -36,7 +37,7 @@ const IntakeForm = ({ onSubmit, onCancel }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const newId = onSubmit(formData); // Expect onSubmit to return ID
+    const newId = addClientRequest(formData, trainerId);
     setClientId(newId);
     setIsSubmitted(true);
   };
@@ -82,7 +83,9 @@ const IntakeForm = ({ onSubmit, onCancel }) => {
         </div>
         <h2>¡Solicitud Enviada!</h2>
         <p>Tu perfil ha sido enviado al entrenador.</p>
-        <p className="sub-text">Esperando que el entrenador genere tu plan...</p>
+        <p className="sub-text">
+          Esperando que el entrenador genere tu plan...
+        </p>
         <div className="waiting-indicator">
           <RefreshCw size={20} className="spin" />
           <span>Verificando actualizaciones en tiempo real</span>
@@ -133,11 +136,11 @@ const IntakeForm = ({ onSubmit, onCancel }) => {
   return (
     <div className="intake-card">
       <div className="steps-indicator">
-        <div className={`step ${step >= 1 ? 'active' : ''}`}>1</div>
+        <div className={`step ${step >= 1 ? "active" : ""}`}>1</div>
         <div className="line"></div>
-        <div className={`step ${step >= 2 ? 'active' : ''}`}>2</div>
+        <div className={`step ${step >= 2 ? "active" : ""}`}>2</div>
         <div className="line"></div>
-        <div className={`step ${step >= 3 ? 'active' : ''}`}>3</div>
+        <div className={`step ${step >= 3 ? "active" : ""}`}>3</div>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -157,7 +160,12 @@ const IntakeForm = ({ onSubmit, onCancel }) => {
             </div>
             <div className="form-group">
               <label>Objetivo Principal</label>
-              <select name="objective" value={formData.objective} onChange={handleChange} required>
+              <select
+                name="objective"
+                value={formData.objective}
+                onChange={handleChange}
+                required
+              >
                 <option value="">Seleccionar...</option>
                 <option value="10k">Mejorar 10k</option>
                 <option value="21k">Medio Maratón</option>
@@ -176,8 +184,11 @@ const IntakeForm = ({ onSubmit, onCancel }) => {
             <div className="form-group">
               <label>Nivel de Experiencia</label>
               <div className="radio-group">
-                {['Principiante', 'Intermedio', 'Avanzado'].map(l => (
-                  <label key={l} className={`radio-card ${formData.level === l ? 'selected' : ''}`}>
+                {["Principiante", "Intermedio", "Avanzado"].map((l) => (
+                  <label
+                    key={l}
+                    className={`radio-card ${formData.level === l ? "selected" : ""}`}
+                  >
                     <input
                       type="radio"
                       name="level"
@@ -190,7 +201,42 @@ const IntakeForm = ({ onSubmit, onCancel }) => {
                 ))}
               </div>
             </div>
-            <Button type="button" variant="primary" rightIcon={<ChevronRight size={16} />} onClick={nextStep}>
+            <div className="form-group">
+              <label>Duración del Plan</label>
+              <div className="radio-group">
+                {[
+                  { weeks: 4, label: "4 semanas" },
+                  { weeks: 6, label: "6 semanas" },
+                  { weeks: 8, label: "8 semanas" },
+                  { weeks: 12, label: "12 semanas" },
+                ].map((option) => (
+                  <label
+                    key={option.weeks}
+                    className={`radio-card ${formData.planDuration === option.weeks ? "selected" : ""}`}
+                  >
+                    <input
+                      type="radio"
+                      name="planDuration"
+                      value={option.weeks}
+                      checked={formData.planDuration === option.weeks}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          planDuration: parseInt(e.target.value),
+                        })
+                      }
+                    />
+                    {option.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="primary"
+              rightIcon={<ChevronRight size={16} />}
+              onClick={nextStep}
+            >
               Siguiente
             </Button>
           </div>
@@ -200,9 +246,15 @@ const IntakeForm = ({ onSubmit, onCancel }) => {
           <div className="form-step">
             <h2>Confirmación</h2>
             <p className="summary-text">
-              Enviar solicitud para <strong>{formData.name}</strong> con objetivo <strong>{formData.objective}</strong>.
+              Enviar solicitud para <strong>{formData.name}</strong> con
+              objetivo <strong>{formData.objective}</strong>.
             </p>
-            <Button type="submit" variant="primary" size="lg" rightIcon={<Send size={16} />}>
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              rightIcon={<Send size={16} />}
+            >
               Enviar a Entrenador
             </Button>
           </div>
@@ -212,102 +264,216 @@ const IntakeForm = ({ onSubmit, onCancel }) => {
       <style>{`
         .intake-card {
           background: var(--color-surface);
-          padding: 2rem;
-          border-radius: var(--radius-lg);
+          padding: var(--space-8);
+          border-radius: var(--radius-xl);
           border: 1px solid var(--color-border);
-          max-width: 600px;
+          max-width: 650px;
           margin: 0 auto;
+          box-shadow: var(--shadow-lg);
+          animation: slideIn 0.4s ease-out;
+        }
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
         .steps-indicator {
           display: flex;
           align-items: center;
           justify-content: center;
-          margin-bottom: 2rem;
+          margin-bottom: var(--space-8);
+          padding: var(--space-4);
+          background: var(--color-bg-subtle);
+          border-radius: var(--radius-lg);
         }
         .step {
-          width: 32px;
-          height: 32px;
+          width: 40px;
+          height: 40px;
           border-radius: 50%;
           background: var(--color-surface-hover);
           color: var(--color-text-muted);
           display: flex;
           align-items: center;
           justify-content: center;
-          font-weight: 600;
-          transition: all 0.3s ease;
+          font-weight: 700;
+          font-size: var(--text-lg);
+          transition: all var(--transition-normal);
+          position: relative;
+          z-index: 2;
         }
         .step.active {
-          background: var(--color-primary);
+          background: var(--color-primary-gradient);
           color: white;
+          box-shadow: var(--shadow-md), var(--shadow-glow);
+          transform: scale(1.1);
         }
         .line {
-          width: 40px;
-          height: 2px;
-          background: var(--color-surface-hover);
-          margin: 0 0.5rem;
+          width: 60px;
+          height: 3px;
+          background: var(--color-border);
+          margin: 0 var(--space-2);
+          position: relative;
+          z-index: 1;
+        }
+        .form-step {
+          animation: fadeIn 0.3s ease-out;
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateX(-20px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        .form-step h2 {
+          font-size: var(--text-2xl);
+          font-weight: 700;
+          margin-bottom: var(--space-6);
+          color: var(--color-text);
+          text-align: center;
         }
         .form-group {
-          margin-bottom: 1.5rem;
+          margin-bottom: var(--space-6);
         }
         label {
           display: block;
-          margin-bottom: 0.5rem;
-          font-weight: 500;
+          margin-bottom: var(--space-3);
+          font-weight: 600;
+          font-size: var(--text-sm);
           color: var(--color-text);
+          letter-spacing: 0.02em;
         }
         input, select {
           width: 100%;
-          padding: 0.75rem;
+          min-height: var(--touch-target-min);
+          padding: var(--space-4);
           background: var(--color-bg);
-          border: 1px solid var(--color-border);
+          border: 2px solid var(--color-border);
           border-radius: var(--radius-md);
           color: var(--color-text);
           font-family: var(--font-sans);
+          font-size: var(--text-base);
+          transition: all var(--transition-normal);
         }
         input:focus, select:focus {
           outline: none;
           border-color: var(--color-primary);
+          box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+          transform: translateY(-1px);
+        }
+        input::placeholder {
+          color: var(--color-text-muted);
         }
         .btn-primary {
-          background: var(--color-primary);
+          background: var(--color-primary-gradient);
           color: white;
           border: none;
-          padding: 0.75rem 1.5rem;
+          min-height: var(--touch-target-min);
+          padding: var(--space-4) var(--space-6);
           border-radius: var(--radius-md);
-          display: flex;
+          display: inline-flex;
           align-items: center;
-          gap: 0.5rem;
-          font-weight: 600;
-          transition: background 0.2s;
-          margin-top: 1rem;
+          justify-content: center;
+          gap: var(--space-2);
+          font-weight: 700;
+          font-size: var(--text-base);
+          transition: all var(--transition-normal);
+          margin-top: var(--space-6);
           cursor: pointer;
+          width: 100%;
+          box-shadow: var(--shadow-md);
         }
         .btn-primary:hover {
-          background: var(--color-primary-hover);
+          box-shadow: var(--shadow-lg), var(--shadow-glow);
+          transform: translateY(-2px);
+        }
+        .btn-primary:active {
+          transform: translateY(0);
         }
         .radio-group {
-          display: flex;
-          gap: 1rem;
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+          gap: var(--space-3);
         }
         .radio-card {
-          flex: 1;
-          padding: 1rem;
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-md);
+          padding: var(--space-5);
+          border: 2px solid var(--color-border);
+          border-radius: var(--radius-lg);
           cursor: pointer;
           text-align: center;
-          transition: all 0.2s;
+          font-weight: 600;
+          transition: all var(--transition-normal);
+          background: var(--color-surface);
+          min-height: var(--touch-target-min);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .radio-card:hover {
+          border-color: var(--color-primary);
+          transform: translateY(-2px);
+          box-shadow: var(--shadow-md);
         }
         .radio-card.selected {
           border-color: var(--color-primary);
-          background: rgba(59, 130, 246, 0.1);
+          background: var(--color-primary-bg);
+          box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+          transform: scale(1.02);
         }
         .radio-card input {
           display: none;
         }
         .summary-text {
-          margin-bottom: 1.5rem;
-          color: var(--color-text-muted);
+          margin-bottom: var(--space-6);
+          padding: var(--space-5);
+          background: var(--color-bg-subtle);
+          border-radius: var(--radius-md);
+          border-left: 4px solid var(--color-primary);
+          color: var(--color-text);
+          font-size: var(--text-base);
+          line-height: var(--leading-relaxed);
+        }
+        .summary-text strong {
+          color: var(--color-primary);
+          font-weight: 700;
+        }
+        @media (max-width: 768px) {
+          .intake-card {
+            padding: var(--space-6);
+          }
+          .step {
+            width: 36px;
+            height: 36px;
+            font-size: var(--text-base);
+          }
+          .line {
+            width: 40px;
+          }
+        }
+        @media (max-width: 480px) {
+          .intake-card {
+            padding: var(--space-4);
+            border-radius: var(--radius-lg);
+          }
+          .steps-indicator {
+            padding: var(--space-3);
+          }
+          .step {
+            width: 32px;
+            height: 32px;
+            font-size: var(--text-sm);
+          }
+          .line {
+            width: 30px;
+          }
+          .form-step h2 {
+            font-size: var(--text-xl);
+          }
+          .radio-group {
+            grid-template-columns: 1fr;
+          }
         }
       `}</style>
     </div>

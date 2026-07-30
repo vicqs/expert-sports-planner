@@ -1,17 +1,23 @@
-import React from 'react';
-import { User, ShieldCheck } from 'lucide-react';
-import Card from './ui/Card';
+import React from "react";
+import { User, ShieldCheck } from "lucide-react";
+import Card from "./ui/Card";
 
 const RoleSelector = ({ onSelect }) => {
   return (
     <div className="role-selector-container">
       <div className="role-header">
-        <h1>Bienvenido a AntiGravity</h1>
+        <h1>Bienvenido a Expert Sports Planner</h1>
         <p>Sistema Experto de Planificación Deportiva</p>
       </div>
 
       <div className="cards-container">
-        <Card hover glass gradient="purple-blue" className="role-card" onClick={() => onSelect('athlete')}>
+        <Card
+          hover
+          glass
+          gradient="purple-blue"
+          className="role-card"
+          onClick={() => onSelect("athlete")}
+        >
           <div className="icon-wrapper athlete">
             <User size={48} />
           </div>
@@ -20,7 +26,13 @@ const RoleSelector = ({ onSelect }) => {
           <div className="card-arrow">→</div>
         </Card>
 
-        <Card hover glass gradient="purple-blue" className="role-card" onClick={() => onSelect('coach')}>
+        <Card
+          hover
+          glass
+          gradient="purple-blue"
+          className="role-card"
+          onClick={() => onSelect("coach")}
+        >
           <div className="icon-wrapper coach">
             <ShieldCheck size={48} />
           </div>
@@ -133,17 +145,40 @@ const RoleSelector = ({ onSelect }) => {
         }
         
         @media (max-width: 768px) {
+          .role-selector-container {
+            padding: var(--space-4);
+          }
           .role-header h1 {
             font-size: var(--text-3xl);
           }
-          
+          .role-header p {
+            font-size: var(--text-base);
+          }
           .cards-container {
             gap: var(--space-6);
           }
-          
           .role-card {
             width: 100%;
-            max-width: 320px;
+            max-width: 400px;
+          }
+        }
+        @media (max-width: 480px) {
+          .role-header h1 {
+            font-size: var(--text-2xl);
+          }
+          .role-header p {
+            font-size: var(--text-sm);
+          }
+          .role-card {
+            padding: var(--space-6);
+          }
+          .icon-wrapper {
+            width: 80px;
+            height: 80px;
+          }
+          .icon-wrapper svg {
+            width: 40px;
+            height: 40px;
           }
         }
       `}</style>

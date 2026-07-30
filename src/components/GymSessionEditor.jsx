@@ -1,19 +1,40 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Dumbbell, X } from 'lucide-react';
-import { ALL_GYM_EXERCISES } from '../utils/constants';
-import { Button } from './ui';
+import React, { useState, useEffect } from "react";
+import { Plus, Trash2, Dumbbell, X, AlertCircle } from "lucide-react";
+import { ALL_GYM_EXERCISES } from "../utils/constants";
+import { useTrainerLibrary } from "../hooks";
+import { Button } from "./ui";
+import "@/styles/trainer-library.css";
 
-const GymSessionEditor = ({ session, weekNum, weightUnit = 'lb', onChange }) => {
-  const [localSession, setLocalSession] = useState(session || {
-    title: 'SESIÓN DE GIMNASIO',
-    exercises: []
-  });
+const GymSessionEditor = ({
+  session,
+  weekNum,
+  weightUnit = "lb",
+  onChange,
+  trainerId = null, // ID del entrenador para filtrar ejercicios
+}) => {
+  // Obtener biblioteca del entrenador si trainerId está disponible
+  const library = trainerId ? useTrainerLibrary(trainerId) : null;
+
+  // Usar ejercicios de biblioteca si existe, sino todos los ejercicios
+  const availableExercises =
+    library && !library.isEmpty()
+      ? library.getAllSelectedExercises()
+      : ALL_GYM_EXERCISES;
+
+  const [localSession, setLocalSession] = useState(
+    session || {
+      title: "SESIÓN DE GIMNASIO",
+      exercises: [],
+    },
+  );
 
   useEffect(() => {
-    setLocalSession(session || {
-      title: 'SESIÓN DE GIMNASIO',
-      exercises: []
-    });
+    setLocalSession(
+      session || {
+        title: "SESIÓN DE GIMNASIO",
+        exercises: [],
+      },
+    );
   }, [session]);
 
   const updateField = (field, value) => {
@@ -24,18 +45,18 @@ const GymSessionEditor = ({ session, weekNum, weightUnit = 'lb', onChange }) => 
 
   const addExercise = () => {
     const newEx = {
-      name: '',
-      weight: '',
+      name: "",
+      weight: "",
       unit: weightUnit,
-      series: '4',
-      reps: '12',
-      restVal: '60',
-      restUnit: 's',
-      notes: ''
+      series: "4",
+      reps: "12",
+      restVal: "60",
+      restUnit: "s",
+      notes: "",
     };
     const updated = {
       ...localSession,
-      exercises: [...(localSession.exercises || []), newEx]
+      exercises: [...(localSession.exercises || []), newEx],
     };
     setLocalSession(updated);
     onChange(updated);
@@ -44,7 +65,7 @@ const GymSessionEditor = ({ session, weekNum, weightUnit = 'lb', onChange }) => 
   const removeExercise = (index) => {
     const updated = {
       ...localSession,
-      exercises: localSession.exercises.filter((_, i) => i !== index)
+      exercises: localSession.exercises.filter((_, i) => i !== index),
     };
     setLocalSession(updated);
     onChange(updated);
@@ -55,10 +76,11 @@ const GymSessionEditor = ({ session, weekNum, weightUnit = 'lb', onChange }) => 
     updatedEx[index] = { ...updatedEx[index], [field]: value };
 
     // Sync legacy rest field if needed, or just use restVal/restUnit
-    if (field === 'restVal' || field === 'restUnit') {
-      const val = field === 'restVal' ? value : (updatedEx[index].restVal || '');
-      const unit = field === 'restUnit' ? value : (updatedEx[index].restUnit || 's');
-      updatedEx[index].rest = `${val}${unit === 's' ? '"' : "'"}`;
+    if (field === "restVal" || field === "restUnit") {
+      const val = field === "restVal" ? value : updatedEx[index].restVal || "";
+      const unit =
+        field === "restUnit" ? value : updatedEx[index].restUnit || "s";
+      updatedEx[index].rest = `${val}${unit === "s" ? '"' : "'"}`;
     }
 
     const updated = { ...localSession, exercises: updatedEx };
@@ -67,22 +89,51 @@ const GymSessionEditor = ({ session, weekNum, weightUnit = 'lb', onChange }) => 
   };
 
   const getMuscleGroup = (name) => {
-    if (!name) return 'General';
+    if (!name) return "General";
     const lower = name.toLowerCase();
-    if (lower.includes('sentadilla') || lower.includes('prensa') || lower.includes('estocada') || lower.includes('femoral') || lower.includes('talones')) return 'Pierna';
-    if (lower.includes('press') || lower.includes('fondos') || lower.includes('aperturas')) return 'Empuje';
-    if (lower.includes('remo') || lower.includes('jalón') || lower.includes('dominadas') || lower.includes('curl')) return 'Tracción';
-    if (lower.includes('plancha') || lower.includes('crunch') || lower.includes('russian') || lower.includes('bug')) return 'Core';
-    return 'General';
+    if (
+      lower.includes("sentadilla") ||
+      lower.includes("prensa") ||
+      lower.includes("estocada") ||
+      lower.includes("femoral") ||
+      lower.includes("talones")
+    )
+      return "Pierna";
+    if (
+      lower.includes("press") ||
+      lower.includes("fondos") ||
+      lower.includes("aperturas")
+    )
+      return "Empuje";
+    if (
+      lower.includes("remo") ||
+      lower.includes("jalón") ||
+      lower.includes("dominadas") ||
+      lower.includes("curl")
+    )
+      return "Tracción";
+    if (
+      lower.includes("plancha") ||
+      lower.includes("crunch") ||
+      lower.includes("russian") ||
+      lower.includes("bug")
+    )
+      return "Core";
+    return "General";
   };
 
   const getBadgeColor = (group) => {
     switch (group) {
-      case 'Pierna': return 'var(--color-primary)';
-      case 'Empuje': return 'var(--color-warning)';
-      case 'Tracción': return 'var(--color-success)';
-      case 'Core': return 'var(--color-text-muted)';
-      default: return 'var(--color-text-muted)';
+      case "Pierna":
+        return "var(--color-primary)";
+      case "Empuje":
+        return "var(--color-warning)";
+      case "Tracción":
+        return "var(--color-success)";
+      case "Core":
+        return "var(--color-text-muted)";
+      default:
+        return "var(--color-text-muted)";
     }
   };
 
@@ -96,10 +147,25 @@ const GymSessionEditor = ({ session, weekNum, weightUnit = 'lb', onChange }) => 
           type="text"
           className="gym-title-input"
           value={localSession.title}
-          onChange={(e) => updateField('title', e.target.value)}
+          onChange={(e) => updateField("title", e.target.value)}
           placeholder="Título de la sesión (ej. Fuerza Hipertrofia)"
         />
       </div>
+
+      {/* Banner informativo si biblioteca está vacía */}
+      {library && library.isEmpty() && (
+        <div className="library-warning-banner">
+          <AlertCircle size={20} />
+          <div>
+            <strong>Configura tu biblioteca de ejercicios</strong>
+            <p>
+              Ve a Configuración para seleccionar los ejercicios que usarás en
+              tus planes. Por ahora se muestran todos los ejercicios
+              disponibles.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="exercises-grid">
         {(localSession.exercises || []).map((ex, i) => {
@@ -110,10 +176,19 @@ const GymSessionEditor = ({ session, weekNum, weightUnit = 'lb', onChange }) => 
             <div key={i} className="exercise-card">
               <div className="card-header">
                 <span className="ex-number">#{i + 1}</span>
-                <span className="muscle-badge" style={{ backgroundColor: badgeColor + '20', color: badgeColor }}>
+                <span
+                  className="muscle-badge"
+                  style={{
+                    backgroundColor: badgeColor + "20",
+                    color: badgeColor,
+                  }}
+                >
                   {group}
                 </span>
-                <button className="btn-remove" onClick={() => removeExercise(i)}>
+                <button
+                  className="btn-remove"
+                  onClick={() => removeExercise(i)}
+                >
                   <Trash2 size={16} />
                 </button>
               </div>
@@ -126,15 +201,17 @@ const GymSessionEditor = ({ session, weekNum, weightUnit = 'lb', onChange }) => 
                       type="text"
                       className="autocomplete-input"
                       placeholder="Buscar o seleccionar ejercicio..."
-                      value={ex.name || ''}
-                      onChange={(e) => updateExercise(i, 'name', e.target.value)}
+                      value={ex.name || ""}
+                      onChange={(e) =>
+                        updateExercise(i, "name", e.target.value)
+                      }
                       list={`exercise-list-${i}`}
                       autoComplete="off"
                     />
                     {ex.name && (
                       <button
                         className="clear-search-btn"
-                        onClick={() => updateExercise(i, 'name', '')}
+                        onClick={() => updateExercise(i, "name", "")}
                         type="button"
                         title="Limpiar"
                       >
@@ -142,14 +219,16 @@ const GymSessionEditor = ({ session, weekNum, weightUnit = 'lb', onChange }) => 
                       </button>
                     )}
                     <datalist id={`exercise-list-${i}`}>
-                      {ALL_GYM_EXERCISES
-                        .filter(e => {
-                          const searchTerm = (ex.name || '').toLowerCase().trim();
+                      {availableExercises
+                        .filter((e) => {
+                          const searchTerm = (ex.name || "")
+                            .toLowerCase()
+                            .trim();
                           if (!searchTerm) return true;
                           return e.toLowerCase().includes(searchTerm);
                         })
                         .slice(0, 100)
-                        .map(e => (
+                        .map((e) => (
                           <option key={e} value={e} />
                         ))}
                     </datalist>
@@ -162,7 +241,9 @@ const GymSessionEditor = ({ session, weekNum, weightUnit = 'lb', onChange }) => 
                     <input
                       type="number"
                       value={ex.series}
-                      onChange={(e) => updateExercise(i, 'series', e.target.value)}
+                      onChange={(e) =>
+                        updateExercise(i, "series", e.target.value)
+                      }
                       placeholder="4"
                     />
                   </div>
@@ -172,7 +253,9 @@ const GymSessionEditor = ({ session, weekNum, weightUnit = 'lb', onChange }) => 
                     <input
                       type="text"
                       value={ex.reps}
-                      onChange={(e) => updateExercise(i, 'reps', e.target.value)}
+                      onChange={(e) =>
+                        updateExercise(i, "reps", e.target.value)
+                      }
                       placeholder="12"
                     />
                   </div>
@@ -185,12 +268,16 @@ const GymSessionEditor = ({ session, weekNum, weightUnit = 'lb', onChange }) => 
                       <input
                         type="number"
                         value={ex.weight}
-                        onChange={(e) => updateExercise(i, 'weight', e.target.value)}
+                        onChange={(e) =>
+                          updateExercise(i, "weight", e.target.value)
+                        }
                         placeholder="0"
                       />
                       <select
                         value={ex.unit || weightUnit}
-                        onChange={(e) => updateExercise(i, 'unit', e.target.value)}
+                        onChange={(e) =>
+                          updateExercise(i, "unit", e.target.value)
+                        }
                         className="unit-select"
                       >
                         <option value="lb">lb</option>
@@ -204,13 +291,17 @@ const GymSessionEditor = ({ session, weekNum, weightUnit = 'lb', onChange }) => 
                     <div className="input-group-joined">
                       <input
                         type="number"
-                        value={ex.restVal || ex.rest?.replace(/\D/g, '') || ''}
-                        onChange={(e) => updateExercise(i, 'restVal', e.target.value)}
+                        value={ex.restVal || ex.rest?.replace(/\D/g, "") || ""}
+                        onChange={(e) =>
+                          updateExercise(i, "restVal", e.target.value)
+                        }
                         placeholder="60"
                       />
                       <select
-                        value={ex.restUnit || 's'}
-                        onChange={(e) => updateExercise(i, 'restUnit', e.target.value)}
+                        value={ex.restUnit || "s"}
+                        onChange={(e) =>
+                          updateExercise(i, "restUnit", e.target.value)
+                        }
                       >
                         <option value="s">s</option>
                         <option value="'">m</option>
@@ -479,6 +570,134 @@ const GymSessionEditor = ({ session, weekNum, weightUnit = 'lb', onChange }) => 
         .clear-search-btn:hover {
           background: var(--color-bg-subtle);
           color: var(--color-text);
+        }
+        
+        /* RESPONSIVE DESIGN */
+        @media (max-width: 768px) {
+          .gym-editor {
+            padding: 0;
+          }
+          
+          .gym-header {
+            padding: 1rem;
+            gap: 0.75rem;
+          }
+          
+          .header-icon {
+            width: 36px;
+            height: 36px;
+          }
+          
+          .header-icon svg {
+            width: 20px;
+            height: 20px;
+          }
+          
+          .gym-title-input {
+            font-size: 0.95rem;
+          }
+          
+          .exercises-grid {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+          }
+          
+          .exercise-card {
+            padding: 1rem;
+          }
+          
+          .card-header {
+            gap: 0.5rem;
+          }
+          
+          .ex-number {
+            font-size: 0.85rem;
+          }
+          
+          .muscle-badge {
+            font-size: 0.7rem;
+            padding: 0.25rem 0.5rem;
+          }
+          
+          .row-group {
+            grid-template-columns: 1fr;
+            gap: 0.75rem;
+          }
+          
+          .field-group label {
+            font-size: 0.75rem;
+          }
+          
+          .field-group input,
+          .field-group select {
+            padding: 0.65rem;
+            font-size: 0.9rem;
+          }
+          
+          .btn-add-card {
+            min-height: 150px;
+          }
+        }
+        
+        @media (max-width: 480px) {
+          .gym-header {
+            padding: 0.75rem;
+          }
+          
+          .gym-title-input {
+            font-size: 0.85rem;
+          }
+          
+          .exercises-grid {
+            gap: 0.75rem;
+          }
+          
+          .exercise-card {
+            padding: 0.75rem;
+          }
+          
+          .card-header {
+            flex-wrap: wrap;
+          }
+          
+          .ex-number,
+          .muscle-badge {
+            font-size: 0.7rem;
+          }
+          
+          .field-group.full {
+            margin-bottom: 0.75rem;
+          }
+          
+          .field-group label {
+            font-size: 0.7rem;
+            margin-bottom: 0.35rem;
+          }
+          
+          .field-group input,
+          .field-group select {
+            padding: 0.6rem;
+            font-size: 0.85rem;
+          }
+          
+          .input-with-unit {
+            gap: 0.25rem;
+          }
+          
+          .unit-select {
+            width: 50px !important;
+            font-size: 0.8rem;
+          }
+          
+          .btn-add-card {
+            min-height: 120px;
+            gap: 0.75rem;
+          }
+          
+          .icon-circle {
+            width: 40px;
+            height: 40px;
+          }
         }
       `}</style>
     </div>

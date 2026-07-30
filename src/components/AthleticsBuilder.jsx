@@ -1,18 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, ArrowRight, Clock } from 'lucide-react';
-import { SYMBOLS } from '../utils/constants';
-
+import React, { useState, useEffect } from "react";
+import { Plus, Trash2, ArrowRight, Clock } from "lucide-react";
+import { SYMBOLS } from "../utils/constants";
 
 const TimeInput = ({ value, onChange }) => {
   const parse = (val) => {
-    if (!val) return { m: '', s: '' };
+    if (!val) return { m: "", s: "" };
     // Handle mm'ss" format or mm:ss format
-    const clean = val.replace(/["']/g, ':').replace(/[^0-9:]/g, '');
-    if (clean.includes(':')) {
-      const parts = clean.split(':').filter(p => p !== '');
-      return { m: parts[0] || '', s: parts[1] || '' };
+    const clean = val.replace(/["']/g, ":").replace(/[^0-9:]/g, "");
+    if (clean.includes(":")) {
+      const parts = clean.split(":").filter((p) => p !== "");
+      return { m: parts[0] || "", s: parts[1] || "" };
     }
-    return { m: clean, s: '' };
+    return { m: clean, s: "" };
   };
 
   const [local, setLocal] = useState(parse(value));
@@ -27,7 +26,7 @@ const TimeInput = ({ value, onChange }) => {
   const handleChange = (field, val) => {
     const newLocal = { ...local, [field]: val };
     setLocal(newLocal);
-    let out = '';
+    let out = "";
     if (newLocal.m) out += `${newLocal.m}'`;
     if (newLocal.s) out += `${newLocal.s}"`;
     onChange(out);
@@ -39,7 +38,7 @@ const TimeInput = ({ value, onChange }) => {
         type="text"
         placeholder="mm"
         value={local.m}
-        onChange={(e) => handleChange('m', e.target.value)}
+        onChange={(e) => handleChange("m", e.target.value)}
         className="time-part"
       />
       <span className="separator">:</span>
@@ -47,7 +46,7 @@ const TimeInput = ({ value, onChange }) => {
         type="text"
         placeholder="ss"
         value={local.s}
-        onChange={(e) => handleChange('s', e.target.value)}
+        onChange={(e) => handleChange("s", e.target.value)}
         className="time-part"
       />
     </div>
@@ -56,13 +55,13 @@ const TimeInput = ({ value, onChange }) => {
 
 const PaceInput = ({ value, unit, onChange }) => {
   const parse = (val) => {
-    if (!val) return { m: '', s: '' };
-    const clean = val.replace(/[^0-9:]/g, '');
-    if (clean.includes(':')) {
-      const [m, s] = clean.split(':');
+    if (!val) return { m: "", s: "" };
+    const clean = val.replace(/[^0-9:]/g, "");
+    if (clean.includes(":")) {
+      const [m, s] = clean.split(":");
       return { m, s };
     }
-    return { m: clean, s: '' };
+    return { m: clean, s: "" };
   };
 
   const [local, setLocal] = useState(parse(value));
@@ -82,7 +81,7 @@ const PaceInput = ({ value, unit, onChange }) => {
     } else if (newLocal.m) {
       onChange(`${newLocal.m}:00`);
     } else {
-      onChange('');
+      onChange("");
     }
   };
 
@@ -92,7 +91,7 @@ const PaceInput = ({ value, unit, onChange }) => {
         type="text"
         placeholder="mm"
         value={local.m}
-        onChange={(e) => handleChange('m', e.target.value)}
+        onChange={(e) => handleChange("m", e.target.value)}
         className="time-part"
       />
       <span className="separator">:</span>
@@ -100,7 +99,7 @@ const PaceInput = ({ value, unit, onChange }) => {
         type="text"
         placeholder="ss"
         value={local.s}
-        onChange={(e) => handleChange('s', e.target.value)}
+        onChange={(e) => handleChange("s", e.target.value)}
         className="time-part"
       />
       <span className="unit-label">/{unit}</span>
@@ -108,28 +107,28 @@ const PaceInput = ({ value, unit, onChange }) => {
   );
 };
 
-const AthleticsBuilder = ({ session, unit = 'km', onChange }) => {
+const AthleticsBuilder = ({ session, unit = "km", onChange }) => {
   const updateField = (field, value) => {
     onChange({ ...session, [field]: value });
   };
 
   // Segment Builder State
-  const [segmentType, setSegmentType] = useState('SIMPLE'); // SIMPLE, INTERVAL, PROGRESSIVE, FARTLEK
+  const [segmentType, setSegmentType] = useState("SIMPLE"); // SIMPLE, INTERVAL, PROGRESSIVE, FARTLEK
   const [segState, setSegState] = useState({
-    reps: '1',
-    distType: 'TIME', // TIME or DIST
-    distVal: '',
-    timeVal: '', // formatted string
-    paceStart: '',
-    paceEnd: '',
-    restVal: '',
-    restType: 'TIME', // TIME or DIST
+    reps: "1",
+    distType: "TIME", // TIME or DIST
+    distVal: "",
+    timeVal: "", // formatted string
+    paceStart: "",
+    paceEnd: "",
+    restVal: "",
+    restType: "TIME", // TIME or DIST
     // Fartlek specific
-    ftkFast: '',
-    ftkSlow: '',
+    ftkFast: "",
+    ftkSlow: "",
     // Advanced Interval
-    compoundDist: '', // e.g. "400" for "800 + 400"
-    paceMod: '' // '↓', '↘', ''
+    compoundDist: "", // e.g. "400" for "800 + 400"
+    paceMod: "", // '↓', '↘', ''
   });
 
   const [segments, setSegments] = useState([]);
@@ -140,33 +139,33 @@ const AthleticsBuilder = ({ session, unit = 'km', onChange }) => {
   // Helper to format a single segment string
   const buildSegmentString = () => {
     // FARTLEK Construction
-    if (segmentType === 'FARTLEK') {
+    if (segmentType === "FARTLEK") {
       // Format: TotalDuration @ Fast :: Slow
       // Example: 15' @ 4' :: 1'
-      const total = segState.timeVal || '15\'';
-      const fast = segState.ftkFast || '1\'';
-      const slow = segState.ftkSlow || '1\'';
+      const total = segState.timeVal || "15'";
+      const fast = segState.ftkFast || "1'";
+      const slow = segState.ftkSlow || "1'";
       return `${total} @ ${fast} ${SYMBOLS.REST_SERIES} ${slow}`;
     }
 
     // Distance/Duration part
-    let duration = '';
-    if (segState.distType === 'TIME') {
+    let duration = "";
+    if (segState.distType === "TIME") {
       duration = segState.timeVal; // e.g. "35'"
     } else {
-      duration = `${segState.distVal}${unit === 'km' ? 'k' : 'mi'}`; // e.g. "5k"
+      duration = `${segState.distVal}${unit === "km" ? "k" : "mi"}`; // e.g. "5k"
     }
 
     // Compound Distance logic (e.g. 800 + 400)
-    if (segmentType === 'INTERVAL' && segState.compoundDist) {
+    if (segmentType === "INTERVAL" && segState.compoundDist) {
       duration = `${segState.distVal} + ${segState.compoundDist}`;
     }
 
     // Pace part
-    let pace = '';
-    const mod = segState.paceMod || '';
+    let pace = "";
+    const mod = segState.paceMod || "";
 
-    if (segmentType === 'PROGRESSIVE') {
+    if (segmentType === "PROGRESSIVE") {
       // Example: 40' @ 6:35 ↘ 6:25 /km
       pace = `@ ${segState.paceStart} ${SYMBOLS.PROGRESSION_DOWN} ${segState.paceEnd} /${unit}`;
     } else {
@@ -177,9 +176,9 @@ const AthleticsBuilder = ({ session, unit = 'km', onChange }) => {
     }
 
     // Interval Construction
-    if (segmentType === 'INTERVAL') {
+    if (segmentType === "INTERVAL") {
       // Rest part
-      let rest = '';
+      let rest = "";
       if (segState.restVal) {
         rest = `${SYMBOLS.REST_SERIES} ${segState.restVal}`;
       }
@@ -195,43 +194,49 @@ const AthleticsBuilder = ({ session, unit = 'km', onChange }) => {
     if (!str) return;
     const newSegments = [...segments, str];
     setSegments(newSegments);
-    updateField('mainBlock', newSegments.join(' + '));
+    updateField("mainBlock", newSegments.join(" + "));
 
     // Reset inputs partially
-    setSegState(prev => ({
+    setSegState((prev) => ({
       ...prev,
-      distVal: '',
-      timeVal: '',
-      paceStart: '',
-      paceEnd: '',
-      restVal: '',
-      compoundDist: ''
+      distVal: "",
+      timeVal: "",
+      paceStart: "",
+      paceEnd: "",
+      restVal: "",
+      compoundDist: "",
     }));
   };
 
   const removeSegment = (idx) => {
     const newSegments = segments.filter((_, i) => i !== idx);
     setSegments(newSegments);
-    updateField('mainBlock', newSegments.join(' + '));
+    updateField("mainBlock", newSegments.join(" + "));
   };
 
   const insertSymbol = (sym) => {
-    const current = session.mainBlock || '';
-    updateField('mainBlock', current + sym);
+    const current = session.mainBlock || "";
+    updateField("mainBlock", current + sym);
   };
 
   return (
     <div className="athletics-builder">
       {/* Visualizer Bar */}
       <div className="session-visualizer">
-        <div className="vis-block warmup" title="Calentamiento">C</div>
+        <div className="vis-block warmup" title="Calentamiento">
+          C
+        </div>
         {segments.map((seg, i) => (
           <div key={i} className="vis-block main" title={seg}>
             {i + 1}
           </div>
         ))}
-        {segments.length === 0 && <div className="vis-block empty">Bloque Principal</div>}
-        <div className="vis-block cooldown" title="Afloje">A</div>
+        {segments.length === 0 && (
+          <div className="vis-block empty">Bloque Principal</div>
+        )}
+        <div className="vis-block cooldown" title="Afloje">
+          A
+        </div>
       </div>
 
       {/* Warmup */}
@@ -239,8 +244,8 @@ const AthleticsBuilder = ({ session, unit = 'km', onChange }) => {
         <label className="section-label">Calentamiento {SYMBOLS.WARMUP}</label>
         <div className="compact-row">
           <TimeInput
-            value={session.warmup?.split('@')[0] || ''}
-            onChange={(val) => updateField('warmup', `${val}@TRO`)}
+            value={session.warmup?.split("@")[0] || ""}
+            onChange={(val) => updateField("warmup", `${val}@TRO`)}
           />
           <span className="static-text">@ TRO</span>
         </div>
@@ -251,47 +256,69 @@ const AthleticsBuilder = ({ session, unit = 'km', onChange }) => {
         <div className="builder-header">
           <label className="section-label">Bloque Principal</label>
           <div className="tabs-mini">
-            <button className={segmentType === 'SIMPLE' ? 'active' : ''} onClick={() => setSegmentType('SIMPLE')}>Continuo</button>
-            <button className={segmentType === 'INTERVAL' ? 'active' : ''} onClick={() => setSegmentType('INTERVAL')}>Intervalos</button>
-            <button className={segmentType === 'FARTLEK' ? 'active' : ''} onClick={() => setSegmentType('FARTLEK')}>Fartlek</button>
-            <button className={segmentType === 'PROGRESSIVE' ? 'active' : ''} onClick={() => setSegmentType('PROGRESSIVE')}>Progresivo</button>
+            <button
+              className={segmentType === "SIMPLE" ? "active" : ""}
+              onClick={() => setSegmentType("SIMPLE")}
+            >
+              Continuo
+            </button>
+            <button
+              className={segmentType === "INTERVAL" ? "active" : ""}
+              onClick={() => setSegmentType("INTERVAL")}
+            >
+              Intervalos
+            </button>
+            <button
+              className={segmentType === "FARTLEK" ? "active" : ""}
+              onClick={() => setSegmentType("FARTLEK")}
+            >
+              Fartlek
+            </button>
+            <button
+              className={segmentType === "PROGRESSIVE" ? "active" : ""}
+              onClick={() => setSegmentType("PROGRESSIVE")}
+            >
+              Progresivo
+            </button>
           </div>
         </div>
 
         <div className="builder-controls">
-          {segmentType === 'INTERVAL' && (
+          {segmentType === "INTERVAL" && (
             <div className="control-group">
               <label>Reps</label>
               <input
                 type="number"
                 className="input-short"
                 value={segState.reps}
-                onChange={e => setSegState({ ...segState, reps: e.target.value })}
+                onChange={(e) =>
+                  setSegState({ ...segState, reps: e.target.value })
+                }
               />
             </div>
           )}
 
-          {segmentType === 'FARTLEK' ? (
+          {segmentType === "FARTLEK" ? (
             <>
               <div className="control-group">
                 <label>Total</label>
                 <TimeInput
                   value={segState.timeVal}
-                  onChange={val => setSegState({ ...segState, timeVal: val })}
+                  onChange={(val) => setSegState({ ...segState, timeVal: val })}
                 />
               </div>
               <div className="control-group">
                 <label>Rápido</label>
                 <TimeInput
                   value={segState.ftkFast}
-                  onChange={val => setSegState({ ...segState, ftkFast: val })}
+                  onChange={(val) => setSegState({ ...segState, ftkFast: val })}
                 />
               </div>
               <div className="control-group">
                 <label>Lento</label>
                 <TimeInput
                   value={segState.ftkSlow}
-                  onChange={val => setSegState({ ...segState, ftkSlow: val })}
+                  onChange={(val) => setSegState({ ...segState, ftkSlow: val })}
                 />
               </div>
             </>
@@ -301,32 +328,43 @@ const AthleticsBuilder = ({ session, unit = 'km', onChange }) => {
               <div className="toggle-input">
                 <select
                   value={segState.distType}
-                  onChange={e => setSegState({ ...segState, distType: e.target.value })}
+                  onChange={(e) =>
+                    setSegState({ ...segState, distType: e.target.value })
+                  }
                 >
                   <option value="TIME">Tiempo</option>
                   <option value="DIST">Distancia</option>
                 </select>
-                {segState.distType === 'TIME' ? (
+                {segState.distType === "TIME" ? (
                   <TimeInput
                     value={segState.timeVal}
-                    onChange={val => setSegState({ ...segState, timeVal: val })}
+                    onChange={(val) =>
+                      setSegState({ ...segState, timeVal: val })
+                    }
                   />
                 ) : (
                   <div className="dist-input">
                     <input
                       type="number"
                       value={segState.distVal}
-                      onChange={e => setSegState({ ...segState, distVal: e.target.value })}
+                      onChange={(e) =>
+                        setSegState({ ...segState, distVal: e.target.value })
+                      }
                     />
-                    {segmentType === 'INTERVAL' && (
+                    {segmentType === "INTERVAL" && (
                       <>
                         <span>+</span>
                         <input
                           type="number"
                           placeholder="Comp"
                           value={segState.compoundDist}
-                          onChange={e => setSegState({ ...segState, compoundDist: e.target.value })}
-                          style={{ width: '40px' }}
+                          onChange={(e) =>
+                            setSegState({
+                              ...segState,
+                              compoundDist: e.target.value,
+                            })
+                          }
+                          style={{ width: "40px" }}
                         />
                       </>
                     )}
@@ -337,15 +375,22 @@ const AthleticsBuilder = ({ session, unit = 'km', onChange }) => {
             </div>
           )}
 
-          {segmentType !== 'FARTLEK' && (
+          {segmentType !== "FARTLEK" && (
             <div className="control-group">
-              <label>Ritmo {segmentType === 'PROGRESSIVE' ? 'Inicial' : ''}</label>
-              <div className="pace-wrapper" style={{ display: 'flex', gap: '4px' }}>
-                {segmentType === 'INTERVAL' && (
+              <label>
+                Ritmo {segmentType === "PROGRESSIVE" ? "Inicial" : ""}
+              </label>
+              <div
+                className="pace-wrapper"
+                style={{ display: "flex", gap: "4px" }}
+              >
+                {segmentType === "INTERVAL" && (
                   <select
                     className="mini-select"
                     value={segState.paceMod}
-                    onChange={e => setSegState({ ...segState, paceMod: e.target.value })}
+                    onChange={(e) =>
+                      setSegState({ ...segState, paceMod: e.target.value })
+                    }
                   >
                     <option value="">=</option>
                     <option value={SYMBOLS.DOWN}>{SYMBOLS.DOWN}</option>
@@ -355,29 +400,31 @@ const AthleticsBuilder = ({ session, unit = 'km', onChange }) => {
                 <PaceInput
                   value={segState.paceStart}
                   unit={unit}
-                  onChange={val => setSegState({ ...segState, paceStart: val })}
+                  onChange={(val) =>
+                    setSegState({ ...segState, paceStart: val })
+                  }
                 />
               </div>
             </div>
           )}
 
-          {segmentType === 'PROGRESSIVE' && (
+          {segmentType === "PROGRESSIVE" && (
             <div className="control-group">
               <label>Ritmo Final {SYMBOLS.PROGRESSION_DOWN}</label>
               <PaceInput
                 value={segState.paceEnd}
                 unit={unit}
-                onChange={val => setSegState({ ...segState, paceEnd: val })}
+                onChange={(val) => setSegState({ ...segState, paceEnd: val })}
               />
             </div>
           )}
 
-          {segmentType === 'INTERVAL' && (
+          {segmentType === "INTERVAL" && (
             <div className="control-group">
               <label>Recup {SYMBOLS.REST_SERIES}</label>
               <TimeInput
                 value={segState.restVal}
-                onChange={val => setSegState({ ...segState, restVal: val })}
+                onChange={(val) => setSegState({ ...segState, restVal: val })}
               />
             </div>
           )}
@@ -393,7 +440,9 @@ const AthleticsBuilder = ({ session, unit = 'km', onChange }) => {
             {segments.map((seg, i) => (
               <div key={i} className="segment-chip">
                 {seg}
-                <button onClick={() => removeSegment(i)}><Trash2 size={12} /></button>
+                <button onClick={() => removeSegment(i)}>
+                  <Trash2 size={12} />
+                </button>
               </div>
             ))}
           </div>
@@ -402,30 +451,93 @@ const AthleticsBuilder = ({ session, unit = 'km', onChange }) => {
         {/* Final Output */}
         <div className="final-output-wrapper">
           <div className="symbol-bar">
-            <button onClick={() => insertSymbol(SYMBOLS.SEPARATOR)} title="Separador">||</button>
-            <button onClick={() => insertSymbol(SYMBOLS.REST_SERIES)} title="Pausa Serie">::</button>
-            <button onClick={() => insertSymbol(SYMBOLS.PROGRESSION_DOWN)} title="Progresivo">↘</button>
-            <button onClick={() => insertSymbol(SYMBOLS.DOWN)} title="Más rápido">↓</button>
-            <button onClick={() => insertSymbol(SYMBOLS.STRONG)} title="Fuerte">F</button>
-            <button onClick={() => insertSymbol(SYMBOLS.SOFT)} title="Suave">S</button>
-            <button onClick={() => insertSymbol(SYMBOLS.PACE)} title="Ritmo">Ritmo</button>
-            <button onClick={() => insertSymbol(SYMBOLS.AVG)} title="Promedio">Prom</button>
-            <button onClick={() => insertSymbol(SYMBOLS.CHANGE)} title="Cambio">Cambio</button>
-            <button onClick={() => insertSymbol(SYMBOLS.BEST_PACE)} title="Mejor ritmo">MRP</button>
-            <button onClick={() => insertSymbol(SYMBOLS.SPRINT)} title="Sprint">Sprint</button>
-            <button onClick={() => insertSymbol(SYMBOLS.CIRCUIT)} title="Circuito">Circ</button>
-            <button onClick={() => insertSymbol(SYMBOLS.REST_SERIES)} title="Descanso Series">D.Ser</button>
-            <button onClick={() => insertSymbol(SYMBOLS.REST_BLOCK)} title="Descanso Bloques">D.Bloq</button>
-            <button onClick={() => insertSymbol(SYMBOLS.REST_30_SEC)} title="Descanso 30s">30s</button>
-            <button onClick={() => insertSymbol(' + ')} title="Más">+</button>
-            <button onClick={() => insertSymbol(' [ ')} title="Abrir">[</button>
-            <button onClick={() => insertSymbol(' ] ')} title="Cerrar">]</button>
+            <button
+              onClick={() => insertSymbol(SYMBOLS.SEPARATOR)}
+              title="Separador"
+            >
+              ||
+            </button>
+            <button
+              onClick={() => insertSymbol(SYMBOLS.REST_SERIES)}
+              title="Pausa Serie"
+            >
+              ::
+            </button>
+            <button
+              onClick={() => insertSymbol(SYMBOLS.PROGRESSION_DOWN)}
+              title="Progresivo"
+            >
+              ↘
+            </button>
+            <button
+              onClick={() => insertSymbol(SYMBOLS.DOWN)}
+              title="Más rápido"
+            >
+              ↓
+            </button>
+            <button onClick={() => insertSymbol(SYMBOLS.STRONG)} title="Fuerte">
+              F
+            </button>
+            <button onClick={() => insertSymbol(SYMBOLS.SOFT)} title="Suave">
+              S
+            </button>
+            <button onClick={() => insertSymbol(SYMBOLS.PACE)} title="Ritmo">
+              Ritmo
+            </button>
+            <button onClick={() => insertSymbol(SYMBOLS.AVG)} title="Promedio">
+              Prom
+            </button>
+            <button onClick={() => insertSymbol(SYMBOLS.CHANGE)} title="Cambio">
+              Cambio
+            </button>
+            <button
+              onClick={() => insertSymbol(SYMBOLS.BEST_PACE)}
+              title="Mejor ritmo"
+            >
+              MRP
+            </button>
+            <button onClick={() => insertSymbol(SYMBOLS.SPRINT)} title="Sprint">
+              Sprint
+            </button>
+            <button
+              onClick={() => insertSymbol(SYMBOLS.CIRCUIT)}
+              title="Circuito"
+            >
+              Circ
+            </button>
+            <button
+              onClick={() => insertSymbol(SYMBOLS.REST_SERIES)}
+              title="Descanso Series"
+            >
+              D.Ser
+            </button>
+            <button
+              onClick={() => insertSymbol(SYMBOLS.REST_BLOCK)}
+              title="Descanso Bloques"
+            >
+              D.Bloq
+            </button>
+            <button
+              onClick={() => insertSymbol(SYMBOLS.REST_30_SEC)}
+              title="Descanso 30s"
+            >
+              30s
+            </button>
+            <button onClick={() => insertSymbol(" + ")} title="Más">
+              +
+            </button>
+            <button onClick={() => insertSymbol(" [ ")} title="Abrir">
+              [
+            </button>
+            <button onClick={() => insertSymbol(" ] ")} title="Cerrar">
+              ]
+            </button>
           </div>
           <div className="final-output">
             <span className="symbol">{SYMBOLS.SEPARATOR}</span>
             <input
               value={session.mainBlock}
-              onChange={e => updateField('mainBlock', e.target.value)}
+              onChange={(e) => updateField("mainBlock", e.target.value)}
               placeholder="Bloque principal..."
             />
           </div>
@@ -437,8 +549,8 @@ const AthleticsBuilder = ({ session, unit = 'km', onChange }) => {
         <label className="section-label">Afloje {SYMBOLS.COOLDOWN}</label>
         <div className="compact-row">
           <TimeInput
-            value={session.cooldown?.split('@')[0] || ''}
-            onChange={(val) => updateField('cooldown', `${val}@TRO`)}
+            value={session.cooldown?.split("@")[0] || ""}
+            onChange={(val) => updateField("cooldown", `${val}@TRO`)}
           />
           <span className="static-text">@ TRO</span>
         </div>
@@ -780,6 +892,301 @@ const AthleticsBuilder = ({ session, unit = 'km', onChange }) => {
             font-weight: bold;
             cursor: pointer;
             padding: 0;
+        }
+        
+        /* RESPONSIVE DESIGN */
+        @media (max-width: 768px) {
+          .session-visualizer {
+            gap: 0.25rem;
+            padding: 0.75rem;
+          }
+          
+          .vis-block {
+            min-width: 30px;
+            height: 30px;
+            font-size: 0.7rem;
+          }
+          
+          .section-row {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.75rem;
+          }
+          
+          .compact-row {
+            width: 100%;
+            justify-content: flex-start;
+          }
+          
+          .main-block-builder {
+            padding: 1rem;
+          }
+          
+          .builder-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.75rem;
+          }
+          
+          .tabs-mini {
+            width: 100%;
+            overflow-x: auto;
+            flex-wrap: nowrap;
+          }
+          
+          .tabs-mini button {
+            flex: 1;
+            min-width: fit-content;
+            white-space: nowrap;
+            font-size: 0.7rem;
+            padding: 6px 10px;
+          }
+          
+          .builder-controls {
+            gap: 0.75rem;
+          }
+          
+          .control-group {
+            min-width: 100%;
+          }
+          
+          .control-group label {
+            font-size: 0.65rem;
+          }
+          
+          .toggle-input {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 0.5rem;
+          }
+          
+          .toggle-input select {
+            width: 100%;
+            padding: 0.5rem;
+            font-size: 0.85rem;
+          }
+          
+          .dist-input {
+            width: 100%;
+            padding: 0.5rem;
+          }
+          
+          .dist-input input {
+            flex: 1;
+            min-width: 50px;
+          }
+          
+          .pace-wrapper {
+            width: 100%;
+          }
+          
+          .time-input-group,
+          .pace-input-group {
+            width: 100%;
+            padding: 0.5rem;
+          }
+          
+          .time-part {
+            font-size: 0.9rem;
+            flex: 1;
+            min-width: 30px;
+          }
+          
+          .input-short {
+            width: 100%;
+            padding: 0.6rem;
+          }
+          
+          .segments-list {
+            gap: 0.5rem;
+          }
+          
+          .segment-chip {
+            font-size: 0.8rem;
+            padding: 5px 8px;
+            word-break: break-all;
+          }
+          
+          .symbol-bar {
+            flex-wrap: wrap;
+            gap: 0.25rem;
+          }
+          
+          .symbol-bar button {
+            min-width: 32px;
+            font-size: 0.7rem;
+          }
+          
+          .final-output {
+            flex-wrap: wrap;
+          }
+          
+          .final-output input {
+            min-width: 0;
+            font-size: 0.85rem;
+          }
+        }
+        
+        @media (max-width: 480px) {
+          .athletics-builder {
+            padding: 0;
+          }
+          
+          .session-visualizer {
+            padding: 0.5rem;
+            gap: 0.2rem;
+          }
+          
+          .vis-block {
+            min-width: 28px;
+            height: 28px;
+            font-size: 0.65rem;
+            padding: 0.25rem;
+          }
+          
+          .section-row {
+            gap: 0.5rem;
+          }
+          
+          .section-label {
+            font-size: 0.7rem;
+          }
+          
+          .compact-row {
+            gap: 0.5rem;
+          }
+          
+          .static-text {
+            font-size: 0.8rem;
+          }
+          
+          .main-block-builder {
+            padding: 0.75rem;
+          }
+          
+          .builder-header {
+            gap: 0.5rem;
+          }
+          
+          .tabs-mini {
+            gap: 2px;
+            padding: 2px;
+          }
+          
+          .tabs-mini button {
+            font-size: 0.65rem;
+            padding: 5px 8px;
+          }
+          
+          .builder-controls {
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+          }
+          
+          .control-group {
+            width: 100%;
+          }
+          
+          .control-group label {
+            font-size: 0.6rem;
+            margin-bottom: 0.3rem;
+          }
+          
+          .toggle-input select {
+            padding: 0.5rem;
+            font-size: 0.8rem;
+          }
+          
+          .dist-input {
+            padding: 0.4rem;
+          }
+          
+          .dist-input input {
+            font-size: 0.8rem;
+            padding: 0.25rem;
+          }
+          
+          .dist-input span {
+            font-size: 0.75rem;
+          }
+          
+          .time-input-group,
+          .pace-input-group {
+            padding: 0.4rem;
+          }
+          
+          .time-part,
+          .pace-input-group input {
+            font-size: 0.8rem;
+            padding: 0.25rem;
+          }
+          
+          .separator,
+          .unit-label {
+            font-size: 0.65rem;
+          }
+          
+          .input-short {
+            padding: 0.5rem;
+            font-size: 0.8rem;
+          }
+          
+          .btn-add {
+            width: 32px;
+            height: 32px;
+          }
+          
+          .btn-add svg {
+            width: 16px;
+            height: 16px;
+          }
+          
+          .segments-list {
+            gap: 0.4rem;
+          }
+          
+          .segment-chip {
+            font-size: 0.7rem;
+            padding: 4px 6px;
+          }
+          
+          .segment-chip button {
+            padding: 1px;
+          }
+          
+          .final-output-wrapper {
+            gap: 0.4rem;
+          }
+          
+          .symbol-bar {
+            gap: 0.2rem;
+            padding-bottom: 0.2rem;
+          }
+          
+          .symbol-bar button {
+            font-size: 0.65rem;
+            padding: 3px 5px;
+            min-width: 28px;
+          }
+          
+          .final-output {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          
+          .symbol {
+            border-right: none;
+            border-bottom: 1px solid var(--color-border);
+            border-radius: var(--radius-md) var(--radius-md) 0 0;
+            text-align: center;
+            padding: 0.5rem;
+          }
+          
+          .final-output input {
+            padding: 0.6rem;
+            font-size: 0.8rem;
+          }
         }
       `}</style>
     </div>
