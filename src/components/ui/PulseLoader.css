@@ -1,0 +1,44 @@
+.pulse-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.pulse-loader-fullscreen {
+  min-height: 100vh;
+  width: 100%;
+}
+
+.pulse-loader-waveform {
+  width: 120px;
+  max-width: 60vw;
+  height: 60px;
+  overflow: visible;
+}
+
+.pulse-loader-track {
+  stroke: var(--color-surface-hover);
+}
+
+.pulse-loader-fill {
+  transition:
+    stroke-dashoffset 0.09s linear,
+    stroke 0.15s linear,
+    filter 0.15s linear;
+}
+
+.pulse-loader-percent {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  transition: color 0.15s linear;
+}
+
+.pulse-loader-label {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}

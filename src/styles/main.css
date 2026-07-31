@@ -38,6 +38,60 @@ body {
   flex-direction: column;
 }
 
+/* Accessibility: usuarios con `prefers-reduced-motion` no deben recibir las
+   animaciones de entrada/transición decorativas (shimmer, slide, bounce, etc.)
+   que usamos en toda la app (Toast, BottomNav, PlanCard, skeletons...). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Reusable "tap ripple" press feedback — same effect used in BottomNav/theme
+   toggle, extracted so any tappable card/row can opt in with class="tap-ripple".
+   The element needs `position: relative; overflow: hidden;` (already set here). */
+.tap-ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.tap-ripple::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: var(--color-primary);
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  transition:
+    width 0.6s,
+    height 0.6s,
+    opacity 0.6s;
+}
+
+.tap-ripple:active::before {
+  width: 220%;
+  height: 220%;
+  opacity: 0.15;
+  transition:
+    width 0s,
+    height 0s,
+    opacity 0s;
+}
+
+.tap-ripple:active {
+  transform: scale(0.97);
+}
+
 /* ===== Typography ===== */
 h1,
 h2,

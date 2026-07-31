@@ -23,7 +23,7 @@ const EquipmentModal = ({
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>{isEditing ? "Editar Equipo" : "Agregar Nuevo Equipo"}</h3>
-          <button className="modal-close" onClick={onClose}>
+          <button className="modal-close tap-ripple" onClick={onClose}>
             <X size={20} />
           </button>
         </div>

@@ -3,6 +3,7 @@ import Layout from "./components/Layout";
 import AuthPage from "./components/AuthPage";
 import DemoBanner from "./components/DemoBanner";
 import BottomNav from "./components/ui/BottomNav";
+import PulseLoader from "./components/ui/PulseLoader";
 import { MockDatabaseProvider } from "./context/MockDatabase";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ToastProvider } from "./components/ui/Toast";
@@ -15,19 +16,7 @@ const AdminDashboard = lazy(() =>
 );
 
 function LoadingScreen() {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: "100vh",
-        color: "var(--color-text-muted)",
-      }}
-    >
-      Cargando...
-    </div>
-  );
+  return <PulseLoader />;
 }
 
 function AppContent() {
@@ -43,6 +32,7 @@ function AppContent() {
   } = useAuth();
   const [activeTab, setActiveTab] = useState("entrenamientos");
   const [showPricing, setShowPricing] = useState(false);
+  const [hideBottomNav, setHideBottomNav] = useState(false);
 
   // Add class to body for bottom nav padding
   useEffect(() => {
@@ -103,7 +93,14 @@ function AppContent() {
     }
 
     if (isAthlete()) {
-      return <AthleteDashboard onExit={handleExit} />;
+      return (
+        <AthleteDashboard
+          onExit={handleExit}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          onImmersiveChange={setHideBottomNav}
+        />
+      );
     }
 
     if (isTrainer()) {
@@ -203,7 +200,7 @@ function AppContent() {
       <div className="animate-fade-in">
         <Suspense fallback={<LoadingScreen />}>{renderContent()}</Suspense>
       </div>
-      {currentUser && !isAdmin() && (
+      {currentUser && !isAdmin() && !hideBottomNav && (
         <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
       )}
       <style>{`

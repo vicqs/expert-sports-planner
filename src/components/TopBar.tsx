@@ -1,7 +1,26 @@
 import React from "react";
-import { Activity, Sun, Moon, LogOut } from "lucide-react";
+import { Sun, Moon, LogOut } from "lucide-react";
 import { useTheme } from "../hooks/useTheme";
 import "./TopBar.css";
+
+// Same silhouette as the PulseLoader waveform (and lucide-react's "Activity"
+// icon), reused here as the brand mark. `pathLength={100}` lets the CSS
+// animation use simple 0-100 percentages regardless of the path's real length.
+const BrandPulseIcon = () => (
+  <svg
+    className="brand-icon"
+    width={28}
+    height={28}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2.5}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M2 12h4l3-9l6 18l3-9h4" pathLength={100} />
+  </svg>
+);
 
 /**
  * TopBar Component - Modern App Header
@@ -45,9 +64,9 @@ const TopBar = ({
       <div className="top-bar-content">
         {/* Logo & Brand */}
         <div className="brand">
-          <Activity className="brand-icon" size={28} strokeWidth={2.5} />
+          <BrandPulseIcon />
           <div className="brand-text">
-            <h1 className="brand-name">Expert Planner</h1>
+            <h1 className="brand-name">Expert Sport Planner</h1>
           </div>
         </div>
 

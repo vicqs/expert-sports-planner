@@ -11,7 +11,7 @@ const PlanCard = ({ plan, onClick }: { plan: any; onClick: () => void }) => {
   const progress = plan.progress || 0;
 
   return (
-    <Card hover glass className="plan-card" onClick={onClick}>
+    <Card hover glass className="plan-card tap-ripple" onClick={onClick}>
       <div className="plan-card-header">
         <div className="plan-info">
           <h3>{plan.name || "Plan Personalizado"}</h3>

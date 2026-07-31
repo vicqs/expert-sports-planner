@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useMockDatabase } from "../context/MockDatabase";
 import { Button, Card, useToast } from "./ui";
-import { Calendar, Clock } from "lucide-react";
+import { Calendar, Clock, CheckCircle, CalendarX } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 const APPOINTMENT_TYPES = [
   { id: "eval", label: "Evaluación Inicial", duration: 60, icon: "📊" },
@@ -18,6 +19,8 @@ const AppointmentScheduler = ({ athleteId }) => {
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
   const [notes, setNotes] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const [justConfirmed, setJustConfirmed] = useState(false);
 
   const myAppointments = getAthleteAppointments(athleteId);
 
@@ -27,28 +30,55 @@ const AppointmentScheduler = ({ athleteId }) => {
   };
 
   const handleConfirm = () => {
-    const result = addAppointment({
-      athleteId,
-      date: selectedDate,
-      time: selectedTime,
-      type: selectedType.id,
-      typeName: selectedType.label,
-      duration: selectedType.duration,
-      notes,
-    });
+    setConfirming(true);
+    setTimeout(() => {
+      const result = addAppointment({
+        athleteId,
+        date: selectedDate,
+        time: selectedTime,
+        type: selectedType.id,
+        typeName: selectedType.label,
+        duration: selectedType.duration,
+        notes,
+      });
 
-    if (result.success) {
-      addToast("Cita agendada correctamente", "success");
-      setStep(1);
-      setSelectedType(null);
-      setSelectedDate("");
-      setSelectedTime("");
-      setNotes("");
-    }
+      setConfirming(false);
+      if (result.success) {
+        addToast("Cita agendada correctamente", "success");
+        setJustConfirmed(true);
+        setTimeout(() => {
+          setJustConfirmed(false);
+          setStep(1);
+          setSelectedType(null);
+          setSelectedDate("");
+          setSelectedTime("");
+          setNotes("");
+        }, 1400);
+      }
+    }, 500);
   };
 
   return (
     <div className="appointment-scheduler">
+      <AnimatePresence>
+        {justConfirmed && (
+          <motion.div
+            className="confirm-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", stiffness: 260, damping: 18 }}
+            >
+              <CheckCircle size={56} color="var(--color-success)" />
+            </motion.div>
+            <p>¡Cita confirmada!</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="scheduler-content">
         {step === 1 && (
           <div className="step-container">
@@ -57,7 +87,7 @@ const AppointmentScheduler = ({ athleteId }) => {
               {APPOINTMENT_TYPES.map((type) => (
                 <Card
                   key={type.id}
-                  className="type-card"
+                  className="type-card tap-ripple"
                   onClick={() => handleTypeSelect(type)}
                   hover
                 >
@@ -109,10 +139,11 @@ const AppointmentScheduler = ({ athleteId }) => {
               </Button>
               <Button
                 variant="primary"
-                disabled={!selectedDate || !selectedTime}
+                disabled={!selectedDate || !selectedTime || confirming}
+                loading={confirming}
                 onClick={handleConfirm}
               >
-                Confirmar Cita
+                {confirming ? "Confirmando…" : "Confirmar Cita"}
               </Button>
             </div>
           </div>
@@ -121,7 +152,13 @@ const AppointmentScheduler = ({ athleteId }) => {
         <div className="my-appointments">
           <h3>Mis Citas Programadas</h3>
           {myAppointments.length === 0 ? (
-            <p className="empty-text">No tienes citas próximas.</p>
+            <Card className="empty-appointments">
+              <CalendarX size={36} color="var(--color-text-subtle)" />
+              <p>No tienes citas próximas.</p>
+              <span className="hint">
+                Agenda una arriba eligiendo el tipo de cita.
+              </span>
+            </Card>
           ) : (
             <div className="appointments-list">
               {myAppointments.map((app) => (
@@ -148,48 +185,66 @@ const AppointmentScheduler = ({ athleteId }) => {
       <style>{`
                 .appointment-scheduler {
                     padding-bottom: 80px;
+                    position: relative;
+                }
+                .confirm-overlay {
+                    position: fixed;
+                    inset: 0;
+                    background: rgba(0, 0, 0, 0.45);
+                    backdrop-filter: blur(4px);
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 1rem;
+                    z-index: 2000;
+                }
+                .confirm-overlay p {
+                    color: white;
+                    font-size: 1.25rem;
+                    font-weight: 700;
                 }
                 .step-container {
-                    margin-bottom: 2rem;
+                    margin-bottom: var(--space-8);
                 }
                 .types-grid {
                     display: grid;
-                    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-                    gap: 1rem;
-                    margin-top: 1rem;
+                    grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr));
+                    gap: var(--space-4);
+                    margin-top: var(--space-4);
                 }
                 .type-card {
                     display: flex;
                     flex-direction: column;
                     align-items: center;
                     text-align: center;
-                    gap: 0.5rem;
+                    gap: var(--space-2);
                     cursor: pointer;
-                    padding: 1.5rem;
+                    padding: var(--space-6);
                 }
                 .type-icon {
-                    font-size: 2rem;
+                    font-size: var(--text-3xl);
                 }
                 .type-info h4 {
                     margin: 0;
-                    font-size: 0.9rem;
+                    font-size: var(--text-sm);
                 }
                 .duration {
-                    font-size: 0.8rem;
+                    font-size: var(--text-xs);
                     color: var(--color-text-muted);
                 }
                 .form-group {
-                    margin-bottom: 1rem;
+                    margin-bottom: var(--space-4);
                 }
                 .form-group label {
                     display: block;
-                    margin-bottom: 0.5rem;
-                    font-size: 0.9rem;
+                    margin-bottom: var(--space-2);
+                    font-size: var(--text-sm);
                     color: var(--color-text-muted);
                 }
                 .input-field {
                     width: 100%;
-                    padding: 0.75rem;
+                    padding: var(--space-3);
                     border: 1px solid var(--color-border);
                     border-radius: var(--radius-sm);
                     background: var(--color-surface);
@@ -197,27 +252,45 @@ const AppointmentScheduler = ({ athleteId }) => {
                 }
                 .actions {
                     display: flex;
-                    gap: 1rem;
-                    margin-top: 1.5rem;
+                    gap: var(--space-4);
+                    margin-top: var(--space-6);
                 }
                 .my-appointments {
-                    margin-top: 2rem;
-                    padding-top: 2rem;
+                    margin-top: var(--space-8);
+                    padding-top: var(--space-8);
                     border-top: 1px solid var(--color-border);
                 }
                 .empty-text {
                     color: var(--color-text-muted);
                     text-align: center;
                 }
+                .empty-appointments {
+                    text-align: center;
+                    padding: var(--space-10) var(--space-6);
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: var(--space-2);
+                }
+                .empty-appointments p {
+                    margin: 0;
+                    color: var(--color-text-secondary);
+                    font-weight: 600;
+                }
+                .empty-appointments .hint {
+                    color: var(--color-text-muted);
+                    font-size: var(--text-sm);
+                    max-width: 320px;
+                }
                 .appointments-list {
                     display: flex;
                     flex-direction: column;
-                    gap: 1rem;
+                    gap: var(--space-4);
                 }
                 .appointment-card {
                     display: flex;
                     flex-direction: column;
-                    gap: 0.5rem;
+                    gap: var(--space-2);
                 }
                 .app-header {
                     display: flex;
@@ -225,22 +298,22 @@ const AppointmentScheduler = ({ athleteId }) => {
                     font-weight: 600;
                 }
                 .app-status {
-                    font-size: 0.8rem;
-                    padding: 0.2rem 0.5rem;
+                    font-size: var(--text-xs);
+                    padding: var(--space-1) var(--space-2);
                     background: rgba(16, 185, 129, 0.1);
                     color: var(--color-success);
-                    border-radius: 4px;
+                    border-radius: var(--radius-sm);
                 }
                 .app-details {
                     display: flex;
-                    gap: 1rem;
-                    font-size: 0.9rem;
+                    gap: var(--space-4);
+                    font-size: var(--text-sm);
                     color: var(--color-text-muted);
                 }
                 .detail-item {
                     display: flex;
                     align-items: center;
-                    gap: 0.3rem;
+                    gap: var(--space-1);
                 }
             `}</style>
     </div>

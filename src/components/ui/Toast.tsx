@@ -100,7 +100,10 @@ const ToastItem = ({
       <div className="toast-content">
         <p className="toast-message">{toast.message}</p>
       </div>
-      <button className="toast-close" onClick={() => onRemove(toast.id)}>
+      <button
+        className="toast-close tap-ripple"
+        onClick={() => onRemove(toast.id)}
+      >
         <X size={16} />
       </button>
       <style>{`

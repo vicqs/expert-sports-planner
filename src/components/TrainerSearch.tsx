@@ -2,7 +2,16 @@ import React, { useState, useEffect } from "react";
 import { useMockDatabase } from "../context/MockDatabase";
 import { useAuth } from "../context/AuthContext";
 import { Card, Button, useToast } from "./ui";
-import { Search, User, Send, CheckCircle, Clock, X } from "lucide-react";
+import {
+  Search,
+  User,
+  Send,
+  CheckCircle,
+  Clock,
+  X,
+  SearchX,
+} from "lucide-react";
+import { motion } from "framer-motion";
 
 const TrainerSearch = ({ onCancel }) => {
   const {
@@ -18,21 +27,32 @@ const TrainerSearch = ({ onCancel }) => {
   const [trainers, setTrainers] = useState<any[]>([]);
   const [pendingRequest, setPendingRequest] = useState<any>(null);
   const [currentTrainer, setCurrentTrainer] = useState<any>(null);
+  const [sendingId, setSendingId] = useState<any>(null);
+  const [justSentId, setJustSentId] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   // Las funciones de MockDatabase no están memoizadas; este efecto está
   // pensado para ejecutarse una sola vez al montar el componente.
   useEffect(() => {
-    // Cargar entrenadores
-    const allTrainers = getAllTrainers();
-    setTrainers(allTrainers);
+    // Pequeño delay artificial: el mock resuelve instantáneo, pero un
+    // parpadeo de skeleton por debajo de ~120ms se ve como un glitch, no
+    // como carga real. 350ms es suficiente para que el skeleton se perciba
+    // sin sentirse lento.
+    const timer = setTimeout(() => {
+      // Cargar entrenadores
+      const allTrainers = getAllTrainers();
+      setTrainers(allTrainers);
 
-    // Verificar si ya tiene solicitud pendiente
-    const pending = getAthletePendingRequest(currentUser.id);
-    setPendingRequest(pending);
+      // Verificar si ya tiene solicitud pendiente
+      const pending = getAthletePendingRequest(currentUser.id);
+      setPendingRequest(pending);
 
-    // Verificar si ya tiene entrenador asignado
-    const trainer = getAthleteTrainer(currentUser.id);
-    setCurrentTrainer(trainer);
+      // Verificar si ya tiene entrenador asignado
+      const trainer = getAthleteTrainer(currentUser.id);
+      setCurrentTrainer(trainer);
+      setLoading(false);
+    }, 350);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -44,13 +64,19 @@ const TrainerSearch = ({ onCancel }) => {
   );
 
   const handleSendRequest = (trainer) => {
-    const result = sendTrainerRequest(currentUser.id, trainer.id);
-    if (result.success) {
-      addToast(`Solicitud enviada a ${trainer.name}`, "success");
-      setPendingRequest(result.request);
-    } else {
-      addToast(result.message, "warning");
-    }
+    setSendingId(trainer.id);
+    // Small delay so the loading state is perceptible before it morphs to "pending"
+    setTimeout(() => {
+      const result = sendTrainerRequest(currentUser.id, trainer.id);
+      setSendingId(null);
+      if (result.success) {
+        addToast(`Solicitud enviada a ${trainer.name}`, "success");
+        setJustSentId(trainer.id);
+        setTimeout(() => setPendingRequest(result.request), 900);
+      } else {
+        addToast(result.message, "warning");
+      }
+    }, 500);
   };
 
   // Si ya tiene un entrenador asignado
@@ -59,7 +85,13 @@ const TrainerSearch = ({ onCancel }) => {
       <div className="trainer-search">
         <Card className="trainer-assigned">
           <div className="success-header">
-            <CheckCircle size={48} color="var(--color-success)" />
+            <motion.div
+              initial={{ scale: 0, rotate: -30 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", stiffness: 260, damping: 18 }}
+            >
+              <CheckCircle size={48} color="var(--color-success)" />
+            </motion.div>
             <h3>Vinculado con Entrenador</h3>
           </div>
           <div className="trainer-info">
@@ -148,7 +180,12 @@ const TrainerSearch = ({ onCancel }) => {
       <div className="trainer-search">
         <Card className="pending-request">
           <div className="pending-header">
-            <Clock size={48} color="var(--color-warning)" />
+            <motion.div
+              animate={{ scale: [1, 1.08, 1] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <Clock size={48} color="var(--color-warning)" />
+            </motion.div>
             <h3>Solicitud Pendiente</h3>
           </div>
           <p>
@@ -232,16 +269,35 @@ const TrainerSearch = ({ onCancel }) => {
           onChange={(e) => setSearchTerm(e.target.value)}
         />
         {searchTerm && (
-          <button className="clear-btn" onClick={() => setSearchTerm("")}>
+          <button
+            className="clear-btn"
+            onClick={() => setSearchTerm("")}
+            aria-label="Borrar búsqueda"
+          >
             <X size={16} />
           </button>
         )}
       </div>
 
       <div className="trainers-list">
-        {filteredTrainers.length === 0 ? (
+        {loading ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i} className="trainer-card-skeleton">
+              <div className="skeleton-avatar" />
+              <div className="skeleton-lines">
+                <div className="skeleton-line skeleton-line-lg" />
+                <div className="skeleton-line skeleton-line-sm" />
+              </div>
+              <div className="skeleton-btn" />
+            </Card>
+          ))
+        ) : filteredTrainers.length === 0 ? (
           <Card className="no-results">
+            <SearchX size={36} color="var(--color-text-subtle)" />
             <p>No se encontraron entrenadores</p>
+            <span className="hint">
+              Prueba con otro nombre, o pide a tu entrenador su código exacto.
+            </span>
           </Card>
         ) : (
           filteredTrainers.map((trainer) => (
@@ -257,11 +313,23 @@ const TrainerSearch = ({ onCancel }) => {
                 </div>
               </div>
               <Button
-                variant="primary"
-                leftIcon={<Send size={16} />}
+                variant={justSentId === trainer.id ? "success" : "primary"}
+                leftIcon={
+                  justSentId === trainer.id ? (
+                    <CheckCircle size={16} />
+                  ) : (
+                    <Send size={16} />
+                  )
+                }
+                loading={sendingId === trainer.id}
+                disabled={sendingId === trainer.id || justSentId === trainer.id}
                 onClick={() => handleSendRequest(trainer)}
               >
-                Enviar Solicitud
+                {sendingId === trainer.id
+                  ? "Enviando…"
+                  : justSentId === trainer.id
+                    ? "¡Solicitud enviada!"
+                    : "Enviar Solicitud"}
               </Button>
             </Card>
           ))
@@ -397,10 +465,72 @@ const TrainerSearch = ({ onCancel }) => {
         .no-results {
           text-align: center;
           padding: 3rem 1rem;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 0.5rem;
         }
         .no-results p {
           margin: 0;
           color: var(--color-text-secondary);
+          font-weight: 600;
+        }
+        .no-results .hint {
+          color: var(--color-text-muted);
+          font-size: 0.85rem;
+          max-width: 320px;
+        }
+
+        /* ---- Skeleton loader (matches trainer-card layout) ---- */
+        .trainer-card-skeleton {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          padding: 1.5rem;
+        }
+        .skeleton-avatar,
+        .skeleton-line,
+        .skeleton-btn {
+          background: linear-gradient(
+            90deg,
+            var(--color-bg-elevated) 25%,
+            var(--color-surface-hover) 37%,
+            var(--color-bg-elevated) 63%
+          );
+          background-size: 400% 100%;
+          animation: skeletonShimmer 1.4s ease-in-out infinite;
+          border-radius: var(--radius-sm);
+        }
+        .skeleton-avatar {
+          width: 56px;
+          height: 56px;
+          border-radius: 50%;
+          flex-shrink: 0;
+        }
+        .skeleton-lines {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+        .skeleton-line-lg { height: 16px; width: 60%; }
+        .skeleton-line-sm { height: 12px; width: 40%; }
+        .skeleton-btn {
+          width: 120px;
+          height: var(--touch-target-min);
+          flex-shrink: 0;
+        }
+        @keyframes skeletonShimmer {
+          0% { background-position: 100% 50%; }
+          100% { background-position: 0 50%; }
+        }
+        @media (max-width: 768px) {
+          .trainer-card-skeleton {
+            flex-wrap: wrap;
+          }
+          .skeleton-btn {
+            width: 100%;
+          }
         }
         .actions {
           display: flex;

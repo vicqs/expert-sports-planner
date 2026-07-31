@@ -25,7 +25,7 @@ const UpgradePrompt = ({ show, onClose, onUpgrade: _onUpgrade, message }) => {
           exit={{ scale: 0.9, opacity: 0 }}
           onClick={(e) => e.stopPropagation()}
         >
-          <button className="close-modal-btn" onClick={onClose}>
+          <button className="close-modal-btn tap-ripple" onClick={onClose}>
             <X size={20} />
           </button>
 

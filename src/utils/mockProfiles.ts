@@ -137,6 +137,54 @@ export const mockClients = [
   }),
 ];
 
+// Historial de un plan ya finalizado por cada atleta, para probar el listado
+// de "planes completados" del entrenador y la lógica de progreso al 100%.
+const buildCompletedMockClient = (athleteUser, overrides) => {
+  const start = new Date();
+  start.setDate(start.getDate() - overrides.weeksAgo * 7 - 7);
+  const end = new Date();
+  end.setDate(end.getDate() - overrides.weeksAgo * 7);
+
+  const planObject = generatePlan({
+    level: overrides.level,
+    objective: overrides.objective,
+  });
+
+  return {
+    id: `${athleteUser.id}-completed-1`,
+    name: athleteUser.name,
+    trainerId: MOCK_TRAINER_ID,
+    status: "COMPLETED",
+    sport: overrides.sport,
+    level: overrides.level,
+    objective: overrides.objective,
+    planDuration: 4,
+    plan: null,
+    planObject,
+    planCreatedAt: start.toISOString(),
+    startDate: start.toISOString(),
+    endDate: end.toISOString(),
+    progress: 100,
+    submittedAt: start.toISOString(),
+    completedAt: end.toISOString(),
+  };
+};
+
+export const mockCompletedClients = [
+  buildCompletedMockClient(mockAthlete1User, {
+    sport: "Atletismo",
+    level: "PRINCIPIANTE",
+    objective: "RESISTENCIA",
+    weeksAgo: 5,
+  }),
+  buildCompletedMockClient(mockAthlete2User, {
+    sport: "Atletismo",
+    level: "INTERMEDIO",
+    objective: "VELOCIDAD",
+    weeksAgo: 8,
+  }),
+];
+
 // Vínculos entrenador-atleta ya aceptados, para que ambos paneles muestren datos coherentes.
 export const mockAthleteRequests = [
   {
@@ -162,5 +210,163 @@ export const mockAthleteRequests = [
     status: "ACCEPTED",
     createdAt: new Date().toISOString(),
     acceptedAt: new Date().toISOString(),
+  },
+];
+
+// Helper para generar strings "YYYY-MM-DD" relativos a hoy (positivo = futuro).
+const isoDateOffset = (days) => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split("T")[0];
+};
+
+// ----- Reservas de Gimnasio (mock) -----
+// Disponibilidad de cupos para varios días (pasados y futuros) con 3 franjas
+// horarias cada uno, más las reservas confirmadas/canceladas de ambos atletas,
+// para poder probar todo el flujo de "Reservar Gimnasio" sin pasos previos.
+const GYM_SLOT_TEMPLATE = [
+  { suffix: "morning", start: "07:00", end: "08:00", capacity: 8 },
+  { suffix: "midday", start: "12:00", end: "13:00", capacity: 10 },
+  { suffix: "evening", start: "18:00", end: "19:00", capacity: 12 },
+];
+
+const GYM_DAY_OFFSETS = [-3, -2, -1, 0, 1, 2, 3, 4, 5, 7];
+
+export const mockGymAvailability = GYM_DAY_OFFSETS.map((offset) => {
+  const date = isoDateOffset(offset);
+  return {
+    date,
+    slots: GYM_SLOT_TEMPLATE.map((slot) => ({
+      id: `${date}-${slot.suffix}`,
+      start: slot.start,
+      end: slot.end,
+      capacity: slot.capacity,
+      reserved: 0,
+    })),
+  };
+});
+
+export const mockGymBookings = [
+  {
+    id: "mock-gym-booking-0001",
+    athleteId: MOCK_ATHLETE_1_ID,
+    date: isoDateOffset(-2),
+    slotId: `${isoDateOffset(-2)}-morning`,
+    status: "CONFIRMED",
+    timestamp: new Date().toISOString(),
+  },
+  {
+    id: "mock-gym-booking-0002",
+    athleteId: MOCK_ATHLETE_1_ID,
+    date: isoDateOffset(1),
+    slotId: `${isoDateOffset(1)}-evening`,
+    status: "CONFIRMED",
+    timestamp: new Date().toISOString(),
+  },
+  {
+    id: "mock-gym-booking-0003",
+    athleteId: MOCK_ATHLETE_1_ID,
+    date: isoDateOffset(-1),
+    slotId: `${isoDateOffset(-1)}-midday`,
+    status: "CANCELLED",
+    timestamp: new Date().toISOString(),
+  },
+  {
+    id: "mock-gym-booking-0004",
+    athleteId: MOCK_ATHLETE_2_ID,
+    date: isoDateOffset(0),
+    slotId: `${isoDateOffset(0)}-midday`,
+    status: "CONFIRMED",
+    timestamp: new Date().toISOString(),
+  },
+  {
+    id: "mock-gym-booking-0005",
+    athleteId: MOCK_ATHLETE_2_ID,
+    date: isoDateOffset(3),
+    slotId: `${isoDateOffset(3)}-morning`,
+    status: "CONFIRMED",
+    timestamp: new Date().toISOString(),
+  },
+];
+
+// Marcar como reservados los slots que ya tienen una reserva CONFIRMED, para
+// que la disponibilidad mostrada sea coherente con `mockGymBookings`.
+mockGymBookings
+  .filter((b) => b.status === "CONFIRMED")
+  .forEach((booking) => {
+    const day = mockGymAvailability.find((d) => d.date === booking.date);
+    const slot = day?.slots.find((s) => s.id === booking.slotId);
+    if (slot) slot.reserved += 1;
+  });
+
+// ----- Citas con el entrenador (mock) -----
+// Mezcla de citas pasadas (COMPLETED), próximas (SCHEDULED) y una cancelada,
+// para probar el historial y el flujo de agendar/ver citas de cada atleta.
+export const mockAppointments = [
+  {
+    id: "mock-appt-0001",
+    athleteId: MOCK_ATHLETE_1_ID,
+    date: isoDateOffset(-10),
+    time: "09:00",
+    type: "eval",
+    typeName: "Evaluación Inicial",
+    duration: 60,
+    notes: "Primera evaluación física y de objetivos.",
+    status: "COMPLETED",
+  },
+  {
+    id: "mock-appt-0002",
+    athleteId: MOCK_ATHLETE_1_ID,
+    date: isoDateOffset(-4),
+    time: "17:30",
+    type: "weight",
+    typeName: "Control de Peso",
+    duration: 15,
+    notes: "",
+    status: "CANCELLED",
+  },
+  {
+    id: "mock-appt-0003",
+    athleteId: MOCK_ATHLETE_1_ID,
+    date: isoDateOffset(3),
+    time: "10:00",
+    type: "followup",
+    typeName: "Seguimiento",
+    duration: 30,
+    notes: "Revisar dolor en rodilla derecha.",
+    status: "SCHEDULED",
+  },
+  {
+    id: "mock-appt-0004",
+    athleteId: MOCK_ATHLETE_2_ID,
+    date: isoDateOffset(-14),
+    time: "08:30",
+    type: "eval",
+    typeName: "Evaluación Inicial",
+    duration: 60,
+    notes: "",
+    status: "COMPLETED",
+  },
+  {
+    id: "mock-appt-0005",
+    athleteId: MOCK_ATHLETE_2_ID,
+    date: isoDateOffset(1),
+    time: "16:00",
+    type: "adjust",
+    typeName: "Ajuste de Plan",
+    duration: 45,
+    notes: "Quiere aumentar volumen de velocidad.",
+    status: "SCHEDULED",
+  },
+  {
+    id: "mock-appt-0006",
+    athleteId: MOCK_ATHLETE_2_ID,
+    date: isoDateOffset(6),
+    time: "11:00",
+    type: "followup",
+    typeName: "Seguimiento",
+    duration: 30,
+    notes: "",
+    status: "SCHEDULED",
   },
 ];

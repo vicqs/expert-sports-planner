@@ -5,8 +5,10 @@ import {
   Eye,
   Edit2,
   Save,
-  RefreshCw,
+  Columns2,
   Trash2,
+  Copy,
+  Check,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -28,10 +30,12 @@ const PlanEditor = ({ initialPlan, clientData, onSave, onCancel }) => {
 
   const [plan, setPlan] = useState(initialPlan);
   const [activeTab, setActiveTab] = useState("edit"); // 'edit' | 'preview'
+  const [splitView, setSplitView] = useState(false);
   const [expandedWeek, setExpandedWeek] = useState(0);
   const [expandedDay, setExpandedDay] = useState<any>(null);
   const [planUnit, setPlanUnit] = useState("km"); // 'km' or 'mi'
   const [weightUnit, setWeightUnit] = useState("lb"); // 'lb' or 'kg'
+  const [saveState, setSaveState] = useState("idle"); // 'idle' | 'saving' | 'saved'
   const { addToast } = useToast();
 
   // Helper to update a specific day
@@ -82,9 +86,41 @@ const PlanEditor = ({ initialPlan, clientData, onSave, onCancel }) => {
     addToast("Semana eliminada", "info");
   };
 
+  // Duplicate a week right after itself (deep copy to avoid shared references)
+  const duplicateWeek = (weekIndex) => {
+    const source = plan[weekIndex];
+    const clone = JSON.parse(JSON.stringify(source));
+    const newPlan = [
+      ...plan.slice(0, weekIndex + 1),
+      clone,
+      ...plan.slice(weekIndex + 1),
+    ].map((w, i) => ({ ...w, weekNum: i + 1 }));
+    setPlan(newPlan);
+    setExpandedWeek(weekIndex + 1);
+    addToast("Semana duplicada", "success");
+  };
+
+  // Apply this week's day pattern (sessions) to every other week in the plan
+  const applyWeekToAll = (weekIndex) => {
+    const source = plan[weekIndex];
+    const newPlan = plan.map((w, i) => {
+      if (i === weekIndex) return w;
+      const clonedDays = JSON.parse(JSON.stringify(source.days));
+      return { ...w, days: clonedDays };
+    });
+    setPlan(newPlan);
+    addToast("Semana aplicada a todo el plan", "success");
+  };
+
   const handleSave = () => {
-    onSave(formatPlanToText(plan, clientData, planUnit, weightUnit), plan);
-    addToast("Plan guardado correctamente", "success");
+    setSaveState("saving");
+    // Micro-delay so the user perceives the save action happening (button morphs to a check)
+    setTimeout(() => {
+      onSave(formatPlanToText(plan, clientData, planUnit, weightUnit), plan);
+      addToast("Plan guardado correctamente", "success");
+      setSaveState("saved");
+      setTimeout(() => setSaveState("idle"), 1600);
+    }, 350);
   };
 
   const handleTypeChange = (weekIndex, dayIndex, typeCode) => {
@@ -119,23 +155,50 @@ const PlanEditor = ({ initialPlan, clientData, onSave, onCancel }) => {
           >
             <Eye size={16} /> Vista Previa
           </button>
+          <button
+            className={`tab-btn split-toggle ${splitView ? "active" : ""}`}
+            onClick={() => setSplitView((v) => !v)}
+            title="Vista dividida (editor + previsualización en vivo)"
+          >
+            <Columns2 size={16} /> División
+          </button>
           <div className="toggles">
-            <button
-              className="tab-btn"
-              onClick={() =>
-                setPlanUnit((prev) => (prev === "km" ? "mi" : "km"))
-              }
+            <div
+              className="unit-switch"
+              role="group"
+              aria-label="Unidad de distancia"
             >
-              <RefreshCw size={14} /> {planUnit.toUpperCase()}
-            </button>
-            <button
-              className="tab-btn"
-              onClick={() =>
-                setWeightUnit((prev) => (prev === "lb" ? "kg" : "lb"))
-              }
+              <button
+                className={planUnit === "km" ? "active" : ""}
+                onClick={() => setPlanUnit("km")}
+              >
+                KM
+              </button>
+              <button
+                className={planUnit === "mi" ? "active" : ""}
+                onClick={() => setPlanUnit("mi")}
+              >
+                MI
+              </button>
+            </div>
+            <div
+              className="unit-switch"
+              role="group"
+              aria-label="Unidad de peso"
             >
-              <RefreshCw size={14} /> {weightUnit.toUpperCase()}
-            </button>
+              <button
+                className={weightUnit === "lb" ? "active" : ""}
+                onClick={() => setWeightUnit("lb")}
+              >
+                LB
+              </button>
+              <button
+                className={weightUnit === "kg" ? "active" : ""}
+                onClick={() => setWeightUnit("kg")}
+              >
+                KG
+              </button>
+            </div>
           </div>
         </div>
         <div className="actions">
@@ -144,22 +207,31 @@ const PlanEditor = ({ initialPlan, clientData, onSave, onCancel }) => {
           </Button>
           <Button
             variant="primary"
-            leftIcon={<Save size={16} />}
+            leftIcon={
+              saveState === "saved" ? <Check size={16} /> : <Save size={16} />
+            }
             onClick={handleSave}
+            disabled={saveState === "saving"}
+            className={`save-btn save-btn-${saveState}`}
           >
-            Guardar Plan
+            {saveState === "saving"
+              ? "Guardando…"
+              : saveState === "saved"
+                ? "¡Guardado!"
+                : "Guardar Plan"}
           </Button>
         </div>
       </div>
 
-      <div className="editor-content">
-        {activeTab === "preview" ? (
+      <div className={`editor-content ${splitView ? "split-grid" : ""}`}>
+        {(activeTab === "preview" || splitView) && (
           <div className="preview-pane">
             <pre>
               {formatPlanToText(plan, clientData, planUnit, weightUnit)}
             </pre>
           </div>
-        ) : (
+        )}
+        {(activeTab === "edit" || splitView) && (
           <div className="form-pane">
             {plan.map((week, wIndex) => (
               <div key={week.weekNum} className="week-section">
@@ -177,17 +249,41 @@ const PlanEditor = ({ initialPlan, clientData, onSave, onCancel }) => {
                       <ChevronDown size={20} />
                     )}
                   </div>
-                  {plan.length > 1 && (
+                  <div className="week-actions">
                     <button
-                      className="btn-del-week"
+                      className="btn-week-action"
+                      title="Duplicar semana"
                       onClick={(e) => {
                         e.stopPropagation();
-                        deleteWeek(wIndex);
+                        duplicateWeek(wIndex);
                       }}
                     >
-                      <Trash2 size={14} /> Eliminar Semana
+                      <Copy size={14} /> Duplicar
                     </button>
-                  )}
+                    {plan.length > 1 && (
+                      <button
+                        className="btn-week-action"
+                        title="Aplicar esta semana a todo el plan"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          applyWeekToAll(wIndex);
+                        }}
+                      >
+                        Aplicar a todas
+                      </button>
+                    )}
+                    {plan.length > 1 && (
+                      <button
+                        className="btn-del-week"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteWeek(wIndex);
+                        }}
+                      >
+                        <Trash2 size={14} /> Eliminar
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <AnimatePresence>
                   {expandedWeek === wIndex && (
@@ -563,10 +659,45 @@ const PlanEditor = ({ initialPlan, clientData, onSave, onCancel }) => {
 
         .toggles {
             display: flex;
-            gap: 0.25rem;
+            gap: 0.5rem;
             padding-left: 0.5rem;
             margin-left: 0.5rem;
             border-left: 1px solid var(--color-border);
+        }
+
+        .split-toggle {
+          display: none;
+        }
+
+        @media (min-width: 1024px) {
+          .split-toggle {
+            display: flex;
+          }
+        }
+
+        .unit-switch {
+          display: flex;
+          background: var(--color-bg-subtle);
+          border: 1px solid var(--color-border);
+          border-radius: var(--radius-sm);
+          overflow: hidden;
+        }
+
+        .unit-switch button {
+          border: none;
+          background: transparent;
+          color: var(--color-text-muted);
+          font-size: 0.75rem;
+          font-weight: 700;
+          letter-spacing: 0.03em;
+          padding: 0.4rem 0.6rem;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .unit-switch button.active {
+          background: var(--color-primary);
+          color: white;
         }
 
         .actions {
@@ -574,11 +705,41 @@ const PlanEditor = ({ initialPlan, clientData, onSave, onCancel }) => {
           gap: 1rem;
         }
 
+        .save-btn-saved {
+          background: var(--color-success) !important;
+          animation: saveBounce 0.4s ease;
+        }
+
+        @keyframes saveBounce {
+          0% { transform: scale(0.95); }
+          50% { transform: scale(1.05); }
+          100% { transform: scale(1); }
+        }
+
         .editor-content {
           flex: 1;
           overflow-y: auto;
           padding: 2rem;
           scroll-behavior: smooth;
+        }
+
+        .editor-content.split-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 1.5rem;
+        }
+
+        @media (min-width: 1024px) {
+          .editor-content.split-grid {
+            grid-template-columns: 1fr 1fr;
+            align-items: start;
+          }
+          .editor-content.split-grid .preview-pane {
+            position: sticky;
+            top: 0;
+            max-height: calc(100vh - 140px);
+            overflow-y: auto;
+          }
         }
 
         /* Preview Pane */
@@ -640,6 +801,35 @@ const PlanEditor = ({ initialPlan, clientData, onSave, onCancel }) => {
             margin-bottom: 0;
             font-size: 1.1rem;
             font-weight: 700;
+        }
+
+        .week-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-week-action {
+            background: var(--color-primary-bg);
+            border: 1px solid transparent;
+            color: var(--color-primary);
+            padding: 0.4rem 0.8rem;
+            border-radius: var(--radius-md);
+            font-size: 0.8rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn-week-action:hover {
+            background: var(--color-primary);
+            color: white;
+            box-shadow: var(--shadow-sm);
         }
 
         .btn-del-week {

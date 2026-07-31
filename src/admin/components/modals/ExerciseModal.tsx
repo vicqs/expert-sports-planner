@@ -23,7 +23,7 @@ const ExerciseModal = ({
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>{isEditing ? "Editar Ejercicio" : "Agregar Nuevo Ejercicio"}</h3>
-          <button className="modal-close" onClick={onClose}>
+          <button className="modal-close tap-ripple" onClick={onClose}>
             <X size={20} />
           </button>
         </div>

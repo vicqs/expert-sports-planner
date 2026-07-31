@@ -27,6 +27,7 @@ const Card = ({
     glass && "card-glass",
     hover && "card-hover",
     gradient && `card-gradient-${gradient}`,
+    props.onClick && "tap-ripple",
     className,
   ]
     .filter(Boolean)

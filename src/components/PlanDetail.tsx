@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Button, Card, useToast } from "./ui";
 import {
   ArrowLeft,
@@ -10,25 +10,140 @@ import {
   Flag,
   AlertCircle,
   X,
+  ChevronLeft,
+  ChevronRight,
+  Zap,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMockDatabase } from "../context/MockDatabase";
+import ExerciseSessionView from "./training/ExerciseSessionView";
+
+// `generatePlan()` (src/utils/generator.ts) y `PlanEditor.tsx` producen días
+// con forma `{ dayName, isGym, session }` (donde `session` es null en días de
+// descanso), NO el shape plano `{ sessionType, exercises }` que este
+// visualizador esperaba antes. Estos helpers derivan lo que se necesita para
+// mostrar directamente desde `day.session`/`day.isGym`, evitando mantener una
+// copia duplicada de los datos que podría quedar desincronizada.
+const getSessionType = (day) => {
+  if (!day?.session) return "REST";
+  return day.isGym ? "GYM" : "ATHLETICS";
+};
+
+// Etiqueta en español para mostrar en la UI (`getSessionType` se mantiene en
+// inglés porque también se usa para armar la clase CSS `.session-type-badge.*`).
+const SESSION_TYPE_LABELS = {
+  REST: "Descanso",
+  GYM: "Gimnasio",
+  ATHLETICS: "Atletismo",
+};
+
+const getSessionTypeLabel = (day) =>
+  SESSION_TYPE_LABELS[getSessionType(day)] || getSessionType(day);
+
+const getDayExercises = (day) => {
+  if (day?.isGym) return day.session?.exercises || [];
+  return [];
+};
 
 const PlanDetail = ({ plan, client, onBack }) => {
-  const [activeTab, setActiveTab] = useState("calendar"); // calendar, exercises
+  const [activeTab, setActiveTab] = useState("today"); // today, calendar, exercises
   const [selectedWeek, setSelectedWeek] = useState(0);
   const [selectedDayDetail, setSelectedDayDetail] = useState<any>(null);
   const [noteModal, setNoteModal] = useState<any>(null); // { weekIndex, dayIndex, note }
   const [showFinishModal, setShowFinishModal] = useState(false);
-  const { toggleSessionCompletion, updateSessionNote, completePlan } =
-    useMockDatabase();
+  const [gymMode, setGymMode] = useState(false);
+  const [showGymModeModal, setShowGymModeModal] = useState(false);
+  const {
+    toggleSessionCompletion,
+    updateSessionNote,
+    completePlan,
+    toggleSetCompletion,
+  } = useMockDatabase();
   const { addToast } = useToast();
+
+  // Compute which week/day corresponds to "today" based on the plan start date.
+  // Falls back to week 0 / day 0 when there is no start date or plan hasn't started yet.
+  const todayIndex = useMemo(() => {
+    if (!client.startDate) return { weekIndex: 0, dayIndex: 0 };
+    const start = new Date(client.startDate);
+    const now = new Date();
+    const diffDays = Math.floor(
+      (now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    if (diffDays < 0) return { weekIndex: 0, dayIndex: 0 };
+    const daysPerWeek = plan[0]?.days?.length || 7;
+    const weekIndex = Math.min(
+      Math.floor(diffDays / daysPerWeek),
+      plan.length - 1,
+    );
+    const dayIndex = Math.min(
+      diffDays % daysPerWeek,
+      (plan[weekIndex]?.days?.length || 1) - 1,
+    );
+    return { weekIndex, dayIndex };
+  }, [client.startDate, plan]);
+
+  const [todayCursor, setTodayCursor] = useState(todayIndex);
+
+  const goToDay = (direction) => {
+    setTodayCursor((prev) => {
+      const daysInWeek = plan[prev.weekIndex]?.days?.length || 7;
+      let { weekIndex, dayIndex } = prev;
+      dayIndex += direction;
+      if (dayIndex < 0) {
+        weekIndex = Math.max(0, weekIndex - 1);
+        dayIndex = (plan[weekIndex]?.days?.length || daysInWeek) - 1;
+      } else if (dayIndex >= daysInWeek) {
+        weekIndex = Math.min(plan.length - 1, weekIndex + 1);
+        dayIndex = 0;
+      }
+      return { weekIndex, dayIndex };
+    });
+  };
+
+  const todayDay = plan[todayCursor.weekIndex]?.days?.[todayCursor.dayIndex];
 
   // Helper to get days for the selected week
   const currentWeekDays = plan[selectedWeek]?.days || [];
 
+  // Catálogo agregado de ejercicios de todo el plan, para la pestaña "Ejercicios".
+  // Se agrupa por nombre (case-insensitive) y se cuentan las sesiones donde aparece,
+  // útil para que el atleta vea de un vistazo qué se repite más en su plan.
+  const exerciseCatalog = useMemo(() => {
+    const map = new Map<
+      string,
+      { name: string; sessions: number; variants: Set<string> }
+    >();
+    plan.forEach((week) => {
+      (week.days || []).forEach((day) => {
+        getDayExercises(day).forEach((ex) => {
+          const key = ex.name.trim().toLowerCase();
+          const entry = map.get(key) || {
+            name: ex.name,
+            sessions: 0,
+            variants: new Set<string>(),
+          };
+          entry.sessions += 1;
+          entry.variants.add(`${ex.sets}×${ex.reps}`);
+          map.set(key, entry);
+        });
+      });
+    });
+    return Array.from(map.values()).sort((a, b) =>
+      a.name.localeCompare(b.name),
+    );
+  }, [plan]);
+
   const handleToggleComplete = (dayIndex) => {
     toggleSessionCompletion(client.id, selectedWeek, dayIndex);
+  };
+
+  const handleToggleTodayComplete = () => {
+    toggleSessionCompletion(
+      client.id,
+      todayCursor.weekIndex,
+      todayCursor.dayIndex,
+    );
   };
 
   const handleSaveNote = (weekIndex, dayIndex, note) => {
@@ -40,6 +155,22 @@ const PlanDetail = ({ plan, client, onBack }) => {
     addToast("Plan finalizado correctamente", "success");
     setShowFinishModal(false);
     setTimeout(() => onBack(), 500);
+  };
+
+  const handleGymModeToggleClick = () => {
+    if (gymMode) {
+      // Salir no necesita confirmación, solo entrar (para que sea evidente
+      // qué hace antes de activarlo la primera vez).
+      setGymMode(false);
+      return;
+    }
+    setShowGymModeModal(true);
+  };
+
+  const handleConfirmGymMode = () => {
+    setGymMode(true);
+    setShowGymModeModal(false);
+    addToast("Modo Gym activado: pantalla de alto contraste", "success");
   };
 
   const formatDate = (dateString) => {
@@ -123,9 +254,38 @@ const PlanDetail = ({ plan, client, onBack }) => {
             Finalizar Plan
           </Button>
         )}
+        <button
+          className={`gym-mode-toggle ${gymMode ? "active" : "pulse"}`}
+          onClick={handleGymModeToggleClick}
+          title="Modo Gym: pantalla de alto contraste, sin distracciones"
+        >
+          <Zap size={16} /> Modo Gym
+        </button>
       </div>
 
+      {gymMode && (
+        <div className="gym-mode-banner">
+          <Zap size={18} />
+          <span>
+            <strong>Modo Gym activo</strong> · pantalla de alto contraste, sin
+            distracciones
+          </span>
+          <button
+            className="gym-mode-exit-btn"
+            onClick={() => setGymMode(false)}
+          >
+            Salir
+          </button>
+        </div>
+      )}
+
       <div className="detail-tabs">
+        <button
+          className={`tab-btn ${activeTab === "today" ? "active" : ""}`}
+          onClick={() => setActiveTab("today")}
+        >
+          <Zap size={18} /> Hoy
+        </button>
         <button
           className={`tab-btn ${activeTab === "calendar" ? "active" : ""}`}
           onClick={() => setActiveTab("calendar")}
@@ -140,7 +300,133 @@ const PlanDetail = ({ plan, client, onBack }) => {
         </button>
       </div>
 
-      <div className="detail-content">
+      <div className={`detail-content ${gymMode ? "gym-mode" : ""}`}>
+        {activeTab === "today" && (
+          <div className="today-view">
+            <div className="today-nav">
+              <button
+                className="today-nav-btn"
+                onClick={() => goToDay(-1)}
+                aria-label="Día anterior"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <span className="today-day-name">{todayDay?.dayName || "—"}</span>
+              <button
+                className="today-nav-btn"
+                onClick={() => goToDay(1)}
+                aria-label="Día siguiente"
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
+
+            {todayDay ? (
+              <Card className="today-card">
+                <div className="today-card-header">
+                  <span
+                    className={`session-type-badge ${getSessionType(todayDay).toLowerCase()}`}
+                  >
+                    {getSessionTypeLabel(todayDay)}
+                  </span>
+                  {todayDay.completed && (
+                    <span className="today-completed-badge">
+                      <CheckCircle size={16} /> Completado
+                    </span>
+                  )}
+                </div>
+
+                {getSessionType(todayDay) === "REST" ? (
+                  <p className="rest-text today-rest-text">
+                    Día de descanso o recuperación activa.
+                  </p>
+                ) : getSessionType(todayDay) === "GYM" ? (
+                  <ExerciseSessionView
+                    exercises={getDayExercises(todayDay)}
+                    dayNote={todayDay.note || ""}
+                    onSaveDayNote={(note) =>
+                      handleSaveNote(
+                        todayCursor.weekIndex,
+                        todayCursor.dayIndex,
+                        note,
+                      )
+                    }
+                    onToggleSet={(exerciseIndex, setIndex) =>
+                      toggleSetCompletion(
+                        client.id,
+                        todayCursor.weekIndex,
+                        todayCursor.dayIndex,
+                        exerciseIndex,
+                        setIndex,
+                      )
+                    }
+                  />
+                ) : (
+                  <div className="today-exercises">
+                    {todayDay.session?.training && (
+                      <div className="today-exercise-row">
+                        <span className="today-ex-name">Entrenamiento</span>
+                        <span className="today-ex-sets">
+                          {todayDay.session.training?.name ||
+                            todayDay.session.training}
+                        </span>
+                      </div>
+                    )}
+                    {todayDay.session?.warmup && (
+                      <div className="today-exercise-row">
+                        <span className="today-ex-name">Calentamiento</span>
+                        <span className="today-ex-sets">
+                          {todayDay.session.warmup}
+                        </span>
+                      </div>
+                    )}
+                    {todayDay.session?.mainBlock && (
+                      <div className="today-exercise-row">
+                        <span className="today-ex-name">Bloque principal</span>
+                        <span className="today-ex-sets">
+                          {todayDay.session.mainBlock}
+                        </span>
+                      </div>
+                    )}
+                    {todayDay.session?.cooldown && (
+                      <div className="today-exercise-row">
+                        <span className="today-ex-name">Enfriamiento</span>
+                        <span className="today-ex-sets">
+                          {todayDay.session.cooldown}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {getSessionType(todayDay) !== "REST" && (
+                  <div className="today-actions">
+                    <Button
+                      variant={todayDay.completed ? "success" : "primary"}
+                      size="lg"
+                      className="today-complete-btn"
+                      leftIcon={
+                        todayDay.completed ? (
+                          <CheckCircle size={20} />
+                        ) : (
+                          <Circle size={20} />
+                        )
+                      }
+                      onClick={handleToggleTodayComplete}
+                    >
+                      {todayDay.completed
+                        ? "Completado"
+                        : "Marcar como Completado"}
+                    </Button>
+                  </div>
+                )}
+              </Card>
+            ) : (
+              <p className="no-data">No hay datos para este día.</p>
+            )}
+          </div>
+        )}
+
         {activeTab === "calendar" && (
           <div className="calendar-view">
             <div className="week-selector">
@@ -161,14 +447,14 @@ const PlanDetail = ({ plan, client, onBack }) => {
                   <div className="day-header">
                     <h4>{day.dayName}</h4>
                     <span
-                      className={`session-type-badge ${(day.sessionType || "rest").toLowerCase()}`}
+                      className={`session-type-badge ${getSessionType(day).toLowerCase()}`}
                     >
-                      {day.sessionType || "REST"}
+                      {getSessionTypeLabel(day)}
                     </span>
                   </div>
 
                   <div className="day-body">
-                    {day.sessionType === "REST" ? (
+                    {getSessionType(day) === "REST" ? (
                       <p className="rest-text">
                         Día de descanso o recuperación activa.
                       </p>
@@ -181,14 +467,16 @@ const PlanDetail = ({ plan, client, onBack }) => {
                         <div className="preview-item">
                           <Dumbbell size={14} />
                           <span>
-                            {day.sessionType === "GYM" ? "Fuerza" : "Cardio"}
+                            {getSessionType(day) === "GYM"
+                              ? "Fuerza"
+                              : "Cardio"}
                           </span>
                         </div>
                       </div>
                     )}
                   </div>
 
-                  {day.sessionType !== "REST" && (
+                  {getSessionType(day) !== "REST" && (
                     <div className="day-actions">
                       <Button
                         variant={day.completed ? "success" : "secondary"}
@@ -243,11 +531,32 @@ const PlanDetail = ({ plan, client, onBack }) => {
 
         {activeTab === "exercises" && (
           <div className="exercises-view">
-            <Card>
-              <p className="placeholder-text">
-                Vista de lista de ejercicios próximamente.
-              </p>
-            </Card>
+            {exerciseCatalog.length === 0 ? (
+              <Card className="empty-exercises">
+                <Dumbbell size={36} color="var(--color-text-subtle)" />
+                <p>Este plan aún no tiene ejercicios cargados.</p>
+              </Card>
+            ) : (
+              <ul className="exercise-catalog">
+                {exerciseCatalog.map((entry) => (
+                  <li key={entry.name} className="exercise-catalog-item">
+                    <span className="exercise-catalog-icon">
+                      <Dumbbell size={18} />
+                    </span>
+                    <div className="exercise-catalog-info">
+                      <strong>{entry.name}</strong>
+                      <span className="exercise-catalog-variants">
+                        {Array.from(entry.variants).join(" · ")}
+                      </span>
+                    </div>
+                    <span className="exercise-catalog-badge">
+                      {entry.sessions}{" "}
+                      {entry.sessions === 1 ? "sesión" : "sesiones"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
       </div>
@@ -280,18 +589,58 @@ const PlanDetail = ({ plan, client, onBack }) => {
               <div className="modal-body">
                 <div className="detail-row">
                   <span className="label">Tipo de Sesión:</span>
-                  <span className="value">{selectedDayDetail.sessionType}</span>
+                  <span className="value">
+                    {getSessionTypeLabel(selectedDayDetail)}
+                  </span>
                 </div>
                 <div className="detail-row">
                   <span className="label">Duración Estimada:</span>
                   <span className="value">~60 min</span>
                 </div>
 
+                {getSessionType(selectedDayDetail) === "ATHLETICS" && (
+                  <>
+                    <h4 className="section-subtitle">Detalle de la sesión</h4>
+                    {selectedDayDetail.session?.training && (
+                      <div className="detail-row">
+                        <span className="label">Entrenamiento:</span>
+                        <span className="value">
+                          {selectedDayDetail.session.training?.name ||
+                            selectedDayDetail.session.training}
+                        </span>
+                      </div>
+                    )}
+                    {selectedDayDetail.session?.warmup && (
+                      <div className="detail-row">
+                        <span className="label">Calentamiento:</span>
+                        <span className="value">
+                          {selectedDayDetail.session.warmup}
+                        </span>
+                      </div>
+                    )}
+                    {selectedDayDetail.session?.mainBlock && (
+                      <div className="detail-row">
+                        <span className="label">Bloque principal:</span>
+                        <span className="value">
+                          {selectedDayDetail.session.mainBlock}
+                        </span>
+                      </div>
+                    )}
+                    {selectedDayDetail.session?.cooldown && (
+                      <div className="detail-row">
+                        <span className="label">Enfriamiento:</span>
+                        <span className="value">
+                          {selectedDayDetail.session.cooldown}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                )}
+
                 <h4 className="section-subtitle">Ejercicios</h4>
-                {selectedDayDetail.exercises &&
-                selectedDayDetail.exercises.length > 0 ? (
+                {getDayExercises(selectedDayDetail).length > 0 ? (
                   <ul className="exercise-list">
-                    {selectedDayDetail.exercises.map((ex, i) => (
+                    {getDayExercises(selectedDayDetail).map((ex, i) => (
                       <li key={i} className="exercise-item">
                         <span className="ex-name">{ex.name}</span>
                         <span className="ex-sets">
@@ -306,10 +655,10 @@ const PlanDetail = ({ plan, client, onBack }) => {
                   </p>
                 )}
 
-                {selectedDayDetail.notes && (
+                {selectedDayDetail.note && (
                   <div className="notes-section">
                     <h4>Notas</h4>
-                    <p>{selectedDayDetail.notes}</p>
+                    <p>{selectedDayDetail.note}</p>
                   </div>
                 )}
               </div>
@@ -447,6 +796,72 @@ const PlanDetail = ({ plan, client, onBack }) => {
         )}
       </AnimatePresence>
 
+      <AnimatePresence>
+        {showGymModeModal && (
+          <motion.div
+            className="modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowGymModeModal(false)}
+          >
+            <motion.div
+              className="modal-content gym-mode-modal"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="modal-header">
+                <div className="header-icon gym">
+                  <Zap size={24} />
+                </div>
+                <h3>Activar Modo Gym</h3>
+                <button
+                  className="close-btn"
+                  onClick={() => setShowGymModeModal(false)}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="modal-body">
+                <p className="modal-description">
+                  El Modo Gym cambia la pantalla a una versión de alto contraste
+                  y letra grande, pensada para usar el teléfono mientras
+                  entrenas en el gimnasio.
+                </p>
+                <ul className="gym-mode-features">
+                  <li>Textos y series más grandes, fáciles de leer de lejos</li>
+                  <li>
+                    Se ocultan detalles que no necesitas durante el
+                    entrenamiento
+                  </li>
+                  <li>
+                    Puedes salir en cualquier momento con el botón
+                    &quot;Salir&quot;
+                  </li>
+                </ul>
+              </div>
+              <div className="modal-footer">
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowGymModeModal(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={handleConfirmGymMode}
+                  leftIcon={<Zap size={16} />}
+                >
+                  Activar Modo Gym
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <style>{`
         .modal-overlay {
             position: fixed;
@@ -533,6 +948,77 @@ const PlanDetail = ({ plan, client, onBack }) => {
             color: var(--color-text-muted);
             font-style: italic;
         }
+        .empty-exercises {
+            text-align: center;
+            padding: var(--space-10) var(--space-6);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--space-2);
+        }
+        .empty-exercises p {
+            margin: 0;
+            color: var(--color-text-secondary);
+            font-weight: 600;
+        }
+        .exercise-catalog {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-2);
+        }
+        .exercise-catalog-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            padding: var(--space-3) var(--space-4);
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+        }
+        .exercise-catalog-icon {
+            width: 36px;
+            height: 36px;
+            flex-shrink: 0;
+            border-radius: var(--radius-md);
+            background: var(--color-primary-bg);
+            color: var(--color-primary);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .exercise-catalog-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+        .exercise-catalog-info strong {
+            color: var(--color-text-primary);
+            font-size: var(--text-base);
+        }
+        .exercise-catalog-variants {
+            color: var(--color-text-muted);
+            font-size: var(--text-sm);
+            font-family: var(--font-display);
+            font-variant-numeric: tabular-nums;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .exercise-catalog-badge {
+            flex-shrink: 0;
+            font-size: var(--text-xs);
+            font-weight: 700;
+            color: var(--color-text-muted);
+            background: var(--color-bg-elevated);
+            padding: var(--space-1) var(--space-2);
+            border-radius: var(--radius-full);
+            white-space: nowrap;
+        }
         .modal-footer {
             padding: 1rem 1.5rem;
             border-top: 1px solid var(--color-border);
@@ -567,6 +1053,224 @@ const PlanDetail = ({ plan, client, onBack }) => {
         .plan-detail {
             padding-bottom: 80px;
         }
+
+        .gym-mode-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.5rem 0.9rem;
+            border-radius: var(--radius-full);
+            border: 1px solid var(--color-border);
+            background: var(--color-surface);
+            color: var(--color-text-muted);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-height: var(--touch-target-comfortable);
+        }
+        .gym-mode-toggle.active {
+            background: var(--color-primary);
+            color: white;
+            border-color: var(--color-primary);
+            box-shadow: var(--shadow-glow);
+        }
+        .gym-mode-toggle.pulse {
+            animation: gymTogglePulse 2.2s ease-in-out infinite;
+        }
+        @keyframes gymTogglePulse {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.35);
+            }
+            50% {
+                box-shadow: 0 0 0 6px rgba(139, 92, 246, 0);
+            }
+        }
+        .gym-mode-banner {
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1rem;
+            border-radius: var(--radius-md);
+            background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+            color: white;
+            font-size: 0.9rem;
+            box-shadow: var(--shadow-md);
+        }
+        .gym-mode-banner span {
+            flex: 1;
+        }
+        .gym-mode-exit-btn {
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+            padding: 0.4rem 0.9rem;
+            border-radius: var(--radius-full);
+            font-weight: 700;
+            font-size: 0.8rem;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .gym-mode-exit-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* ===== Today View (default landing) ===== */
+        .today-view {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .today-nav {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+        }
+        .today-nav-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: var(--touch-target-comfortable);
+            height: var(--touch-target-comfortable);
+            border-radius: var(--radius-full);
+            border: 1px solid var(--color-border);
+            background: var(--color-surface);
+            color: var(--color-text);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .today-nav-btn:hover {
+            background: var(--color-surface-hover);
+            border-color: var(--color-primary);
+        }
+        .today-day-name {
+            font-family: var(--font-display);
+            font-size: 1.25rem;
+            font-weight: 700;
+            min-width: 140px;
+            text-align: center;
+        }
+        .today-card {
+            padding: 1.5rem;
+        }
+        .today-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .today-completed-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            color: var(--color-success);
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        .today-rest-text {
+            font-size: 1.1rem;
+        }
+        .today-exercises {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .today-exercise-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            padding: 0.9rem 1rem;
+            background: var(--color-bg-subtle);
+            border-radius: var(--radius-md);
+        }
+        .today-ex-name {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+        .today-ex-sets {
+            font-family: var(--font-display);
+            font-weight: 700;
+            color: var(--color-primary);
+        }
+        .today-note-fab {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-full);
+            border: 1px dashed var(--color-border-hover);
+            background: transparent;
+            color: var(--color-text-muted);
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: all 0.2s ease;
+        }
+        .today-note-fab:hover {
+            color: var(--color-primary);
+            border-color: var(--color-primary);
+            background: var(--color-primary-bg);
+        }
+        .today-actions {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .today-complete-btn {
+            flex: 1;
+            min-height: var(--touch-target-large);
+            font-size: 1.05rem;
+        }
+
+        /* ===== Gym Mode: high contrast, minimal distractions ===== */
+        .detail-content.gym-mode {
+            background: var(--color-bg);
+            padding: 1rem;
+            border-radius: var(--radius-lg);
+        }
+        .detail-content.gym-mode .today-day-name {
+            font-size: 1.8rem;
+        }
+        .detail-content.gym-mode .today-nav-btn {
+            width: 56px;
+            height: 56px;
+        }
+        .detail-content.gym-mode .today-ex-name {
+            font-size: 1.3rem;
+        }
+        .detail-content.gym-mode .today-ex-sets {
+            font-size: 1.5rem;
+        }
+        .detail-content.gym-mode .today-exercise-row {
+            padding: 1.2rem 1.25rem;
+        }
+        .detail-content.gym-mode .today-card {
+            background: var(--color-bg);
+            border: 3px solid var(--color-primary);
+        }
+        .detail-content.gym-mode .today-complete-btn {
+            min-height: 64px;
+            font-size: 1.2rem;
+        }
+        .detail-content.gym-mode .session-type-badge {
+            font-size: 1rem;
+            padding: 0.5rem 1rem;
+        }
+        .detail-content.gym-mode .detail-tabs .tab-btn:not(.active) {
+            opacity: 0.5;
+        }
+        .detail-content.gym-mode .plan-meta-tags,
+        .detail-content.gym-mode .plan-dates {
+            display: none;
+        }
+
         .detail-header {
             margin-bottom: 1.5rem;
             display: flex;
@@ -669,6 +1373,41 @@ const PlanDetail = ({ plan, client, onBack }) => {
         .finish-modal .header-icon.warning {
             background: rgba(251, 191, 36, 0.15);
             color: #fbbf24;
+        }
+        .gym-mode-modal .header-icon,
+        .gym-mode-modal .modal-header {
+            display: flex;
+        }
+        .gym-mode-modal .header-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.5rem;
+        }
+        .gym-mode-modal .header-icon.gym {
+            background: rgba(139, 92, 246, 0.15);
+            color: #8b5cf6;
+        }
+        .gym-mode-modal .modal-header {
+            flex-direction: column;
+            align-items: flex-start;
+            position: relative;
+        }
+        .gym-mode-modal .close-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+        }
+        .gym-mode-features {
+            margin: 0.75rem 0 0;
+            padding-left: 1.1rem;
+            color: var(--color-text-muted);
+            font-size: 0.85rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
         }
         .finish-modal .modal-header {
             flex-direction: column;
@@ -906,11 +1645,6 @@ const PlanDetail = ({ plan, client, onBack }) => {
             flex-direction: column;
             gap: var(--space-2);
           }
-        }
-        .placeholder-text {
-            text-align: center;
-            color: var(--color-text-muted);
-            padding: 2rem;
         }
       `}</style>
     </div>

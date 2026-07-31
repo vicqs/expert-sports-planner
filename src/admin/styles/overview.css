@@ -14,6 +14,31 @@
   margin-bottom: 1.5rem;
 }
 
+.profile-preview-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.profile-preview-chevron {
+  color: var(--color-text-muted);
+  transition: transform var(--transition-normal);
+  flex-shrink: 0;
+}
+
+.profile-preview-chevron.open {
+  transform: rotate(180deg);
+}
+
 /* Forzar 1 columna en pantallas < 700px */
 @media (max-width: 700px) {
   .stats-grid {

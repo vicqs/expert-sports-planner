@@ -7,17 +7,31 @@ import PlanCard from "./ui/PlanCard";
 import PlanDetail from "./PlanDetail";
 import GymBookingSystem from "./GymBookingSystem";
 import AppointmentScheduler from "./AppointmentScheduler";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   User,
   ArrowLeft,
-  Calendar,
-  Dumbbell,
   UserPlus,
   Clock,
   CheckCircle,
+  Home,
+  Compass,
+  TrendingUp,
 } from "lucide-react";
+import { useTheme } from "../hooks/useTheme";
+import { ExplorarTab, ProgresoTab, PerfilTab } from "./athlete/AthleteTabs";
 
-const AthleteDashboard = ({ onExit }) => {
+const AthleteDashboard = ({
+  onExit,
+  activeTab = "entrenamientos",
+  onTabChange,
+  onImmersiveChange,
+}: {
+  onExit: () => void;
+  activeTab?: string;
+  onTabChange?: (tab: string) => void;
+  onImmersiveChange?: (immersive: boolean) => void;
+}) => {
   const {
     getActivePlans,
     autoCompletePlans,
@@ -25,6 +39,7 @@ const AthleteDashboard = ({ onExit }) => {
     getAthletePendingRequest,
   } = useMockDatabase();
   const { currentUser } = useAuth();
+  const { toggleTheme, isDark } = useTheme();
   const [view, setView] = useState("home"); // home, trainer-search, plan-detail, gym-booking, appointments
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [myTrainer, setMyTrainer] = useState<any>(null);
@@ -46,6 +61,13 @@ const AthleteDashboard = ({ onExit }) => {
     setPendingRequest(pending);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.id]);
+
+  // Full-screen sub-views (búsqueda, detalle de plan, reservas) se sienten más
+  // "nativas" sin la barra inferior compitiendo por espacio/atención.
+  useEffect(() => {
+    onImmersiveChange?.(view !== "home");
+    return () => onImmersiveChange?.(false);
+  }, [view, onImmersiveChange]);
 
   // Get athlete's active plans - ahora solo muestra planes si tiene entrenador
   const myPlans = myTrainer
@@ -141,6 +163,13 @@ const AthleteDashboard = ({ onExit }) => {
   }
 
   // Vista principal del dashboard
+  const desktopTabs = [
+    { id: "entrenamientos", label: "Entrenamientos", icon: Home },
+    { id: "explorar", label: "Explorar", icon: Compass },
+    { id: "progreso", label: "Progreso", icon: TrendingUp },
+    { id: "perfil", label: "Perfil", icon: User },
+  ];
+
   return (
     <div className="athlete-dashboard">
       <div className="dashboard-header">
@@ -153,130 +182,170 @@ const AthleteDashboard = ({ onExit }) => {
             <p>Vamos a entrenar hoy 💪</p>
           </div>
         </div>
+
+        {/* Navegación por pestañas solo visible en desktop: en mobile ya
+            existe el BottomNav (App.tsx) con las mismas 4 secciones. */}
+        <nav className="desktop-tab-nav">
+          {desktopTabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                className={`desktop-tab-item ${isActive ? "active" : ""}`}
+                onClick={() => onTabChange?.(tab.id)}
+              >
+                <Icon size={18} />
+                {tab.label}
+              </button>
+            );
+          })}
+        </nav>
       </div>
 
-      {/* Si no tiene entrenador y no tiene solicitud pendiente */}
-      {!myTrainer && !pendingRequest && (
-        <Card className="no-trainer-card">
-          <div className="no-trainer-content">
-            <UserPlus size={48} color="var(--color-primary)" />
-            <h3>Busca un Entrenador</h3>
-            <p>
-              Para comenzar tu entrenamiento, primero debes vincularte con un
-              entrenador.
-            </p>
-            <p className="info-text">
-              Los entrenadores crearán planes personalizados para ti. El pago se
-              realiza directamente con tu entrenador.
-            </p>
-            <Button
-              variant="primary"
-              leftIcon={<UserPlus size={18} />}
-              onClick={handleFindTrainer}
-            >
-              Buscar Entrenador
-            </Button>
-          </div>
-        </Card>
-      )}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
+        >
+          {activeTab === "entrenamientos" && (
+            <>
+              {/* Si no tiene entrenador y no tiene solicitud pendiente */}
+              {!myTrainer && !pendingRequest && (
+                <Card className="no-trainer-card">
+                  <div className="no-trainer-content">
+                    <UserPlus size={48} color="var(--color-primary)" />
+                    <h3>Busca un Entrenador</h3>
+                    <p>
+                      Para comenzar tu entrenamiento, primero debes vincularte
+                      con un entrenador.
+                    </p>
+                    <p className="info-text">
+                      Los entrenadores crearán planes personalizados para ti. El
+                      pago se realiza directamente con tu entrenador.
+                    </p>
+                    <Button
+                      variant="primary"
+                      leftIcon={<UserPlus size={18} />}
+                      onClick={handleFindTrainer}
+                    >
+                      Buscar Entrenador
+                    </Button>
+                  </div>
+                </Card>
+              )}
 
-      {/* Si tiene solicitud pendiente */}
-      {!myTrainer && pendingRequest && (
-        <Card className="pending-request-card">
-          <div className="pending-content">
-            <Clock size={48} color="var(--color-warning)" />
-            <h3>Solicitud Pendiente</h3>
-            <p>
-              Has enviado una solicitud a{" "}
-              <strong>{pendingRequest.trainerName}</strong>
-            </p>
-            <p className="info-text">
-              El entrenador revisará tu solicitud pronto. Una vez aceptada,
-              podrá crear planes personalizados para ti.
-            </p>
-            <div className="request-date">
-              <small>
-                Enviada el{" "}
-                {new Date(pendingRequest.createdAt).toLocaleDateString()}
-              </small>
-            </div>
-          </div>
-        </Card>
-      )}
+              {/* Si tiene solicitud pendiente */}
+              {!myTrainer && pendingRequest && (
+                <Card className="pending-request-card">
+                  <div className="pending-content">
+                    <Clock size={48} color="var(--color-warning)" />
+                    <h3>Solicitud Pendiente</h3>
+                    <p>
+                      Has enviado una solicitud a{" "}
+                      <strong>{pendingRequest.trainerName}</strong>
+                    </p>
+                    <p className="info-text">
+                      El entrenador revisará tu solicitud pronto. Una vez
+                      aceptada, podrá crear planes personalizados para ti.
+                    </p>
+                    <div className="request-date">
+                      <small>
+                        Enviada el{" "}
+                        {new Date(
+                          pendingRequest.createdAt,
+                        ).toLocaleDateString()}
+                      </small>
+                    </div>
+                  </div>
+                </Card>
+              )}
 
-      {/* Si tiene entrenador asignado */}
-      {myTrainer && (
-        <>
-          <Card className="trainer-info-card">
-            <div className="trainer-info-content">
-              <div className="trainer-icon">
-                <CheckCircle size={24} color="var(--color-success)" />
-              </div>
-              <div className="trainer-details">
-                <h4>Tu Entrenador</h4>
-                <p>
-                  <strong>{myTrainer.name}</strong>
-                </p>
-                <small>
-                  Tu entrenador puede crear y gestionar tus planes de
-                  entrenamiento
-                </small>
-              </div>
-            </div>
-          </Card>
+              {/* Si tiene entrenador asignado */}
+              {myTrainer && (
+                <>
+                  <Card className="trainer-info-card">
+                    <div className="trainer-info-content">
+                      <div className="trainer-icon">
+                        <CheckCircle size={24} color="var(--color-success)" />
+                      </div>
+                      <div className="trainer-details">
+                        <h4>Tu Entrenador</h4>
+                        <p>
+                          <strong>{myTrainer.name}</strong>
+                        </p>
+                        <small>
+                          Tu entrenador puede crear y gestionar tus planes de
+                          entrenamiento
+                        </small>
+                      </div>
+                    </div>
+                  </Card>
 
-          <div className="section">
-            <div className="section-header">
-              <h2>Mis Planes</h2>
-              <div className="header-actions">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  leftIcon={<Calendar size={16} />}
-                  onClick={() => setView("appointments")}
-                >
-                  Citas
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  leftIcon={<Dumbbell size={16} />}
-                  onClick={() => setView("gym-booking")}
-                >
-                  Reservar Gym
-                </Button>
-              </div>
-            </div>
+                  <div className="section">
+                    <div className="section-header">
+                      <h2>Mis Planes</h2>
+                    </div>
 
-            {myPlans.length === 0 ? (
-              <Card className="empty-plans">
-                <p>Tu entrenador aún no ha creado planes para ti.</p>
-                <p className="hint">
-                  Contacta a tu entrenador para que cree tu primer plan
-                  personalizado.
-                </p>
-              </Card>
-            ) : (
-              <div className="plans-grid">
-                {myPlans.map((client) => (
-                  <PlanCard
-                    key={client.id}
-                    plan={{
-                      ...client.planObject,
-                      name: `Plan para ${client.objective}`,
-                      objective: client.objective,
-                      duration: `${client.planDuration || 4} semanas`,
-                      progress: client.progress || 0,
-                      status: "active",
-                    }}
-                    onClick={() => handlePlanClick(client)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        </>
-      )}
+                    {myPlans.length === 0 ? (
+                      <Card className="empty-plans">
+                        <p>Tu entrenador aún no ha creado planes para ti.</p>
+                        <p className="hint">
+                          Contacta a tu entrenador para que cree tu primer plan
+                          personalizado.
+                        </p>
+                      </Card>
+                    ) : (
+                      <div className="plans-grid">
+                        {myPlans.map((client) => (
+                          <PlanCard
+                            key={client.id}
+                            plan={{
+                              ...client.planObject,
+                              name: `Plan para ${client.objective}`,
+                              objective: client.objective,
+                              duration: `${client.planDuration || 4} semanas`,
+                              progress: client.progress || 0,
+                              status: "active",
+                            }}
+                            onClick={() => handlePlanClick(client)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </>
+          )}
+
+          {activeTab === "explorar" && (
+            <ExplorarTab
+              myTrainer={myTrainer}
+              onFindTrainer={handleFindTrainer}
+              onGymBooking={() => setView("gym-booking")}
+              onAppointments={() => setView("appointments")}
+            />
+          )}
+
+          {activeTab === "progreso" && (
+            <ProgresoTab myTrainer={myTrainer} myPlans={myPlans} />
+          )}
+
+          {activeTab === "perfil" && (
+            <PerfilTab
+              currentUser={currentUser}
+              myTrainer={myTrainer}
+              isDark={isDark}
+              onToggleTheme={toggleTheme}
+              onExit={onExit}
+            />
+          )}
+        </motion.div>
+      </AnimatePresence>
 
       <style>{`
         .athlete-dashboard {
@@ -300,6 +369,41 @@ const AthleteDashboard = ({ onExit }) => {
             margin-bottom: var(--space-8);
             padding-bottom: var(--space-6);
             border-bottom: 2px solid var(--color-border);
+        }
+        .desktop-tab-nav {
+            display: none;
+        }
+        @media (min-width: 768px) {
+            .desktop-tab-nav {
+                display: flex;
+                gap: var(--space-2);
+                background: var(--color-bg-subtle);
+                padding: var(--space-1);
+                border-radius: var(--radius-full);
+            }
+            .desktop-tab-item {
+                display: flex;
+                align-items: center;
+                gap: var(--space-2);
+                padding: var(--space-2) var(--space-4);
+                border-radius: var(--radius-full);
+                border: none;
+                background: transparent;
+                color: var(--color-text-muted);
+                font-weight: 600;
+                font-size: var(--text-sm);
+                cursor: pointer;
+                transition: all 0.2s ease;
+                white-space: nowrap;
+            }
+            .desktop-tab-item:hover {
+                color: var(--color-text);
+            }
+            .desktop-tab-item.active {
+                background: var(--color-primary);
+                color: white;
+                box-shadow: var(--shadow-sm);
+            }
         }
         .user-welcome {
             display: flex;
@@ -348,11 +452,18 @@ const AthleteDashboard = ({ onExit }) => {
         .no-trainer-content,
         .pending-content {
             text-align: center;
-            padding: 3rem 2rem;
+            padding: var(--space-8) var(--space-4);
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 1rem;
+            gap: var(--space-4);
+        }
+
+        @media (min-width: 480px) {
+            .no-trainer-content,
+            .pending-content {
+                padding: var(--space-12) var(--space-8);
+            }
         }
 
         .no-trainer-content h3,
@@ -447,14 +558,9 @@ const AthleteDashboard = ({ onExit }) => {
             font-size: var(--text-xl);
             font-weight: 700;
         }
-        .header-actions {
-            display: flex;
-            gap: var(--space-3);
-            flex-wrap: wrap;
-        }
         .plans-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
             gap: var(--space-6);
         }
         .empty-plans {
@@ -488,9 +594,6 @@ const AthleteDashboard = ({ onExit }) => {
             flex-direction: column;
             align-items: flex-start;
           }
-          .header-actions {
-            width: 100%;
-          }
           .plans-grid {
             grid-template-columns: 1fr;
           }
@@ -506,10 +609,6 @@ const AthleteDashboard = ({ onExit }) => {
           }
           .user-welcome {
             gap: var(--space-3);
-          }
-          .header-actions button {
-            flex: 1;
-            min-width: auto;
           }
         }
       `}</style>

@@ -68,18 +68,24 @@ const generateGymSession = (dayIndex, _weekNum) => {
       exercises: [
         ...GYM_EXERCISES.UPPER_PUSH.slice(0, 2).map((name) => ({
           name,
+          sets: 3,
+          reps: "10-12",
           weight: "",
           unit: "lb",
           rest: "1'",
         })),
         ...GYM_EXERCISES.UPPER_PULL.slice(0, 2).map((name) => ({
           name,
+          sets: 3,
+          reps: "10-12",
           weight: "",
           unit: "lb",
           rest: "1'",
         })),
         ...GYM_EXERCISES.CORE.slice(0, 2).map((name) => ({
           name,
+          sets: 3,
+          reps: "15",
           weight: "",
           unit: "lb",
           rest: "1'",
@@ -95,12 +101,16 @@ const generateGymSession = (dayIndex, _weekNum) => {
       exercises: [
         ...GYM_EXERCISES.LOWER.slice(0, 4).map((name) => ({
           name,
+          sets: 3,
+          reps: "10-12",
           weight: "",
           unit: "lb",
           rest: "1'",
         })),
         ...GYM_EXERCISES.CORE.slice(0, 2).map((name) => ({
           name,
+          sets: 3,
+          reps: "15",
           weight: "",
           unit: "lb",
           rest: "1'",

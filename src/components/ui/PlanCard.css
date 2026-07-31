@@ -22,14 +22,16 @@
   transition: transform var(--transition-normal);
 }
 
-.plan-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-xl);
-  border-color: var(--color-border-hover);
-}
+@media (hover: hover) {
+  .plan-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-xl);
+    border-color: var(--color-border-hover);
+  }
 
-.plan-card:hover::before {
-  transform: scaleX(1);
+  .plan-card:hover::before {
+    transform: scaleX(1);
+  }
 }
 
 .plan-card:active {

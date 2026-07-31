@@ -7,7 +7,7 @@
   background: var(--color-surface-glass);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
-  border-top: 2px solid var(--color-border);
+  border-top: 1px solid var(--color-border-glass, rgba(255, 255, 255, 0.08));
   padding-bottom: env(safe-area-inset-bottom);
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
   animation: slideUpNav 0.4s ease-out;
@@ -72,8 +72,8 @@
 }
 
 .bottom-nav-item:active::before {
-  width: 100px;
-  height: 100px;
+  width: 220%;
+  height: 220%;
   opacity: 0.2;
   transition:
     width 0s,

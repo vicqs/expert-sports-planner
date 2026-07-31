@@ -39,7 +39,7 @@ const Button = ({
 
   return (
     <button
-      className={`btn ${variantClass} ${sizeClass} ${loading ? "btn-loading" : ""} ${className}`}
+      className={`btn ${variantClass} ${sizeClass} ${loading ? "btn-loading" : ""} tap-ripple ${className}`}
       disabled={loading || props.disabled}
       {...props}
     >

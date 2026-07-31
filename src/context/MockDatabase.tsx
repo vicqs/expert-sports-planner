@@ -1,6 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { STORAGE_KEYS, getFromStorage, setToStorage } from "../utils/storage";
-import { mockClients, mockAthleteRequests } from "../utils/mockProfiles";
+import {
+  mockClients,
+  mockCompletedClients,
+  mockAthleteRequests,
+  mockGymAvailability,
+  mockGymBookings,
+  mockAppointments,
+} from "../utils/mockProfiles";
 
 const MockDatabaseContext = createContext<any>(null);
 
@@ -58,16 +65,29 @@ export const MockDatabaseProvider = ({
     }
   }, []);
 
-  // Sembrar datos de demostración (mock) una sola vez: un entrenador y dos
-  // atletas de prueba, usados por el "modo vista previa" del super admin.
+  // Sembrar datos de demostración (mock) en cada carga: un entrenador y dos
+  // atletas de prueba (con planes activos, un plan completado, reservas de
+  // gimnasio y citas), usados por el "modo vista previa" del super admin.
+  // Se ejecuta en CADA mount (no solo la primera vez) porque las fechas de
+  // `mockGymAvailability`/`mockAppointments` son relativas a "hoy": si solo
+  // sembráramos una vez, los cupos de gimnasio quedarían fechados al día en
+  // que se sembraron originalmente y ya no aparecerían como disponibles hoy.
+  // Es seguro repetirlo: cada bloque hace dedupe por id/fecha antes de agregar.
   useEffect(() => {
-    const seedKey = "mock_profiles_seeded_v1";
-    if (localStorage.getItem(seedKey)) return;
-
+    // Los planes ACTIVOS de los atletas mock (`mockClients`) se refrescan
+    // (upsert) en cada carga en lugar de solo agregarse si faltan: sus fechas
+    // se calculan relativas a "hoy", así que una copia vieja guardada en
+    // localStorage de una sesión anterior podría ya tener `endDate` en el
+    // pasado. `autoCompletePlans()` la marcaría como COMPLETED al vuelo y el
+    // atleta demo se quedaría sin planes activos que ver. Al hacer upsert por
+    // id nos aseguramos de que siempre haya un plan ACTIVO vigente para probar.
     setClients((prev) => {
-      const existingIds = new Set(prev.map((c) => c.id));
-      const toAdd = mockClients.filter((c) => !existingIds.has(c.id));
-      return toAdd.length ? [...prev, ...toAdd] : prev;
+      const byId = new Map(prev.map((c) => [c.id, c]));
+      mockClients.forEach((c) => byId.set(c.id, c));
+      mockCompletedClients.forEach((c) => {
+        if (!byId.has(c.id)) byId.set(c.id, c);
+      });
+      return Array.from(byId.values());
     });
 
     setAthleteRequests((prev) => {
@@ -76,7 +96,25 @@ export const MockDatabaseProvider = ({
       return toAdd.length ? [...prev, ...toAdd] : prev;
     });
 
-    localStorage.setItem(seedKey, "true");
+    setGymAvailability((prev) => {
+      const existingDates = new Set(prev.map((d) => d.date));
+      const toAdd = mockGymAvailability.filter(
+        (d) => !existingDates.has(d.date),
+      );
+      return toAdd.length ? [...prev, ...toAdd] : prev;
+    });
+
+    setGymBookings((prev) => {
+      const existingIds = new Set(prev.map((b) => b.id));
+      const toAdd = mockGymBookings.filter((b) => !existingIds.has(b.id));
+      return toAdd.length ? [...prev, ...toAdd] : prev;
+    });
+
+    setAppointments((prev) => {
+      const existingIds = new Set(prev.map((a) => a.id));
+      const toAdd = mockAppointments.filter((a) => !existingIds.has(a.id));
+      return toAdd.length ? [...prev, ...toAdd] : prev;
+    });
   }, []);
 
   // Persist all state changes to localStorage
@@ -157,9 +195,10 @@ export const MockDatabaseProvider = ({
         day.completed = !day.completed;
 
         // Calculate new progress
+        // `generatePlan()` marca los días de descanso con `session: null`; los
+        // días con entrenamiento (gym o atletismo) tienen `session` definido.
         const totalSessions = newPlanObject.reduce(
-          (acc, week) =>
-            acc + week.days.filter((d) => d.sessionType !== "REST").length,
+          (acc, week) => acc + week.days.filter((d) => d.session).length,
           0,
         );
 
@@ -188,6 +227,49 @@ export const MockDatabaseProvider = ({
         if (client.id !== clientId) return client;
         const newPlanObject = [...client.planObject];
         newPlanObject[weekIndex].days[dayIndex].note = note;
+        return {
+          ...client,
+          planObject: newPlanObject,
+        };
+      }),
+    );
+  };
+
+  // Marca/desmarca una serie individual de un ejercicio como completada.
+  // Se persiste en `exercise.completedSets` (array de índices de serie) para
+  // que el atleta no pierda su progreso al salir y volver a la vista "Hoy".
+  const toggleSetCompletion = (
+    clientId,
+    weekIndex,
+    dayIndex,
+    exerciseIndex,
+    setIndex,
+  ) => {
+    setClients((prev) =>
+      prev.map((client) => {
+        if (client.id !== clientId) return client;
+
+        const newPlanObject = [...client.planObject];
+        const day = { ...newPlanObject[weekIndex].days[dayIndex] };
+        // Los ejercicios de gimnasio viven en `day.session.exercises`
+        // (shape de `generatePlan()`); se mantiene el fallback a `day.exercises`
+        // por compatibilidad con datos antiguos que pudieran tener el shape plano.
+        const exercises = [...(day.session?.exercises || day.exercises || [])];
+        const exercise = { ...exercises[exerciseIndex] };
+
+        const completed = new Set<number>(exercise.completedSets || []);
+        if (completed.has(setIndex)) completed.delete(setIndex);
+        else completed.add(setIndex);
+        exercise.completedSets = Array.from(completed);
+
+        exercises[exerciseIndex] = exercise;
+        if (day.session) {
+          day.session = { ...day.session, exercises };
+        } else {
+          day.exercises = exercises;
+        }
+        newPlanObject[weekIndex].days[dayIndex] = day;
+
         return {
           ...client,
           planObject: newPlanObject,
@@ -632,6 +714,7 @@ export const MockDatabaseProvider = ({
         updateClientPlan,
         toggleSessionCompletion,
         updateSessionNote,
+        toggleSetCompletion,
         getPendingClients,
         getCompletedClients,
         getActivePlans,
