@@ -32,6 +32,33 @@
   padding: var(--space-2) var(--space-4);
 }
 
+/* Modo compacto: usado cuando hay más de 4 tabs (ej. rol Entrenador),
+   permite scroll horizontal en pantallas muy angostas en vez de apretar
+   los items hasta ser ilegibles/no-tocables. */
+.bottom-nav-container.compact {
+  max-width: 100%;
+  justify-content: flex-start;
+  overflow-x: auto;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  scrollbar-width: none;
+}
+.bottom-nav-container.compact::-webkit-scrollbar {
+  display: none;
+}
+.bottom-nav-container.compact .bottom-nav-item {
+  flex: 0 0 auto;
+  min-width: 64px;
+  padding: var(--space-1);
+}
+.bottom-nav-container.compact .bottom-nav-icon {
+  width: 36px;
+  height: 36px;
+}
+.bottom-nav-container.compact .bottom-nav-label {
+  font-size: 0.65rem;
+}
+
 .bottom-nav-item {
   position: relative;
   display: flex;

@@ -34,6 +34,66 @@
   background: rgba(139, 92, 246, 0.05);
 }
 
+/* Configuración > Unidades (movido desde el header de PlanEditor) */
+.units-settings-card {
+  max-width: 32rem;
+  padding: var(--space-6);
+}
+
+.units-settings-card h4 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-lg);
+}
+
+.units-settings-hint {
+  margin: 0 0 var(--space-5);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.units-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.units-settings-row:first-of-type {
+  border-top: none;
+}
+
+.units-settings-label {
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.unit-switch {
+  display: flex;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.unit-switch button {
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.unit-switch button.active {
+  background: var(--color-primary);
+  color: white;
+}
+
 /* Trainer Library Sections */
 .trainer-library {
   margin-top: 1rem;

@@ -163,9 +163,39 @@ export const ProgresoTab: React.FC<ProgresoTabProps> = ({
         myPlans.reduce((sum, p) => sum + (p.progress || 0), 0) / totalPlans,
       )
     : 0;
-  const completedSessions = myPlans.reduce(
-    (sum, p) => sum + (p.completedSessions || 0),
-    0,
+
+  // `planObject` es un arreglo de semanas ({ weekNum, days: [...] }); cada día
+  // trae `session` (null si es descanso) y `completed`. Antes se leía
+  // `p.completedSessions`, un campo que nunca se guarda en MockDatabase, así
+  // que el conteo real de sesiones siempre daba 0 — se calcula aquí en vivo.
+  const allTrainingDays = myPlans.flatMap((p) =>
+    (p.planObject || []).flatMap((week: any) =>
+      (week.days || []).filter((d: any) => d.session),
+    ),
+  );
+  const totalSessions = allTrainingDays.length;
+  const completedSessions = allTrainingDays.filter((d) => d.completed).length;
+  const remainingSessions = totalSessions - completedSessions;
+
+  // Racha: sesiones completadas consecutivas desde el inicio del plan (en
+  // orden), hasta la primera sesión de entrenamiento pendiente.
+  let currentStreak = 0;
+  for (const day of allTrainingDays) {
+    if (day.completed) currentStreak++;
+    else break;
+  }
+
+  // Días restantes hasta que finalice el plan (si hay endDate).
+  const daysRemaining = myPlans.reduce(
+    (min, p) => {
+      if (!p.endDate) return min;
+      const diff = Math.ceil(
+        (new Date(p.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+      );
+      const clamped = Math.max(diff, 0);
+      return min === null ? clamped : Math.min(min, clamped);
+    },
+    null as number | null,
   );
 
   return (
@@ -181,6 +211,23 @@ export const ProgresoTab: React.FC<ProgresoTabProps> = ({
           <span className="stat-value">{completedSessions}</span>
           <span className="stat-label">Sesiones completadas</span>
         </Card>
+        <Card className="stat-card">
+          <Calendar size={22} className="stat-icon primary" />
+          <span className="stat-value">{remainingSessions}</span>
+          <span className="stat-label">Sesiones restantes</span>
+        </Card>
+        <Card className="stat-card">
+          <Flame size={22} className="stat-icon warning" />
+          <span className="stat-value">{currentStreak}</span>
+          <span className="stat-label">Racha actual</span>
+        </Card>
+        {daysRemaining !== null && (
+          <Card className="stat-card">
+            <Calendar size={22} className="stat-icon success" />
+            <span className="stat-value">{daysRemaining}</span>
+            <span className="stat-label">Días restantes</span>
+          </Card>
+        )}
         <Card className="stat-card stat-card-wide">
           <Award size={22} className="stat-icon success" />
           <span className="stat-value">{avgProgress}%</span>

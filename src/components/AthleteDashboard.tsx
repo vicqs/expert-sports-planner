@@ -178,7 +178,7 @@ const AthleteDashboard = ({
             <User size={24} />
           </div>
           <div>
-            <h1>Hola, Atleta</h1>
+            <h1>Hola, {currentUser?.name?.split(" ")[0] || "Atleta"}</h1>
             <p>Vamos a entrenar hoy 💪</p>
           </div>
         </div>

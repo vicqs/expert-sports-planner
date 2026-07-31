@@ -11,16 +11,32 @@ import {
   UserX,
   X,
   Settings,
+  Inbox,
+  Users,
+  CalendarClock,
+  ChevronRight,
+  ClipboardList,
 } from "lucide-react";
 import PlanEditor from "./PlanEditor";
 import TrainerScheduleConfig from "./TrainerScheduleConfig";
 import TrainerAppointmentCalendar from "./TrainerAppointmentCalendar";
 import TrainerExerciseLibrary from "./TrainerExerciseLibrary";
 import TrainerEquipmentLibrary from "./TrainerEquipmentLibrary";
-import { Card, Button, useToast } from "./ui";
+import { Card, Button, useToast, ConfirmDialog } from "./ui";
+import { useLocalStorage } from "../hooks/useLocalStorage";
 import "@/styles/trainer-library.css";
 
-const CoachDashboard = ({ onExit: _onExit }) => {
+const CoachDashboard = ({
+  onExit: _onExit,
+  activeTab: activeTabProp,
+  onTabChange: onTabChangeProp,
+  onImmersiveChange,
+}: {
+  onExit?: () => void;
+  activeTab?: string;
+  onTabChange?: (id: string) => void;
+  onImmersiveChange?: (immersive: boolean) => void;
+}) => {
   const {
     getPendingClients,
     getCompletedClients,
@@ -35,10 +51,35 @@ const CoachDashboard = ({ onExit: _onExit }) => {
   } = useMockDatabase();
   const { getTrainerId, getUserLimits } = useAuth();
   const { addToast } = useToast();
-  const [activeTab, setActiveTab] = useState("planes"); // planes, horarios, citas, solicitudes-atletas, mis-atletas, configuracion
+  // Si el padre controla la pestaña activa (ej. BottomNav en mobile), se usa esa;
+  // si no, cae a un estado interno propio (uso standalone / retro-compatible).
+  const [internalActiveTab, setInternalActiveTab] = useState("planes");
+  const activeTab = activeTabProp ?? internalActiveTab;
+  const setActiveTab = onTabChangeProp ?? setInternalActiveTab;
   const [activeSubTab, setActiveSubTab] = useState("ejercicios"); // Para sub-tabs en configuración
+  const [planDistanceUnit, setPlanDistanceUnit] = useLocalStorage(
+    "trainer_plan_distance_unit",
+    "km",
+  );
+  const [planWeightUnit, setPlanWeightUnit] = useLocalStorage(
+    "trainer_plan_weight_unit",
+    "lb",
+  );
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [currentPlanObject, setCurrentPlanObject] = useState<any>(null);
+  // Evita doble-click mientras una acción (aceptar/rechazar/quitar) está en curso.
+  const [processingRequestId, setProcessingRequestId] = useState<string | null>(
+    null,
+  );
+  const [removingAthleteId, setRemovingAthleteId] = useState<string | null>(
+    null,
+  );
+  // Atleta pendiente de confirmación de remoción (reemplaza window.confirm
+  // por un ConfirmDialog propio del sistema de diseño).
+  const [athleteToRemove, setAthleteToRemove] = useState<{
+    athleteId: string;
+    athleteName: string;
+  } | null>(null);
 
   const trainerId = getTrainerId();
 
@@ -49,6 +90,13 @@ const CoachDashboard = ({ onExit: _onExit }) => {
     autoCompletePlans();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Oculta el BottomNav (mobile) mientras se edita un plan a pantalla completa,
+  // igual que hace AthleteDashboard al entrar a una vista inmersiva.
+  useEffect(() => {
+    onImmersiveChange?.(!!currentPlanObject);
+    return () => onImmersiveChange?.(false);
+  }, [currentPlanObject, onImmersiveChange]);
 
   const pending = getPendingClients(trainerId);
   const activePlans = getActivePlans(trainerId);
@@ -64,7 +112,34 @@ const CoachDashboard = ({ onExit: _onExit }) => {
   const totalAthletes = pending.length + activePlans.length;
   const limits = getUserLimits(totalAthletes, activePlans.length);
 
+  // Porcentaje de uso de cada límite (0-1), para la barra de progreso sutil.
+  // Con max === Infinity (planes ilimitados) el porcentaje siempre es 0 —
+  // nunca hay que mostrar advertencia/bloqueo en ese caso.
+  const athletesPct =
+    limits && limits.athletes.max !== Infinity
+      ? Math.min(1, limits.athletes.current / limits.athletes.max)
+      : 0;
+  const plansPct =
+    limits && limits.plans.max !== Infinity
+      ? Math.min(1, limits.plans.current / limits.plans.max)
+      : 0;
+  const isAthleteLimitReached =
+    !!limits &&
+    limits.athletes.max !== Infinity &&
+    limits.athletes.current >= limits.athletes.max;
+  const isPlanLimitReached =
+    !!limits &&
+    limits.plans.max !== Infinity &&
+    limits.plans.current >= limits.plans.max;
+
   const handleGenerate = (client) => {
+    if (isPlanLimitReached) {
+      addToast(
+        "Llegaste al límite de planes activos de tu suscripción. Actualiza tu plan para generar más.",
+        "warning",
+      );
+      return;
+    }
     const plan = generatePlan(client);
     setCurrentPlanObject(plan);
     setSelectedClient(client);
@@ -89,21 +164,32 @@ const CoachDashboard = ({ onExit: _onExit }) => {
   };
 
   // Gestión de solicitudes de atletas
-  const handleAcceptRequest = (requestId) => {
-    acceptTrainerRequest(requestId);
-    addToast("Solicitud aceptada correctamente", "success");
-  };
-
-  const handleRejectRequest = (requestId) => {
-    rejectTrainerRequest(requestId);
-    addToast("Solicitud rechazada", "info");
-  };
-
-  const handleRemoveAthlete = (athleteId) => {
-    if (window.confirm("¿Estás seguro de quitar a este atleta?")) {
-      removeAthlete(trainerId, athleteId);
-      addToast("Atleta removido", "info");
+  const handleAcceptRequest = async (requestId) => {
+    if (isAthleteLimitReached) {
+      addToast(
+        "Llegaste al límite de atletas de tu suscripción. Actualiza tu plan para aceptar más.",
+        "warning",
+      );
+      return;
     }
+    setProcessingRequestId(requestId);
+    await acceptTrainerRequest(requestId);
+    addToast("Solicitud aceptada correctamente", "success");
+    setProcessingRequestId(null);
+  };
+
+  const handleRejectRequest = async (requestId) => {
+    setProcessingRequestId(requestId);
+    await rejectTrainerRequest(requestId);
+    addToast("Solicitud rechazada", "info");
+    setProcessingRequestId(null);
+  };
+
+  const handleRemoveAthlete = async (athleteId) => {
+    setRemovingAthleteId(athleteId);
+    await removeAthlete(trainerId, athleteId);
+    addToast("Atleta removido", "info");
+    setRemovingAthleteId(null);
   };
 
   if (currentPlanObject) {
@@ -117,6 +203,9 @@ const CoachDashboard = ({ onExit: _onExit }) => {
           clientData={selectedClient}
           onSave={handleSavePlan}
           onCancel={() => setCurrentPlanObject(null)}
+          onAutoSave={(finalText, planObject) =>
+            updateClientPlan(selectedClient.id, finalText, planObject)
+          }
         />
         <style>{`
           .coach-workspace {
@@ -145,57 +234,94 @@ const CoachDashboard = ({ onExit: _onExit }) => {
           <h2>Panel de Entrenador</h2>
           {limits && (
             <div className="limits-display">
-              <span
-                className={`limit-badge ${limits.athletes.current >= limits.athletes.max ? "warning" : ""}`}
+              <div
+                className={`limit-meter ${athletesPct >= 1 ? "reached" : athletesPct >= 0.8 ? "warning" : ""}`}
+                title={
+                  athletesPct >= 1
+                    ? "Llegaste al límite de atletas de tu plan de suscripción."
+                    : "Atletas activos vs. límite de tu plan"
+                }
               >
-                {limits.athletes.current}/
-                {limits.athletes.max === Infinity ? "∞" : limits.athletes.max}{" "}
-                Atletas
-              </span>
-              <span
-                className={`limit-badge ${limits.plans.current >= limits.plans.max ? "warning" : ""}`}
+                <div className="limit-meter-top">
+                  <span className="limit-meter-label">Atletas</span>
+                  <span className="limit-meter-value">
+                    {limits.athletes.current}/
+                    {limits.athletes.max === Infinity
+                      ? "∞"
+                      : limits.athletes.max}
+                  </span>
+                </div>
+                <div className="limit-meter-track">
+                  <div
+                    className="limit-meter-fill"
+                    style={{ width: `${athletesPct * 100}%` }}
+                  />
+                </div>
+              </div>
+              <div
+                className={`limit-meter ${plansPct >= 1 ? "reached" : plansPct >= 0.8 ? "warning" : ""}`}
+                title={
+                  plansPct >= 1
+                    ? "Llegaste al límite de planes activos de tu plan de suscripción."
+                    : "Planes activos vs. límite de tu plan"
+                }
               >
-                {limits.plans.current}/
-                {limits.plans.max === Infinity ? "∞" : limits.plans.max} Planes
-                Activos
-              </span>
+                <div className="limit-meter-top">
+                  <span className="limit-meter-label">Planes Activos</span>
+                  <span className="limit-meter-value">
+                    {limits.plans.current}/
+                    {limits.plans.max === Infinity ? "∞" : limits.plans.max}
+                  </span>
+                </div>
+                <div className="limit-meter-track">
+                  <div
+                    className="limit-meter-fill"
+                    style={{ width: `${plansPct * 100}%` }}
+                  />
+                </div>
+              </div>
             </div>
           )}
         </div>
         <div className="header-actions">
           <div className="tabs">
             <button
-              className={`tab-btn ${activeTab === "planes" ? "active" : ""}`}
+              className={`tab-btn tap-ripple ${activeTab === "planes" ? "active" : ""}`}
               onClick={() => setActiveTab("planes")}
             >
+              <ClipboardList size={18} />
               Planes
             </button>
             <button
-              className={`tab-btn ${activeTab === "solicitudes-atletas" ? "active" : ""}`}
+              className={`tab-btn tap-ripple ${activeTab === "solicitudes-atletas" ? "active" : ""}`}
               onClick={() => setActiveTab("solicitudes-atletas")}
             >
-              Solicitudes ({athleteRequests.length})
+              <UserCheck size={18} />
+              Solicitudes de Atletas ({athleteRequests.length})
             </button>
             <button
-              className={`tab-btn ${activeTab === "mis-atletas" ? "active" : ""}`}
+              className={`tab-btn tap-ripple ${activeTab === "mis-atletas" ? "active" : ""}`}
               onClick={() => setActiveTab("mis-atletas")}
             >
+              <Users size={18} />
               Mis Atletas ({myAthletes.length})
             </button>
             <button
-              className={`tab-btn ${activeTab === "horarios" ? "active" : ""}`}
+              className={`tab-btn tap-ripple ${activeTab === "horarios" ? "active" : ""}`}
               onClick={() => setActiveTab("horarios")}
             >
-              Horarios Gym
+              <Clock size={18} />
+              Horarios de Gimnasio
             </button>
             <button
-              className={`tab-btn ${activeTab === "citas" ? "active" : ""}`}
+              className={`tab-btn tap-ripple ${activeTab === "citas" ? "active" : ""}`}
               onClick={() => setActiveTab("citas")}
             >
+              <CalendarClock size={18} />
               Citas
             </button>
             <button
-              className={`tab-btn ${activeTab === "configuracion" ? "active" : ""}`}
+              className={`tab-btn tap-ripple ${activeTab === "configuracion" ? "active" : ""}`}
               onClick={() => setActiveTab("configuracion")}
             >
               <Settings size={18} />
@@ -216,9 +342,14 @@ const CoachDashboard = ({ onExit: _onExit }) => {
           </div>
 
           {athleteRequests.length === 0 ? (
-            <Card>
+            <Card className="empty-state-card">
+              <Inbox size={36} className="empty-state-icon" />
               <p className="empty-state">
                 No hay solicitudes pendientes de atletas.
+              </p>
+              <p className="empty-state-hint">
+                Cuando un atleta te busque y envíe una solicitud, aparecerá aquí
+                para que la aceptes o rechaces.
               </p>
             </Card>
           ) : (
@@ -259,6 +390,16 @@ const CoachDashboard = ({ onExit: _onExit }) => {
                       variant="primary"
                       size="sm"
                       leftIcon={<UserCheck size={16} />}
+                      loading={processingRequestId === request.id}
+                      disabled={
+                        isAthleteLimitReached &&
+                        processingRequestId !== request.id
+                      }
+                      title={
+                        isAthleteLimitReached
+                          ? "Llegaste al límite de atletas de tu suscripción"
+                          : undefined
+                      }
                       onClick={() => handleAcceptRequest(request.id)}
                     >
                       Aceptar
@@ -267,6 +408,7 @@ const CoachDashboard = ({ onExit: _onExit }) => {
                       variant="ghost"
                       size="sm"
                       leftIcon={<X size={16} />}
+                      loading={processingRequestId === request.id}
                       onClick={() => handleRejectRequest(request.id)}
                     >
                       Rechazar
@@ -286,10 +428,20 @@ const CoachDashboard = ({ onExit: _onExit }) => {
           </div>
 
           {myAthletes.length === 0 ? (
-            <Card>
-              <p className="empty-state">
-                No tienes atletas activos. Acepta solicitudes para comenzar.
+            <Card className="empty-state-card">
+              <Users size={36} className="empty-state-icon" />
+              <p className="empty-state">No tienes atletas activos todavía.</p>
+              <p className="empty-state-hint">
+                Acepta solicitudes en la pestaña “Solicitudes” para empezar a
+                gestionar sus planes.
               </p>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setActiveTab("solicitudes-atletas")}
+              >
+                Ver Solicitudes
+              </Button>
             </Card>
           ) : (
             <div className="athletes-list">
@@ -317,7 +469,13 @@ const CoachDashboard = ({ onExit: _onExit }) => {
                     variant="ghost"
                     size="sm"
                     leftIcon={<UserX size={16} />}
-                    onClick={() => handleRemoveAthlete(request.athleteId)}
+                    loading={removingAthleteId === request.athleteId}
+                    onClick={() =>
+                      setAthleteToRemove({
+                        athleteId: request.athleteId,
+                        athleteName: request.athleteName,
+                      })
+                    }
                     style={{ color: "var(--color-error)" }}
                   >
                     Quitar
@@ -331,48 +489,165 @@ const CoachDashboard = ({ onExit: _onExit }) => {
         <TrainerScheduleConfig />
       ) : activeTab === "citas" ? (
         <TrainerAppointmentCalendar />
+      ) : activeTab === "explorar" ? (
+        <div className="section">
+          <div className="section-title">
+            <Users size={20} />
+            <h3>Explorar</h3>
+          </div>
+          <div className="coach-explorar-grid">
+            <button
+              className="coach-explorar-card tap-ripple"
+              onClick={() => setActiveTab("solicitudes-atletas")}
+            >
+              <span className="coach-explorar-icon requests">
+                <UserCheck size={22} />
+              </span>
+              <span className="coach-explorar-card-text">
+                <strong>Solicitudes de Atletas</strong>
+                <small>
+                  {athleteRequests.length === 0
+                    ? "No hay solicitudes pendientes"
+                    : `${athleteRequests.length} solicitud${athleteRequests.length === 1 ? "" : "es"} pendiente${athleteRequests.length === 1 ? "" : "s"}`}
+                </small>
+              </span>
+              <ChevronRight size={18} className="coach-explorar-chevron" />
+            </button>
+
+            <button
+              className="coach-explorar-card tap-ripple"
+              onClick={() => setActiveTab("citas")}
+            >
+              <span className="coach-explorar-icon appt">
+                <CalendarClock size={22} />
+              </span>
+              <span className="coach-explorar-card-text">
+                <strong>Citas 1 a 1</strong>
+                <small>Gestiona tu disponibilidad y agenda</small>
+              </span>
+              <ChevronRight size={18} className="coach-explorar-chevron" />
+            </button>
+
+            <button
+              className="coach-explorar-card tap-ripple"
+              onClick={() => setActiveTab("horarios")}
+            >
+              <span className="coach-explorar-icon gym">
+                <Clock size={22} />
+              </span>
+              <span className="coach-explorar-card-text">
+                <strong>Horarios de Gimnasio</strong>
+                <small>Configura cupos y franjas horarias</small>
+              </span>
+              <ChevronRight size={18} className="coach-explorar-chevron" />
+            </button>
+          </div>
+        </div>
       ) : activeTab === "configuracion" ? (
         <div className="section">
           <div className="section-title">
             <Settings size={20} />
-            <h3>Configuración de Biblioteca</h3>
+            <h3>Configuración</h3>
           </div>
 
           {/* Sub-tabs para Ejercicios y Equipamiento */}
           <div className="sub-tabs">
             <button
-              className={`sub-tab-btn ${activeSubTab === "ejercicios" ? "active" : ""}`}
+              className={`sub-tab-btn tap-ripple ${activeSubTab === "ejercicios" ? "active" : ""}`}
               onClick={() => setActiveSubTab("ejercicios")}
             >
               Ejercicios
             </button>
             <button
-              className={`sub-tab-btn ${activeSubTab === "equipamiento" ? "active" : ""}`}
+              className={`sub-tab-btn tap-ripple ${activeSubTab === "equipamiento" ? "active" : ""}`}
               onClick={() => setActiveSubTab("equipamiento")}
             >
               Equipamiento
+            </button>
+            <button
+              className={`sub-tab-btn tap-ripple ${activeSubTab === "unidades" ? "active" : ""}`}
+              onClick={() => setActiveSubTab("unidades")}
+            >
+              Unidades
             </button>
           </div>
 
           {/* Renderizado condicional de sub-secciones */}
           {activeSubTab === "ejercicios" ? (
             <TrainerExerciseLibrary trainerId={trainerId} />
-          ) : (
+          ) : activeSubTab === "equipamiento" ? (
             <TrainerEquipmentLibrary trainerId={trainerId} />
+          ) : (
+            <Card className="units-settings-card">
+              <h4>Unidades de medida</h4>
+              <p className="units-settings-hint">
+                Elige las unidades por defecto para mostrar distancias y pesos
+                al crear o editar planes de entrenamiento.
+              </p>
+
+              <div className="units-settings-row">
+                <span className="units-settings-label">Distancia</span>
+                <div
+                  className="unit-switch"
+                  role="group"
+                  aria-label="Unidad de distancia"
+                >
+                  <button
+                    className={`tap-ripple ${planDistanceUnit === "km" ? "active" : ""}`}
+                    onClick={() => setPlanDistanceUnit("km")}
+                  >
+                    KM
+                  </button>
+                  <button
+                    className={`tap-ripple ${planDistanceUnit === "mi" ? "active" : ""}`}
+                    onClick={() => setPlanDistanceUnit("mi")}
+                  >
+                    MI
+                  </button>
+                </div>
+              </div>
+
+              <div className="units-settings-row">
+                <span className="units-settings-label">Peso</span>
+                <div
+                  className="unit-switch"
+                  role="group"
+                  aria-label="Unidad de peso"
+                >
+                  <button
+                    className={`tap-ripple ${planWeightUnit === "lb" ? "active" : ""}`}
+                    onClick={() => setPlanWeightUnit("lb")}
+                  >
+                    LB
+                  </button>
+                  <button
+                    className={`tap-ripple ${planWeightUnit === "kg" ? "active" : ""}`}
+                    onClick={() => setPlanWeightUnit("kg")}
+                  >
+                    KG
+                  </button>
+                </div>
+              </div>
+            </Card>
           )}
         </div>
       ) : (
         <>
           <div className="section">
             <div className="section-title">
-              <Clock size={20} />
-              <h3>Solicitudes Pendientes</h3>
+              <ClipboardList size={20} />
+              <h3>Atletas por Generar Plan</h3>
               <span className="badge badge-primary">{pending.length}</span>
             </div>
 
             {pending.length === 0 ? (
-              <Card>
-                <p className="empty-state">No hay solicitudes nuevas.</p>
+              <Card className="empty-state-card">
+                <Inbox size={36} className="empty-state-icon" />
+                <p className="empty-state">No hay atletas esperando plan.</p>
+                <p className="empty-state-hint">
+                  Los atletas que se vinculen contigo aparecerán aquí listos
+                  para que generes su primer plan.
+                </p>
               </Card>
             ) : (
               <div className="client-grid">
@@ -410,6 +685,12 @@ const CoachDashboard = ({ onExit: _onExit }) => {
                       leftIcon={<Play size={16} />}
                       onClick={() => handleGenerate(client)}
                       className="action-button"
+                      disabled={isPlanLimitReached}
+                      title={
+                        isPlanLimitReached
+                          ? "Llegaste al límite de planes activos de tu suscripción"
+                          : undefined
+                      }
                     >
                       Generar Plan
                     </Button>
@@ -428,8 +709,13 @@ const CoachDashboard = ({ onExit: _onExit }) => {
 
             <div className="completed-list">
               {activePlans.length === 0 ? (
-                <Card>
+                <Card className="empty-state-card">
+                  <Play size={36} className="empty-state-icon" />
                   <p className="empty-state">No hay planes activos.</p>
+                  <p className="empty-state-hint">
+                    Genera un plan desde “Atletas por Generar Plan” para que
+                    aparezca aquí.
+                  </p>
                 </Card>
               ) : (
                 activePlans.map((client) => (
@@ -495,8 +781,13 @@ const CoachDashboard = ({ onExit: _onExit }) => {
 
             <div className="completed-list">
               {completed.length === 0 ? (
-                <Card>
+                <Card className="empty-state-card">
+                  <Check size={36} className="empty-state-icon" />
                   <p className="empty-state">No hay planes completados aún.</p>
+                  <p className="empty-state-hint">
+                    Cuando un atleta termine su plan, quedará registrado aquí
+                    con su progreso final.
+                  </p>
                 </Card>
               ) : (
                 completed.map((client) => (
@@ -550,6 +841,18 @@ const CoachDashboard = ({ onExit: _onExit }) => {
         </>
       )}
 
+      <ConfirmDialog
+        isOpen={!!athleteToRemove}
+        onClose={() => setAthleteToRemove(null)}
+        onConfirm={() => handleRemoveAthlete(athleteToRemove?.athleteId)}
+        title="Quitar atleta"
+        message={`¿Seguro que quieres quitar a ${athleteToRemove?.athleteName || "este atleta"} de tu lista? Podrá volver a enviarte una solicitud más adelante.`}
+        confirmText="Quitar"
+        cancelText="Cancelar"
+        variant="danger"
+        isLoading={removingAthleteId === athleteToRemove?.athleteId}
+      />
+
       <style>{`
         .dashboard-header {
           display: flex;
@@ -570,19 +873,59 @@ const CoachDashboard = ({ onExit: _onExit }) => {
           flex-wrap: wrap;
           margin-top: 0.5rem;
         }
-        .limit-badge {
-          padding: 0.375rem 0.75rem;
-          background: rgba(139, 92, 246, 0.1);
-          border: 1px solid rgba(139, 92, 246, 0.3);
+        .limit-meter {
+          min-width: 160px;
+          padding: 0.5rem 0.75rem;
+          background: var(--color-bg-subtle);
+          border: 1px solid var(--color-border);
           border-radius: var(--radius-md);
-          font-size: 0.875rem;
-          font-weight: 600;
-          color: var(--color-primary);
         }
-        .limit-badge.warning {
-          background: rgba(251, 191, 36, 0.1);
-          border-color: rgba(251, 191, 36, 0.3);
+        .limit-meter-top {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          gap: 0.5rem;
+          margin-bottom: 0.35rem;
+        }
+        .limit-meter-label {
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: var(--color-text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+        }
+        .limit-meter-value {
+          font-size: 0.8rem;
+          font-weight: 700;
+          color: var(--color-text);
+          font-variant-numeric: tabular-nums;
+        }
+        .limit-meter-track {
+          height: 6px;
+          border-radius: var(--radius-full);
+          background: var(--color-border);
+          overflow: hidden;
+        }
+        .limit-meter-fill {
+          height: 100%;
+          border-radius: var(--radius-full);
+          background: var(--color-primary);
+          transition: width var(--transition-normal) ease;
+        }
+        .limit-meter.warning .limit-meter-fill {
+          background: #fbbf24;
+        }
+        .limit-meter.warning .limit-meter-value {
           color: #fbbf24;
+        }
+        .limit-meter.reached {
+          border-color: var(--color-error);
+        }
+        .limit-meter.reached .limit-meter-fill {
+          background: var(--color-error);
+        }
+        .limit-meter.reached .limit-meter-value {
+          color: var(--color-error);
         }
         .header-actions {
             display: flex;
@@ -613,7 +956,9 @@ const CoachDashboard = ({ onExit: _onExit }) => {
             min-height: var(--touch-target-min);
             display: inline-flex;
             align-items: center;
+            gap: var(--space-2);
             justify-content: center;
+            white-space: nowrap;
         }
         .tab-btn:hover {
             color: var(--color-text);
@@ -669,6 +1014,45 @@ const CoachDashboard = ({ onExit: _onExit }) => {
           font-weight: 700;
           letter-spacing: -0.02em;
         }
+
+        /* Hub de "Explorar" (mobile): accesos a Solicitudes/Citas/Horarios,
+           mismo patrón visual que ExplorarTab del rol Atleta. */
+        .coach-explorar-grid {
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-3);
+        }
+        .coach-explorar-card {
+          display: flex;
+          align-items: center;
+          gap: var(--space-4);
+          width: 100%;
+          min-height: var(--touch-target-large);
+          padding: var(--space-4);
+          border-radius: var(--radius-lg);
+          background: var(--color-surface);
+          border: 1px solid var(--color-border);
+          text-align: left;
+          transition: transform var(--transition-fast), border-color var(--transition-fast);
+        }
+        .coach-explorar-card:active { transform: scale(0.98); }
+        .coach-explorar-card:hover { border-color: var(--color-border-hover); }
+        .coach-explorar-icon {
+          width: 48px;
+          height: 48px;
+          flex-shrink: 0;
+          border-radius: var(--radius-md);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .coach-explorar-icon.requests { background: var(--color-warning-bg); color: var(--color-warning); }
+        .coach-explorar-icon.appt { background: var(--color-accent-bg); color: var(--color-accent); }
+        .coach-explorar-icon.gym { background: var(--color-primary-bg); color: var(--color-primary); }
+        .coach-explorar-card-text { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+        .coach-explorar-card-text strong { font-size: var(--text-base); color: var(--color-text-primary); }
+        .coach-explorar-card-text small { color: var(--color-text-muted); font-size: var(--text-sm); }
+        .coach-explorar-chevron { color: var(--color-text-subtle); flex-shrink: 0; }
         
         .badge {
           padding: 0.35rem 0.75rem;
@@ -784,14 +1168,10 @@ const CoachDashboard = ({ onExit: _onExit }) => {
           .header-actions {
             width: 100%;
           }
+          /* En mobile la navegación de secciones vive en el BottomNav
+             (ver App.tsx), así que ocultamos la barra de tabs de escritorio. */
           .tabs {
-            width: 100%;
-            flex-wrap: wrap;
-          }
-          .tab-btn {
-            flex: 1;
-            padding: var(--space-3);
-            min-width: 80px;
+            display: none;
           }
           .client-grid,
           .athlete-requests-grid {
@@ -806,13 +1186,6 @@ const CoachDashboard = ({ onExit: _onExit }) => {
             width: 100%;
           }
         }
-        @media (max-width: 480px) {
-          .tab-btn {
-            font-size: var(--text-xs);
-            padding: var(--space-2) var(--space-3);
-          }
-        }
-        
         .client-card {
           display: flex;
           flex-direction: column;
@@ -967,7 +1340,26 @@ const CoachDashboard = ({ onExit: _onExit }) => {
           color: var(--color-text-muted);
           font-style: italic;
           text-align: center;
-          padding: var(--space-8);
+          padding: var(--space-8) var(--space-8) 0;
+          margin: 0;
+        }
+        .empty-state-card {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+          gap: var(--space-2);
+          padding: var(--space-8) var(--space-6);
+        }
+        .empty-state-icon {
+          color: var(--color-text-subtle);
+          margin-bottom: var(--space-2);
+        }
+        .empty-state-hint {
+          color: var(--color-text-subtle);
+          font-size: var(--text-sm);
+          max-width: 360px;
+          margin: 0 0 var(--space-2);
         }
       `}</style>
     </div>

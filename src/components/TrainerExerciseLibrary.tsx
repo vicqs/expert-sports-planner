@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Card, Button } from "@/components/ui";
+import { motion, AnimatePresence } from "framer-motion";
+import { Card, Button, ConfirmDialog } from "@/components/ui";
 import { Dumbbell, PlusCircle, Trash2, Search } from "lucide-react";
 import { useTrainerLibrary } from "@/hooks";
 import ExerciseSelectorModal from "./modals/ExerciseSelectorModal";
@@ -29,6 +30,10 @@ const TrainerExerciseLibrary = ({ trainerId }) => {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [exerciseToRemove, setExerciseToRemove] = useState<{
+    category: string;
+    exerciseName: string;
+  } | null>(null);
 
   const masterExercises = getMasterExercises;
   const categories =
@@ -47,9 +52,7 @@ const TrainerExerciseLibrary = ({ trainerId }) => {
   };
 
   const handleRemove = (category, exerciseName) => {
-    if (window.confirm(`¿Quitar "${exerciseName}" de tu biblioteca?`)) {
-      removeExercise(category, exerciseName);
-    }
+    setExerciseToRemove({ category, exerciseName });
   };
 
   // Filtrar ejercicios por categoría y búsqueda
@@ -143,34 +146,62 @@ const TrainerExerciseLibrary = ({ trainerId }) => {
         </Card>
       ) : (
         <div className="exercises-grid">
-          {Object.entries(filteredExercises as Record<string, any[]>).map(
-            ([category, exercises]) => {
-              if (!exercises || exercises.length === 0) return null;
+          <AnimatePresence>
+            {Object.entries(filteredExercises as Record<string, any[]>).map(
+              ([category, exercises]) => {
+                if (!exercises || exercises.length === 0) return null;
 
-              return (
-                <Card key={category} className="category-card">
-                  <div className="category-header">
-                    <h3>{CATEGORY_LABELS[category] || category}</h3>
-                    <span className="exercise-count">{exercises.length}</span>
-                  </div>
-                  <ul className="exercise-list">
-                    {exercises.map((exerciseName: string) => (
-                      <li key={exerciseName} className="exercise-item">
-                        <span className="exercise-name">{exerciseName}</span>
-                        <button
-                          onClick={() => handleRemove(category, exerciseName)}
-                          className="remove-btn"
-                          title="Quitar de mi biblioteca"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </Card>
-              );
-            },
-          )}
+                return (
+                  <motion.div
+                    key={category}
+                    layout
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.96 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Card className="category-card">
+                      <div className="category-header">
+                        <h3>{CATEGORY_LABELS[category] || category}</h3>
+                        <span className="exercise-count">
+                          {exercises.length}
+                        </span>
+                      </div>
+                      <ul className="exercise-list">
+                        <AnimatePresence>
+                          {exercises.map((exerciseName: string) => (
+                            <motion.li
+                              key={exerciseName}
+                              layout
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0 }}
+                              transition={{ duration: 0.18 }}
+                              className="exercise-item"
+                            >
+                              <span className="exercise-name">
+                                {exerciseName}
+                              </span>
+                              <button
+                                onClick={() =>
+                                  handleRemove(category, exerciseName)
+                                }
+                                className="remove-btn tap-ripple"
+                                title="Quitar de mi biblioteca"
+                                aria-label="Quitar de mi biblioteca"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </motion.li>
+                          ))}
+                        </AnimatePresence>
+                      </ul>
+                    </Card>
+                  </motion.div>
+                );
+              },
+            )}
+          </AnimatePresence>
         </div>
       )}
 
@@ -184,6 +215,22 @@ const TrainerExerciseLibrary = ({ trainerId }) => {
           onClose={closeModal}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={!!exerciseToRemove}
+        onClose={() => setExerciseToRemove(null)}
+        onConfirm={() =>
+          removeExercise(
+            exerciseToRemove.category,
+            exerciseToRemove.exerciseName,
+          )
+        }
+        title="Quitar ejercicio"
+        message={`¿Quitar "${exerciseToRemove?.exerciseName}" de tu biblioteca?`}
+        confirmText="Quitar"
+        cancelText="Cancelar"
+        variant="danger"
+      />
     </div>
   );
 };

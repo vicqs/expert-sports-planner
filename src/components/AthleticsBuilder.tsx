@@ -257,25 +257,25 @@ const AthleticsBuilder = ({ session, unit = "km", onChange }) => {
           <label className="section-label">Bloque Principal</label>
           <div className="tabs-mini">
             <button
-              className={segmentType === "SIMPLE" ? "active" : ""}
+              className={`tap-ripple ${segmentType === "SIMPLE" ? "active" : ""}`}
               onClick={() => setSegmentType("SIMPLE")}
             >
               Continuo
             </button>
             <button
-              className={segmentType === "INTERVAL" ? "active" : ""}
+              className={`tap-ripple ${segmentType === "INTERVAL" ? "active" : ""}`}
               onClick={() => setSegmentType("INTERVAL")}
             >
               Intervalos
             </button>
             <button
-              className={segmentType === "FARTLEK" ? "active" : ""}
+              className={`tap-ripple ${segmentType === "FARTLEK" ? "active" : ""}`}
               onClick={() => setSegmentType("FARTLEK")}
             >
               Fartlek
             </button>
             <button
-              className={segmentType === "PROGRESSIVE" ? "active" : ""}
+              className={`tap-ripple ${segmentType === "PROGRESSIVE" ? "active" : ""}`}
               onClick={() => setSegmentType("PROGRESSIVE")}
             >
               Progresivo
@@ -429,7 +429,12 @@ const AthleticsBuilder = ({ session, unit = "km", onChange }) => {
             </div>
           )}
 
-          <button className="btn-add" onClick={addSegment}>
+          <button
+            className="btn-add tap-ripple"
+            onClick={addSegment}
+            title="Agregar segmento"
+            aria-label="Agregar segmento"
+          >
             <Plus size={18} />
           </button>
         </div>
@@ -440,7 +445,12 @@ const AthleticsBuilder = ({ session, unit = "km", onChange }) => {
             {segments.map((seg, i) => (
               <div key={i} className="segment-chip">
                 {seg}
-                <button onClick={() => removeSegment(i)}>
+                <button
+                  className="tap-ripple"
+                  onClick={() => removeSegment(i)}
+                  title="Quitar segmento"
+                  aria-label="Quitar segmento"
+                >
                   <Trash2 size={12} />
                 </button>
               </div>
@@ -452,84 +462,129 @@ const AthleticsBuilder = ({ session, unit = "km", onChange }) => {
         <div className="final-output-wrapper">
           <div className="symbol-bar">
             <button
+              className="tap-ripple"
               onClick={() => insertSymbol(SYMBOLS.SEPARATOR)}
               title="Separador"
             >
               ||
             </button>
             <button
+              className="tap-ripple"
               onClick={() => insertSymbol(SYMBOLS.REST_SERIES)}
               title="Pausa Serie"
             >
               ::
             </button>
             <button
+              className="tap-ripple"
               onClick={() => insertSymbol(SYMBOLS.PROGRESSION_DOWN)}
               title="Progresivo"
             >
               ↘
             </button>
             <button
+              className="tap-ripple"
               onClick={() => insertSymbol(SYMBOLS.DOWN)}
               title="Más rápido"
             >
               ↓
             </button>
-            <button onClick={() => insertSymbol(SYMBOLS.STRONG)} title="Fuerte">
+            <button
+              className="tap-ripple"
+              onClick={() => insertSymbol(SYMBOLS.STRONG)}
+              title="Fuerte"
+            >
               F
             </button>
-            <button onClick={() => insertSymbol(SYMBOLS.SOFT)} title="Suave">
+            <button
+              className="tap-ripple"
+              onClick={() => insertSymbol(SYMBOLS.SOFT)}
+              title="Suave"
+            >
               S
             </button>
-            <button onClick={() => insertSymbol(SYMBOLS.PACE)} title="Ritmo">
+            <button
+              className="tap-ripple"
+              onClick={() => insertSymbol(SYMBOLS.PACE)}
+              title="Ritmo"
+            >
               Ritmo
             </button>
-            <button onClick={() => insertSymbol(SYMBOLS.AVG)} title="Promedio">
+            <button
+              className="tap-ripple"
+              onClick={() => insertSymbol(SYMBOLS.AVG)}
+              title="Promedio"
+            >
               Prom
             </button>
-            <button onClick={() => insertSymbol(SYMBOLS.CHANGE)} title="Cambio">
+            <button
+              className="tap-ripple"
+              onClick={() => insertSymbol(SYMBOLS.CHANGE)}
+              title="Cambio"
+            >
               Cambio
             </button>
             <button
+              className="tap-ripple"
               onClick={() => insertSymbol(SYMBOLS.BEST_PACE)}
               title="Mejor ritmo"
             >
               MRP
             </button>
-            <button onClick={() => insertSymbol(SYMBOLS.SPRINT)} title="Sprint">
+            <button
+              className="tap-ripple"
+              onClick={() => insertSymbol(SYMBOLS.SPRINT)}
+              title="Sprint"
+            >
               Sprint
             </button>
             <button
+              className="tap-ripple"
               onClick={() => insertSymbol(SYMBOLS.CIRCUIT)}
               title="Circuito"
             >
               Circ
             </button>
             <button
+              className="tap-ripple"
               onClick={() => insertSymbol(SYMBOLS.REST_SERIES)}
               title="Descanso Series"
             >
               D.Ser
             </button>
             <button
+              className="tap-ripple"
               onClick={() => insertSymbol(SYMBOLS.REST_BLOCK)}
               title="Descanso Bloques"
             >
               D.Bloq
             </button>
             <button
+              className="tap-ripple"
               onClick={() => insertSymbol(SYMBOLS.REST_30_SEC)}
               title="Descanso 30s"
             >
               30s
             </button>
-            <button onClick={() => insertSymbol(" + ")} title="Más">
+            <button
+              className="tap-ripple"
+              onClick={() => insertSymbol(" + ")}
+              title="Más"
+            >
               +
             </button>
-            <button onClick={() => insertSymbol(" [ ")} title="Abrir">
+            <button
+              className="tap-ripple"
+              onClick={() => insertSymbol(" [ ")}
+              title="Abrir"
+            >
               [
             </button>
-            <button onClick={() => insertSymbol(" ] ")} title="Cerrar">
+            <button
+              className="tap-ripple"
+              onClick={() => insertSymbol(" ] ")}
+              title="Cerrar"
+            >
               ]
             </button>
           </div>

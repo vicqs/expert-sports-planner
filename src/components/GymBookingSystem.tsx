@@ -2,7 +2,21 @@ import React, { useState, useEffect } from "react";
 import { useMockDatabase } from "../context/MockDatabase";
 import { Button, Card, ConfirmDialog, useToast } from "./ui";
 import { useConfirm } from "../hooks";
-import { Clock, CheckCircle, CalendarOff, CalendarCheck } from "lucide-react";
+import {
+  Clock,
+  CheckCircle,
+  CalendarOff,
+  CalendarCheck,
+  ChevronLeft,
+  ChevronRight,
+  Calendar,
+} from "lucide-react";
+import {
+  addDaysToDateString,
+  formatDayName,
+  formatShortDate,
+  todayDateString,
+} from "../utils/dateNav";
 
 const GymBookingSystem = ({ athleteId }) => {
   const { getGymSchedule, bookGymSlot, gymBookings, cancelGymBooking } =
@@ -10,9 +24,7 @@ const GymBookingSystem = ({ athleteId }) => {
   const { addToast } = useToast();
   const { isOpen, isLoading, confirm, handleConfirm, handleCancel } =
     useConfirm();
-  const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0],
-  );
+  const [selectedDate, setSelectedDate] = useState(todayDateString());
   const [availableSlots, setAvailableSlots] = useState<any[]>([]);
   const [myBookings, setMyBookings] = useState<any[]>([]);
   const [confirmMessage, setConfirmMessage] = useState("");
@@ -61,20 +73,51 @@ const GymBookingSystem = ({ athleteId }) => {
     );
   };
 
+  const isAtEarliestDate = selectedDate <= todayDateString();
+
+  const goToDay = (direction) => {
+    setSelectedDate((prev) => addDaysToDateString(prev, direction));
+  };
+
   return (
     <div className="gym-booking">
       <div className="booking-header">
         <h2>Reservar Gimnasio</h2>
-        <div className="date-selector">
-          <label>Fecha:</label>
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="date-input"
-            min={new Date().toISOString().split("T")[0]}
-          />
+      </div>
+
+      <div className="day-nav">
+        <button
+          className="day-nav-btn tap-ripple"
+          onClick={() => goToDay(-1)}
+          disabled={isAtEarliestDate}
+          aria-label="Día anterior"
+        >
+          <ChevronLeft size={20} />
+        </button>
+
+        <div className="day-nav-center">
+          <span className="day-nav-name">{formatDayName(selectedDate)}</span>
+          <div className="day-nav-date-picker">
+            <Calendar size={14} />
+            <span>{formatShortDate(selectedDate)}</span>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              min={todayDateString()}
+              aria-label="Elegir fecha"
+              title="Elegir fecha"
+            />
+          </div>
         </div>
+
+        <button
+          className="day-nav-btn tap-ripple"
+          onClick={() => goToDay(1)}
+          aria-label="Día siguiente"
+        >
+          <ChevronRight size={20} />
+        </button>
       </div>
 
       <div className="booking-content">
@@ -218,14 +261,74 @@ const GymBookingSystem = ({ athleteId }) => {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-bottom: var(--space-6);
+        }
+        .day-nav {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
             margin-bottom: var(--space-8);
         }
-        .date-input {
-            padding: var(--space-2);
+        .day-nav-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: var(--touch-target-comfortable);
+            height: var(--touch-target-comfortable);
+            border-radius: var(--radius-full);
             border: 1px solid var(--color-border);
-            border-radius: var(--radius-sm);
             background: var(--color-surface);
             color: var(--color-text);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .day-nav-btn:hover {
+            background: var(--color-surface-hover);
+            border-color: var(--color-primary);
+        }
+        .day-nav-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .day-nav-center {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.35rem;
+            min-width: 160px;
+        }
+        .day-nav-name {
+            font-family: var(--font-display);
+            font-size: 1.25rem;
+            font-weight: 700;
+            text-align: center;
+        }
+        .day-nav-date-picker {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.3rem 0.7rem;
+            border-radius: var(--radius-full);
+            border: 1px solid var(--color-border);
+            background: var(--color-surface-subtle);
+            color: var(--color-text-muted);
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .day-nav-date-picker:hover {
+            border-color: var(--color-primary);
+            color: var(--color-text);
+        }
+        .day-nav-date-picker input[type="date"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
         }
         .booking-content {
             display: grid;

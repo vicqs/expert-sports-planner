@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, Dumbbell, X, AlertCircle } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Dumbbell,
+  X,
+  AlertCircle,
+  ChevronUp,
+  ChevronDown,
+} from "lucide-react";
 import { ALL_GYM_EXERCISES } from "../utils/constants";
 import { useTrainerLibrary } from "../hooks";
 import "@/styles/trainer-library.css";
@@ -67,6 +75,22 @@ const GymSessionEditor = ({
       ...localSession,
       exercises: localSession.exercises.filter((_, i) => i !== index),
     };
+    setLocalSession(updated);
+    onChange(updated);
+  };
+
+  // Reordena un ejercicio hacia arriba (direction=-1) o abajo (direction=1),
+  // sin necesidad de drag & drop.
+  const moveExercise = (index, direction) => {
+    const exercises = localSession.exercises || [];
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= exercises.length) return;
+    const updatedEx = [...exercises];
+    [updatedEx[index], updatedEx[newIndex]] = [
+      updatedEx[newIndex],
+      updatedEx[index],
+    ];
+    const updated = { ...localSession, exercises: updatedEx };
     setLocalSession(updated);
     onChange(updated);
   };
@@ -185,12 +209,32 @@ const GymSessionEditor = ({
                 >
                   {group}
                 </span>
-                <button
-                  className="btn-remove"
-                  onClick={() => removeExercise(i)}
-                >
-                  <Trash2 size={16} />
-                </button>
+                <div className="card-header-actions">
+                  <button
+                    className="btn-move tap-ripple"
+                    onClick={() => moveExercise(i, -1)}
+                    disabled={i === 0}
+                    title="Mover arriba"
+                  >
+                    <ChevronUp size={16} />
+                  </button>
+                  <button
+                    className="btn-move tap-ripple"
+                    onClick={() => moveExercise(i, 1)}
+                    disabled={i === (localSession.exercises || []).length - 1}
+                    title="Mover abajo"
+                  >
+                    <ChevronDown size={16} />
+                  </button>
+                  <button
+                    className="btn-remove tap-ripple"
+                    onClick={() => removeExercise(i)}
+                    title="Eliminar ejercicio"
+                    aria-label="Eliminar ejercicio"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
 
               <div className="card-body">
@@ -210,7 +254,7 @@ const GymSessionEditor = ({
                     />
                     {ex.name && (
                       <button
-                        className="clear-search-btn"
+                        className="clear-search-btn tap-ripple"
                         onClick={() => updateExercise(i, "name", "")}
                         type="button"
                         title="Limpiar"
@@ -314,7 +358,7 @@ const GymSessionEditor = ({
           );
         })}
 
-        <button className="btn-add-card" onClick={addExercise}>
+        <button className="btn-add-card tap-ripple" onClick={addExercise}>
           <div className="icon-circle">
             <Plus size={24} />
           </div>
@@ -480,6 +524,29 @@ const GymSessionEditor = ({
             text-align: center;
         }
 
+        .card-header-actions {
+          display: flex;
+          align-items: center;
+          gap: 0.15rem;
+        }
+        .btn-move {
+          background: transparent;
+          border: none;
+          color: var(--color-text-muted);
+          cursor: pointer;
+          padding: 0.25rem;
+          border-radius: var(--radius-sm);
+          transition: all 0.2s;
+          display: flex;
+        }
+        .btn-move:hover:not(:disabled) {
+          color: var(--color-primary);
+          background: var(--color-surface-hover);
+        }
+        .btn-move:disabled {
+          opacity: 0.3;
+          cursor: not-allowed;
+        }
         .btn-remove {
           background: transparent;
           border: none;

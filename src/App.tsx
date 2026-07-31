@@ -1,8 +1,10 @@
 import { useState, useEffect, lazy, Suspense } from "react";
+import { Users, Clock, Compass, Settings } from "lucide-react";
 import Layout from "./components/Layout";
 import AuthPage from "./components/AuthPage";
 import DemoBanner from "./components/DemoBanner";
 import BottomNav from "./components/ui/BottomNav";
+import type { BottomNavTab } from "./components/ui/BottomNav";
 import PulseLoader from "./components/ui/PulseLoader";
 import { MockDatabaseProvider } from "./context/MockDatabase";
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -14,6 +16,18 @@ const PricingPage = lazy(() => import("./components/PricingPage"));
 const AdminDashboard = lazy(() =>
   import("./admin").then((module) => ({ default: module.AdminDashboard })),
 );
+
+// Tabs del BottomNav para el rol Entrenador: mismo patrón de 4 items que el
+// rol Atleta. "explorar" muestra un hub (dentro de CoachDashboard) desde
+// donde se accede a Solicitudes, Citas y Horarios de Gimnasio.
+const TRAINER_TABS: BottomNavTab[] = [
+  { id: "planes", label: "Planes", icon: Clock },
+  { id: "mis-atletas", label: "Atletas", icon: Users },
+  { id: "explorar", label: "Explorar", icon: Compass },
+  { id: "configuracion", label: "Config", icon: Settings },
+];
+const TRAINER_TAB_IDS = TRAINER_TABS.map((t) => t.id);
+const ATHLETE_TAB_IDS = ["entrenamientos", "explorar", "progreso", "perfil"];
 
 function LoadingScreen() {
   return <PulseLoader />;
@@ -43,6 +57,24 @@ function AppContent() {
     }
     return () => document.body.classList.remove("has-bottom-nav");
   }, [currentUser]);
+
+  // Asegura que activeTab siempre apunte a una pestaña válida para el rol
+  // actual (ej. al cambiar de Atleta a Entrenador vía preview de Admin).
+  useEffect(() => {
+    if (!currentUser) return;
+    if (
+      currentUser.role === "TRAINER" &&
+      !TRAINER_TAB_IDS.includes(activeTab)
+    ) {
+      setActiveTab("planes");
+    } else if (
+      currentUser.role === "ATHLETE" &&
+      !ATHLETE_TAB_IDS.includes(activeTab)
+    ) {
+      setActiveTab("entrenamientos");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.role]);
 
   const handleAuthSuccess = () => {
     setActiveTab("entrenamientos");
@@ -104,75 +136,17 @@ function AppContent() {
     }
 
     if (isTrainer()) {
-      // Different views based on active tab
-      switch (activeTab) {
-        case "entrenamientos":
-          return (
-            <>
-              <DemoBanner onUpgradeClick={handleUpgradeClick} />
-              <CoachDashboard onExit={handleExit} />
-            </>
-          );
-        case "explorar":
-          return (
-            <>
-              <DemoBanner onUpgradeClick={handleUpgradeClick} />
-              <div className="container" style={{ padding: "2rem" }}>
-                <h2>Explorar</h2>
-                <p style={{ color: "var(--color-text-muted)" }}>
-                  Biblioteca de planes y ejercicios
-                </p>
-              </div>
-            </>
-          );
-        case "progreso":
-          return (
-            <>
-              <DemoBanner onUpgradeClick={handleUpgradeClick} />
-              <div className="container" style={{ padding: "2rem" }}>
-                <h2>Progreso</h2>
-                <p style={{ color: "var(--color-text-muted)" }}>
-                  Estadísticas y análisis
-                </p>
-              </div>
-            </>
-          );
-        case "perfil":
-          return (
-            <>
-              <DemoBanner onUpgradeClick={handleUpgradeClick} />
-              <div className="container" style={{ padding: "2rem" }}>
-                <h2>Perfil</h2>
-                <p style={{ color: "var(--color-text-muted)" }}>
-                  Configuración y datos del usuario
-                </p>
-                <div
-                  style={{
-                    marginTop: "1.5rem",
-                    padding: "1rem",
-                    background: "var(--color-surface-raised)",
-                    borderRadius: "var(--radius-md)",
-                    border: "1px solid var(--color-border)",
-                  }}
-                >
-                  <p
-                    style={{ margin: 0, color: "var(--color-text-secondary)" }}
-                  >
-                    Plan actual:{" "}
-                    <strong>Demostración Gratuita (14 días)</strong>
-                  </p>
-                </div>
-              </div>
-            </>
-          );
-        default:
-          return (
-            <>
-              <DemoBanner onUpgradeClick={handleUpgradeClick} />
-              <CoachDashboard onExit={handleExit} />
-            </>
-          );
-      }
+      return (
+        <>
+          <DemoBanner onUpgradeClick={handleUpgradeClick} />
+          <CoachDashboard
+            onExit={handleExit}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            onImmersiveChange={setHideBottomNav}
+          />
+        </>
+      );
     }
   };
 
@@ -201,7 +175,11 @@ function AppContent() {
         <Suspense fallback={<LoadingScreen />}>{renderContent()}</Suspense>
       </div>
       {currentUser && !isAdmin() && !hideBottomNav && (
-        <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+        <BottomNav
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          tabs={isTrainer() ? TRAINER_TABS : undefined}
+        />
       )}
       <style>{`
         .preview-mode-banner {

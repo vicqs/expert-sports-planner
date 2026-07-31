@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Card, Button } from "@/components/ui";
+import { motion, AnimatePresence } from "framer-motion";
+import { Card, Button, ConfirmDialog } from "@/components/ui";
 import {
   Search,
   PlusCircle,
@@ -29,6 +30,10 @@ const TrainerEquipmentLibrary = ({ trainerId }) => {
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [equipmentToRemove, setEquipmentToRemove] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   const allEquipment = getMasterEquipment();
   const stats = getStats();
@@ -47,9 +52,7 @@ const TrainerEquipmentLibrary = ({ trainerId }) => {
   };
 
   const handleRemove = (id, name) => {
-    if (window.confirm(`¿Quitar "${name}" de tu equipamiento disponible?`)) {
-      removeEquipment(id);
-    }
+    setEquipmentToRemove({ id, name });
   };
 
   // Filtrar equipamiento por búsqueda y estado
@@ -137,55 +140,67 @@ const TrainerEquipmentLibrary = ({ trainerId }) => {
         </Card>
       ) : (
         <div className="equipment-grid">
-          {filteredEquipment.map((item) => (
-            <Card key={item.id} className="equipment-card">
-              <div className="equipment-header">
-                <div className="equipment-icon">
-                  <Package size={24} />
-                </div>
-                <span
-                  className={`status-indicator ${item.status.toLowerCase()}`}
-                >
-                  {item.status === "Disponible" ? (
-                    <Check size={16} />
-                  ) : (
-                    <AlertCircle size={16} />
-                  )}
-                  <span>{item.status}</span>
-                </span>
-              </div>
-
-              <div className="equipment-info">
-                <h3>{item.name}</h3>
-                <p className="equipment-category">{item.category}</p>
-
-                <div className="equipment-details">
-                  <div className="detail-item">
-                    <span className="label">Cantidad:</span>
-                    <span className="value">{item.quantity}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="label">Última mantención:</span>
-                    <span className="value">
-                      {new Date(item.lastMaintenance).toLocaleDateString(
-                        "es-ES",
+          <AnimatePresence>
+            {filteredEquipment.map((item) => (
+              <motion.div
+                key={item.id}
+                layout
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                transition={{ duration: 0.2 }}
+              >
+                <Card className="equipment-card">
+                  <div className="equipment-header">
+                    <div className="equipment-icon">
+                      <Package size={24} />
+                    </div>
+                    <span
+                      className={`status-indicator ${item.status.toLowerCase()}`}
+                    >
+                      {item.status === "Disponible" ? (
+                        <Check size={16} />
+                      ) : (
+                        <AlertCircle size={16} />
                       )}
+                      <span>{item.status}</span>
                     </span>
                   </div>
-                </div>
-              </div>
 
-              <div className="equipment-actions">
-                <button
-                  onClick={() => handleRemove(item.id, item.name)}
-                  className="action-btn delete"
-                  title="Quitar de mi equipamiento"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </Card>
-          ))}
+                  <div className="equipment-info">
+                    <h3>{item.name}</h3>
+                    <p className="equipment-category">{item.category}</p>
+
+                    <div className="equipment-details">
+                      <div className="detail-item">
+                        <span className="label">Cantidad:</span>
+                        <span className="value">{item.quantity}</span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="label">Última mantención:</span>
+                        <span className="value">
+                          {new Date(item.lastMaintenance).toLocaleDateString(
+                            "es-ES",
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="equipment-actions">
+                    <button
+                      onClick={() => handleRemove(item.id, item.name)}
+                      className="action-btn delete tap-ripple"
+                      title="Quitar de mi equipamiento"
+                      aria-label="Quitar de mi equipamiento"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </Card>
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
       )}
 
@@ -205,6 +220,17 @@ const TrainerEquipmentLibrary = ({ trainerId }) => {
           onClose={closeModal}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={!!equipmentToRemove}
+        onClose={() => setEquipmentToRemove(null)}
+        onConfirm={() => removeEquipment(equipmentToRemove.id)}
+        title="Quitar equipamiento"
+        message={`¿Quitar "${equipmentToRemove?.name}" de tu equipamiento disponible?`}
+        confirmText="Quitar"
+        cancelText="Cancelar"
+        variant="danger"
+      />
     </div>
   );
 };

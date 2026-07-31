@@ -1,21 +1,52 @@
 import React, { useState } from "react";
 import { useMockDatabase } from "../context/MockDatabase";
+import { useAuth } from "../context/AuthContext";
 import { Card, Button, useToast } from "./ui";
-import { Clock, User, CheckCircle, XCircle } from "lucide-react";
+import {
+  Clock,
+  User,
+  CheckCircle,
+  XCircle,
+  CalendarClock,
+  ChevronLeft,
+  ChevronRight,
+  Calendar,
+} from "lucide-react";
+import {
+  addDaysToDateString,
+  formatDayName,
+  formatShortDate,
+} from "../utils/dateNav";
 
 const TrainerAppointmentCalendar = () => {
   const {
     getTrainerAppointments,
     updateAppointmentStatus,
+    rescheduleAppointment,
     updateAppointmentAvailability,
     getAppointmentAvailability,
+    getTrainerAthletes,
   } = useMockDatabase();
+  const { getTrainerId } = useAuth();
   const { addToast } = useToast();
+  const trainerId = getTrainerId();
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0],
   );
   const [view, setView] = useState("appointments"); // 'appointments' | 'availability'
   const [availSlots, setAvailSlots] = useState<any[]>([]);
+  const [reschedulingId, setReschedulingId] = useState<string | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleTime, setRescheduleTime] = useState("");
+
+  // Mapa athleteId -> nombre, para mostrar el nombre real en vez del id.
+  const athleteNameById = React.useMemo(() => {
+    const map: Record<string, string> = {};
+    getTrainerAthletes(trainerId).forEach((a) => {
+      map[a.athleteId] = a.athleteName;
+    });
+    return map;
+  }, [getTrainerAthletes, trainerId]);
 
   // Load availability when date changes or view changes
   React.useEffect(() => {
@@ -25,12 +56,38 @@ const TrainerAppointmentCalendar = () => {
     }
   }, [selectedDate, view, getAppointmentAvailability]);
 
+  const goToDay = (direction) => {
+    setSelectedDate((prev) => addDaysToDateString(prev, direction));
+  };
+
   // In a real app, we'd fetch for a range or the selected date
   // For this mock, we'll filter all appointments by date
   const appointments = getTrainerAppointments(selectedDate);
 
   const handleStatusChange = (id, status) => {
     updateAppointmentStatus(id, status);
+  };
+
+  const openReschedule = (app) => {
+    setReschedulingId(app.id);
+    setRescheduleDate(app.date);
+    setRescheduleTime(app.time);
+  };
+
+  const cancelReschedule = () => {
+    setReschedulingId(null);
+    setRescheduleDate("");
+    setRescheduleTime("");
+  };
+
+  const confirmReschedule = () => {
+    if (!rescheduleDate || !rescheduleTime) {
+      addToast("Selecciona fecha y hora para reprogramar.", "warning");
+      return;
+    }
+    rescheduleAppointment(reschedulingId, rescheduleDate, rescheduleTime);
+    addToast("Cita reprogramada correctamente", "success");
+    cancelReschedule();
   };
 
   const handleAddSlot = () => {
@@ -78,33 +135,55 @@ const TrainerAppointmentCalendar = () => {
             ? "Calendario de Citas"
             : "Configurar Disponibilidad"}
         </h2>
-        <div className="header-controls">
-          <div className="date-selector">
-            <label>Fecha:</label>
+        <div className="view-toggle">
+          <Button
+            variant={view === "appointments" ? "primary" : "ghost"}
+            size="sm"
+            onClick={() => setView("appointments")}
+          >
+            Citas
+          </Button>
+          <Button
+            variant={view === "availability" ? "primary" : "ghost"}
+            size="sm"
+            onClick={() => setView("availability")}
+          >
+            Disponibilidad
+          </Button>
+        </div>
+      </div>
+
+      <div className="day-nav">
+        <button
+          className="day-nav-btn tap-ripple"
+          onClick={() => goToDay(-1)}
+          aria-label="Día anterior"
+        >
+          <ChevronLeft size={20} />
+        </button>
+
+        <div className="day-nav-center">
+          <span className="day-nav-name">{formatDayName(selectedDate)}</span>
+          <div className="day-nav-date-picker">
+            <Calendar size={14} />
+            <span>{formatShortDate(selectedDate)}</span>
             <input
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="date-input"
+              aria-label="Elegir fecha"
+              title="Elegir fecha"
             />
           </div>
-          <div className="view-toggle">
-            <Button
-              variant={view === "appointments" ? "primary" : "ghost"}
-              size="sm"
-              onClick={() => setView("appointments")}
-            >
-              Citas
-            </Button>
-            <Button
-              variant={view === "availability" ? "primary" : "ghost"}
-              size="sm"
-              onClick={() => setView("availability")}
-            >
-              Disponibilidad
-            </Button>
-          </div>
         </div>
+
+        <button
+          className="day-nav-btn tap-ripple"
+          onClick={() => goToDay(1)}
+          aria-label="Día siguiente"
+        >
+          <ChevronRight size={20} />
+        </button>
       </div>
 
       {view === "appointments" ? (
@@ -114,56 +193,105 @@ const TrainerAppointmentCalendar = () => {
               <p>No hay citas programadas para este día.</p>
             </Card>
           ) : (
-            <div className="appointments-list">
-              {appointments.map((app) => (
-                <Card key={app.id} className="appointment-card-trainer">
-                  <div className="app-time">
-                    <Clock size={16} />
-                    <span>{app.time}</span>
-                    <span className="duration">({app.duration} min)</span>
-                  </div>
-                  <div className="app-info">
-                    <h4>{app.typeName}</h4>
-                    <div className="athlete-info">
-                      <User size={14} />
-                      <span>Atleta ID: {app.athleteId}</span>
-                      {/* In real app, we'd join with user table to get name */}
+            <div className="appointments-list timeline">
+              {[...appointments]
+                .sort((a, b) => a.time.localeCompare(b.time))
+                .map((app, index, arr) => (
+                  <Card key={app.id} className="appointment-card-trainer">
+                    <div className="timeline-marker">
+                      <span className="timeline-dot" />
+                      {index < arr.length - 1 && (
+                        <span className="timeline-line" />
+                      )}
                     </div>
-                    {app.notes && (
-                      <p className="notes">&ldquo;{app.notes}&rdquo;</p>
-                    )}
-                  </div>
-                  <div className="app-actions">
-                    {app.status === "SCHEDULED" && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="action-btn success"
-                          onClick={() =>
-                            handleStatusChange(app.id, "COMPLETED")
-                          }
-                        >
-                          <CheckCircle size={18} />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="action-btn danger"
-                          onClick={() =>
-                            handleStatusChange(app.id, "CANCELLED")
-                          }
-                        >
-                          <XCircle size={18} />
-                        </Button>
-                      </>
-                    )}
-                    {app.status === "COMPLETED" && (
-                      <span className="badge badge-success">Completada</span>
-                    )}
-                  </div>
-                </Card>
-              ))}
+                    <div className="app-time">
+                      <Clock size={16} />
+                      <span>{app.time}</span>
+                      <span className="duration">({app.duration} min)</span>
+                    </div>
+                    <div className="app-info">
+                      <h4>{app.typeName}</h4>
+                      <div className="athlete-info">
+                        <User size={14} />
+                        <span>
+                          {athleteNameById[app.athleteId] ||
+                            `Atleta ID: ${app.athleteId}`}
+                        </span>
+                      </div>
+                      {app.notes && (
+                        <p className="notes">&ldquo;{app.notes}&rdquo;</p>
+                      )}
+                      {reschedulingId === app.id && (
+                        <div className="reschedule-form">
+                          <input
+                            type="date"
+                            value={rescheduleDate}
+                            onChange={(e) => setRescheduleDate(e.target.value)}
+                            className="date-input"
+                          />
+                          <input
+                            type="time"
+                            value={rescheduleTime}
+                            onChange={(e) => setRescheduleTime(e.target.value)}
+                            className="time-input"
+                          />
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={confirmReschedule}
+                          >
+                            Confirmar
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={cancelReschedule}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="app-actions">
+                      {app.status === "SCHEDULED" && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="action-btn"
+                            onClick={() => openReschedule(app)}
+                            title="Reprogramar cita"
+                          >
+                            <CalendarClock size={18} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="action-btn success"
+                            onClick={() =>
+                              handleStatusChange(app.id, "COMPLETED")
+                            }
+                          >
+                            <CheckCircle size={18} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="action-btn danger"
+                            onClick={() =>
+                              handleStatusChange(app.id, "CANCELLED")
+                            }
+                          >
+                            <XCircle size={18} />
+                          </Button>
+                        </>
+                      )}
+                      {app.status === "COMPLETED" && (
+                        <span className="badge badge-success">Completada</span>
+                      )}
+                    </div>
+                  </Card>
+                ))}
             </div>
           )}
         </div>
@@ -198,8 +326,10 @@ const TrainerAppointmentCalendar = () => {
                     className="time-input"
                   />
                   <button
-                    className="delete-btn"
+                    className="delete-btn tap-ripple"
                     onClick={() => handleDeleteSlot(slot.id)}
+                    title="Eliminar franja"
+                    aria-label="Eliminar franja"
                   >
                     ×
                   </button>
@@ -230,12 +360,70 @@ const TrainerAppointmentCalendar = () => {
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
+                    margin-bottom: 1.5rem;
+                }
+                .day-nav {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 1rem;
                     margin-bottom: 2rem;
                 }
-                .header-controls {
+                .day-nav-btn {
                     display: flex;
-                    gap: 1.5rem;
                     align-items: center;
+                    justify-content: center;
+                    width: var(--touch-target-comfortable);
+                    height: var(--touch-target-comfortable);
+                    border-radius: var(--radius-full);
+                    border: 1px solid var(--color-border);
+                    background: var(--color-surface);
+                    color: var(--color-text);
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                }
+                .day-nav-btn:hover {
+                    background: var(--color-surface-hover);
+                    border-color: var(--color-primary);
+                }
+                .day-nav-center {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 0.35rem;
+                    min-width: 160px;
+                }
+                .day-nav-name {
+                    font-family: var(--font-display);
+                    font-size: 1.25rem;
+                    font-weight: 700;
+                    text-align: center;
+                }
+                .day-nav-date-picker {
+                    position: relative;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.35rem;
+                    padding: 0.3rem 0.7rem;
+                    border-radius: var(--radius-full);
+                    border: 1px solid var(--color-border);
+                    background: var(--color-surface-subtle);
+                    color: var(--color-text-muted);
+                    font-size: 0.8rem;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                }
+                .day-nav-date-picker:hover {
+                    border-color: var(--color-primary);
+                    color: var(--color-text);
+                }
+                .day-nav-date-picker input[type="date"] {
+                    position: absolute;
+                    inset: 0;
+                    opacity: 0;
+                    cursor: pointer;
+                    width: 100%;
                 }
                 .view-toggle {
                     display: flex;
@@ -266,6 +454,35 @@ const TrainerAppointmentCalendar = () => {
                     display: flex;
                     align-items: flex-start;
                     gap: 1.5rem;
+                }
+                .timeline-marker {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    padding-top: 0.35rem;
+                }
+                .timeline-dot {
+                    width: 10px;
+                    height: 10px;
+                    border-radius: 50%;
+                    background: var(--color-primary);
+                    flex-shrink: 0;
+                }
+                .timeline-line {
+                    width: 2px;
+                    flex: 1;
+                    min-height: 2rem;
+                    background: var(--color-border);
+                    margin-top: 0.25rem;
+                }
+                .reschedule-form {
+                    display: flex;
+                    gap: 0.5rem;
+                    align-items: center;
+                    flex-wrap: wrap;
+                    margin-top: 0.75rem;
+                    padding-top: 0.75rem;
+                    border-top: 1px dashed var(--color-border);
                 }
                 .app-time {
                     display: flex;

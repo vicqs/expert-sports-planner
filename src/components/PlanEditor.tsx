@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   ChevronDown,
   ChevronUp,
@@ -9,6 +9,8 @@ import {
   Trash2,
   Copy,
   Check,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -18,13 +20,21 @@ import {
 } from "../utils/constants";
 import { formatPlanToText } from "../utils/generator";
 import { useAuth } from "../context/AuthContext";
+import { useDebounce } from "../hooks/useDebounce";
+import { useLocalStorage } from "../hooks/useLocalStorage";
 import GymSessionEditor from "./GymSessionEditor";
 import AthleticsBuilder from "./AthleticsBuilder";
 import { Button } from "./ui";
 
 import { useToast } from "./ui/Toast";
 
-const PlanEditor = ({ initialPlan, clientData, onSave, onCancel }) => {
+const PlanEditor = ({
+  initialPlan,
+  clientData,
+  onSave,
+  onCancel,
+  onAutoSave,
+}) => {
   const { getTrainerId } = useAuth();
   const trainerId = getTrainerId();
 
@@ -33,10 +43,34 @@ const PlanEditor = ({ initialPlan, clientData, onSave, onCancel }) => {
   const [splitView, setSplitView] = useState(false);
   const [expandedWeek, setExpandedWeek] = useState(0);
   const [expandedDay, setExpandedDay] = useState<any>(null);
-  const [planUnit, setPlanUnit] = useState("km"); // 'km' or 'mi'
-  const [weightUnit, setWeightUnit] = useState("lb"); // 'lb' or 'kg'
+  // Unidades de medida: preferencia global del entrenador (se configuran en
+  // Configuración > Unidades y se comparten entre todos los planes).
+  const [planUnit] = useLocalStorage("trainer_plan_distance_unit", "km"); // 'km' or 'mi'
+  const [weightUnit] = useLocalStorage("trainer_plan_weight_unit", "lb"); // 'lb' or 'kg'
   const [saveState, setSaveState] = useState("idle"); // 'idle' | 'saving' | 'saved'
   const { addToast } = useToast();
+
+  // --- Autoguardado ---
+  // Referencia al último plan efectivamente guardado (manual o automático),
+  // para no re-disparar el autoguardado si nada cambió realmente.
+  const lastSavedRef = useRef(JSON.stringify(initialPlan));
+  const debouncedPlan = useDebounce(plan, 1500);
+
+  useEffect(() => {
+    if (!onAutoSave) return;
+    const serialized = JSON.stringify(debouncedPlan);
+    if (serialized === lastSavedRef.current) return;
+    setSaveState("saving");
+    onAutoSave(
+      formatPlanToText(debouncedPlan, clientData, planUnit, weightUnit),
+      debouncedPlan,
+    );
+    lastSavedRef.current = serialized;
+    setSaveState("saved");
+    const t = setTimeout(() => setSaveState("idle"), 1600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedPlan]);
 
   // Helper to update a specific day
   const updateDay = (weekIndex, dayIndex, field, value) => {
@@ -112,11 +146,49 @@ const PlanEditor = ({ initialPlan, clientData, onSave, onCancel }) => {
     addToast("Semana aplicada a todo el plan", "success");
   };
 
+  // Reordena semanas completas hacia arriba/abajo (sin drag & drop).
+  const moveWeek = (weekIndex, direction) => {
+    const newIndex = weekIndex + direction;
+    if (newIndex < 0 || newIndex >= plan.length) return;
+    const newPlan = [...plan];
+    [newPlan[weekIndex], newPlan[newIndex]] = [
+      newPlan[newIndex],
+      newPlan[weekIndex],
+    ];
+    const renumbered = newPlan.map((w, i) => ({ ...w, weekNum: i + 1 }));
+    setPlan(renumbered);
+    setExpandedWeek(newIndex);
+  };
+
+  // Reordena el contenido (sesión) de un día dentro de la misma semana,
+  // manteniendo fijo el nombre del día (Lunes, Martes...) por posición.
+  const moveDay = (weekIndex, dayIndex, direction) => {
+    const week = plan[weekIndex];
+    const newIndex = dayIndex + direction;
+    if (newIndex < 0 || newIndex >= week.days.length) return;
+    const newPlan = [...plan];
+    const days = [...week.days];
+    const a = days[dayIndex];
+    const b = days[newIndex];
+    days[dayIndex] = { ...a, session: b.session, isGym: b.isGym };
+    days[newIndex] = { ...b, session: a.session, isGym: a.isGym };
+    newPlan[weekIndex] = { ...week, days };
+    setPlan(newPlan);
+    setExpandedDay(newIndex);
+  };
+
   const handleSave = () => {
     setSaveState("saving");
     // Micro-delay so the user perceives the save action happening (button morphs to a check)
     setTimeout(() => {
-      onSave(formatPlanToText(plan, clientData, planUnit, weightUnit), plan);
+      const finalText = formatPlanToText(
+        plan,
+        clientData,
+        planUnit,
+        weightUnit,
+      );
+      onSave(finalText, plan);
+      lastSavedRef.current = JSON.stringify(plan);
       addToast("Plan guardado correctamente", "success");
       setSaveState("saved");
       setTimeout(() => setSaveState("idle"), 1600);
@@ -139,67 +211,63 @@ const PlanEditor = ({ initialPlan, clientData, onSave, onCancel }) => {
     }
   };
 
+  // Atajo de teclado Ctrl/Cmd+D: duplica el día enfocado (si hay uno expandido
+  // dentro de una semana) o, si no, la semana actualmente expandida.
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const isDuplicateShortcut = (e.ctrlKey || e.metaKey) && e.key === "d";
+      if (!isDuplicateShortcut) return;
+      e.preventDefault();
+      if (expandedWeek === null) return;
+      if (expandedDay !== null) {
+        // Duplicar el día enfocado: clona su sesión hacia el siguiente día
+        // de la misma semana (sobrescribiéndolo), ya que los días son slots
+        // fijos (Lunes..Domingo) y no se pueden insertar nuevos.
+        const week = plan[expandedWeek];
+        const nextIndex = expandedDay + 1;
+        if (!week || nextIndex >= week.days.length) return;
+        const source = week.days[expandedDay];
+        const clone = JSON.parse(
+          JSON.stringify({ session: source.session, isGym: source.isGym }),
+        );
+        const newPlan = [...plan];
+        const days = [...week.days];
+        days[nextIndex] = { ...days[nextIndex], ...clone };
+        newPlan[expandedWeek] = { ...week, days };
+        setPlan(newPlan);
+        addToast("Día duplicado en el siguiente slot", "success");
+      } else {
+        duplicateWeek(expandedWeek);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expandedWeek, expandedDay, plan]);
+
   return (
     <div className="plan-editor">
       <div className="editor-header">
         <div className="tabs">
           <button
-            className={`tab-btn ${activeTab === "edit" ? "active" : ""}`}
+            className={`tab-btn tap-ripple ${activeTab === "edit" ? "active" : ""}`}
             onClick={() => setActiveTab("edit")}
           >
             <Edit2 size={16} /> Editor
           </button>
           <button
-            className={`tab-btn ${activeTab === "preview" ? "active" : ""}`}
+            className={`tab-btn tap-ripple ${activeTab === "preview" ? "active" : ""}`}
             onClick={() => setActiveTab("preview")}
           >
             <Eye size={16} /> Vista Previa
           </button>
           <button
-            className={`tab-btn split-toggle ${splitView ? "active" : ""}`}
+            className={`tab-btn split-toggle tap-ripple ${splitView ? "active" : ""}`}
             onClick={() => setSplitView((v) => !v)}
             title="Vista dividida (editor + previsualización en vivo)"
           >
             <Columns2 size={16} /> División
           </button>
-          <div className="toggles">
-            <div
-              className="unit-switch"
-              role="group"
-              aria-label="Unidad de distancia"
-            >
-              <button
-                className={planUnit === "km" ? "active" : ""}
-                onClick={() => setPlanUnit("km")}
-              >
-                KM
-              </button>
-              <button
-                className={planUnit === "mi" ? "active" : ""}
-                onClick={() => setPlanUnit("mi")}
-              >
-                MI
-              </button>
-            </div>
-            <div
-              className="unit-switch"
-              role="group"
-              aria-label="Unidad de peso"
-            >
-              <button
-                className={weightUnit === "lb" ? "active" : ""}
-                onClick={() => setWeightUnit("lb")}
-              >
-                LB
-              </button>
-              <button
-                className={weightUnit === "kg" ? "active" : ""}
-                onClick={() => setWeightUnit("kg")}
-              >
-                KG
-              </button>
-            </div>
-          </div>
         </div>
         <div className="actions">
           <Button variant="ghost" onClick={onCancel}>
@@ -251,8 +319,30 @@ const PlanEditor = ({ initialPlan, clientData, onSave, onCancel }) => {
                   </div>
                   <div className="week-actions">
                     <button
-                      className="btn-week-action"
-                      title="Duplicar semana"
+                      className="btn-week-action tap-ripple"
+                      title="Mover semana arriba"
+                      disabled={wIndex === 0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        moveWeek(wIndex, -1);
+                      }}
+                    >
+                      <ArrowUp size={14} />
+                    </button>
+                    <button
+                      className="btn-week-action tap-ripple"
+                      title="Mover semana abajo"
+                      disabled={wIndex === plan.length - 1}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        moveWeek(wIndex, 1);
+                      }}
+                    >
+                      <ArrowDown size={14} />
+                    </button>
+                    <button
+                      className="btn-week-action tap-ripple"
+                      title="Duplicar semana (Ctrl/Cmd+D)"
                       onClick={(e) => {
                         e.stopPropagation();
                         duplicateWeek(wIndex);
@@ -262,7 +352,7 @@ const PlanEditor = ({ initialPlan, clientData, onSave, onCancel }) => {
                     </button>
                     {plan.length > 1 && (
                       <button
-                        className="btn-week-action"
+                        className="btn-week-action tap-ripple"
                         title="Aplicar esta semana a todo el plan"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -274,7 +364,8 @@ const PlanEditor = ({ initialPlan, clientData, onSave, onCancel }) => {
                     )}
                     {plan.length > 1 && (
                       <button
-                        className="btn-del-week"
+                        className="btn-del-week tap-ripple"
+                        title="Eliminar semana"
                         onClick={(e) => {
                           e.stopPropagation();
                           deleteWeek(wIndex);
@@ -300,7 +391,7 @@ const PlanEditor = ({ initialPlan, clientData, onSave, onCancel }) => {
                             className={`day-card ${!day.session ? "rest-day" : ""}`}
                           >
                             <div
-                              className="day-header"
+                              className="day-header tap-ripple"
                               onClick={() => toggleDay(wIndex, dIndex)}
                             >
                               <span className="day-name">{day.dayName}</span>
@@ -311,6 +402,30 @@ const PlanEditor = ({ initialPlan, clientData, onSave, onCancel }) => {
                                     ? day.session.title || "GIMNASIO"
                                     : `${day.session.type.code} | ${day.session.training.code}`}
                               </span>
+                              <div className="day-move-actions">
+                                <button
+                                  className="btn-day-move tap-ripple"
+                                  title="Mover día arriba"
+                                  disabled={dIndex === 0}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    moveDay(wIndex, dIndex, -1);
+                                  }}
+                                >
+                                  <ArrowUp size={13} />
+                                </button>
+                                <button
+                                  className="btn-day-move tap-ripple"
+                                  title="Mover día abajo"
+                                  disabled={dIndex === week.days.length - 1}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    moveDay(wIndex, dIndex, 1);
+                                  }}
+                                >
+                                  <ArrowDown size={13} />
+                                </button>
+                              </div>
                               {expandedWeek === wIndex &&
                               expandedDay === dIndex ? (
                                 <ChevronUp size={16} />
@@ -330,7 +445,7 @@ const PlanEditor = ({ initialPlan, clientData, onSave, onCancel }) => {
                                   >
                                     <div className="day-type-selector">
                                       <button
-                                        className={!day.session ? "active" : ""}
+                                        className={`tap-ripple ${!day.session ? "active" : ""}`}
                                         onClick={() =>
                                           updateDay(
                                             wIndex,
@@ -343,11 +458,11 @@ const PlanEditor = ({ initialPlan, clientData, onSave, onCancel }) => {
                                         Descanso
                                       </button>
                                       <button
-                                        className={
+                                        className={`tap-ripple ${
                                           day.session && !day.isGym
                                             ? "active"
                                             : ""
-                                        }
+                                        }`}
                                         onClick={() =>
                                           updateDay(
                                             wIndex,
@@ -360,11 +475,11 @@ const PlanEditor = ({ initialPlan, clientData, onSave, onCancel }) => {
                                         Atletismo
                                       </button>
                                       <button
-                                        className={
+                                        className={`tap-ripple ${
                                           day.session && day.isGym
                                             ? "active"
                                             : ""
-                                        }
+                                        }`}
                                         onClick={() =>
                                           updateDay(
                                             wIndex,
@@ -675,31 +790,6 @@ const PlanEditor = ({ initialPlan, clientData, onSave, onCancel }) => {
           }
         }
 
-        .unit-switch {
-          display: flex;
-          background: var(--color-bg-subtle);
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-sm);
-          overflow: hidden;
-        }
-
-        .unit-switch button {
-          border: none;
-          background: transparent;
-          color: var(--color-text-muted);
-          font-size: 0.75rem;
-          font-weight: 700;
-          letter-spacing: 0.03em;
-          padding: 0.4rem 0.6rem;
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
-
-        .unit-switch button.active {
-          background: var(--color-primary);
-          color: white;
-        }
-
         .actions {
           display: flex;
           gap: 1rem;
@@ -832,6 +922,14 @@ const PlanEditor = ({ initialPlan, clientData, onSave, onCancel }) => {
             box-shadow: var(--shadow-sm);
         }
 
+        .btn-week-action:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            background: var(--color-primary-bg);
+            color: var(--color-primary);
+            box-shadow: none;
+        }
+
         .btn-del-week {
             background: var(--color-error-bg);
             border: 1px solid transparent;
@@ -896,8 +994,35 @@ const PlanEditor = ({ initialPlan, clientData, onSave, onCancel }) => {
           display: flex;
           align-items: center;
           justify-content: space-between;
+          gap: 0.5rem;
           cursor: pointer;
           user-select: none;
+        }
+
+        .day-move-actions {
+          display: flex;
+          gap: 0.15rem;
+        }
+
+        .btn-day-move {
+          background: transparent;
+          border: 1px solid var(--color-border);
+          color: var(--color-text-muted);
+          padding: 0.25rem;
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+          display: flex;
+          transition: all 0.2s;
+        }
+
+        .btn-day-move:hover:not(:disabled) {
+          color: var(--color-primary);
+          border-color: var(--color-primary-subtle);
+        }
+
+        .btn-day-move:disabled {
+          opacity: 0.3;
+          cursor: not-allowed;
         }
 
         .day-header:hover {
@@ -1079,14 +1204,6 @@ const PlanEditor = ({ initialPlan, clientData, onSave, onCancel }) => {
           .tab-btn {
             font-size: 0.85rem;
             padding: 0.5rem 0.75rem;
-          }
-          
-          .toggles {
-            border-left: none;
-            padding-left: 0;
-            margin-left: 0;
-            width: 100%;
-            justify-content: center;
           }
           
           .actions {

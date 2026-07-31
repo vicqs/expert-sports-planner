@@ -386,6 +386,16 @@ export const MockDatabaseProvider = ({
     );
   };
 
+  // Reprograma una cita existente a una nueva fecha/hora, sin perder
+  // el resto de sus datos (atleta, tipo, notas, duración).
+  const rescheduleAppointment = (id, newDate, newTime) => {
+    setAppointments((prev) =>
+      prev.map((a) =>
+        a.id === id ? { ...a, date: newDate, time: newTime } : a,
+      ),
+    );
+  };
+
   const getTrainerAppointments = (date) => {
     return appointments.filter(
       (a) => a.date === date && a.status !== "CANCELLED",
@@ -728,6 +738,7 @@ export const MockDatabaseProvider = ({
         appointments,
         addAppointment,
         updateAppointmentStatus,
+        rescheduleAppointment,
         getTrainerAppointments,
         getAthleteAppointments,
         updateAppointmentAvailability,
