@@ -7,6 +7,9 @@ import {
   registerUser,
   updateSubscription,
   updateUserProfile,
+  changePassword,
+  exportUserData,
+  deleteAccount,
   canAccessFeature,
   checkLimits,
   getTrialDaysRemaining,
@@ -40,7 +43,21 @@ interface AuthState {
   updateProfile: (updates: {
     email?: string | null;
     phone?: string | null;
+    emergencyContact?: User["emergencyContact"];
+    medicalNotes?: string | null;
+    notificationPrefs?: User["notificationPrefs"];
+    avatarId?: string | null;
+    companyName?: string | null;
+    companyLegalId?: string | null;
+    companyPhone?: string | null;
+    companyAddress?: string | null;
   }) => Promise<AuthResult>;
+  changeUserPassword: (
+    currentPassword: string,
+    newPassword: string,
+  ) => Promise<AuthResult>;
+  exportMyData: () => Promise<{ success: boolean; data?: any; error?: string }>;
+  deleteMyAccount: () => Promise<AuthResult>;
   syncFromStorage: () => void;
 }
 
@@ -162,6 +179,63 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return { success: false, error: message };
     } finally {
       set({ loading: false });
+    }
+  },
+
+  changeUserPassword: async (currentPassword, newPassword) => {
+    const { currentUser } = get();
+    if (!currentUser) {
+      const message = "No hay usuario autenticado";
+      set({ error: message });
+      return { success: false, error: message };
+    }
+
+    set({ loading: true, error: null });
+    try {
+      const updatedUser = await changePassword(
+        currentUser.id,
+        currentPassword,
+        newPassword,
+      );
+      set({ currentUser: updatedUser });
+      return { success: true, user: updatedUser };
+    } catch (err) {
+      const message = (err as Error).message;
+      set({ error: message });
+      return { success: false, error: message };
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  exportMyData: async () => {
+    const { currentUser } = get();
+    if (!currentUser) {
+      return { success: false, error: "No hay usuario autenticado" };
+    }
+    try {
+      const data = exportUserData(currentUser.id);
+      return { success: true, data };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
+  },
+
+  deleteMyAccount: async () => {
+    const { currentUser } = get();
+    if (!currentUser) {
+      const message = "No hay usuario autenticado";
+      set({ error: message });
+      return { success: false, error: message };
+    }
+    try {
+      deleteAccount(currentUser.id);
+      set({ currentUser: null, error: null });
+      return { success: true };
+    } catch (err) {
+      const message = (err as Error).message;
+      set({ error: message });
+      return { success: false, error: message };
     }
   },
 }));

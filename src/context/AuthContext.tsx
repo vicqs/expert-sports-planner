@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect } from "react";
-import { initializeSuperAdmin, ROLES } from "../utils/auth";
+import { initializeSuperAdmin, ROLES, updateUserProfile } from "../utils/auth";
 import { usePreviewStore } from "../store/usePreviewStore";
 import {
   useAuthStore,
@@ -28,6 +28,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = useAuthStore((state) => state.logout);
   const upgradePlan = useAuthStore((state) => state.upgradePlan);
   const updateProfile = useAuthStore((state) => state.updateProfile);
+  const changeUserPassword = useAuthStore((state) => state.changeUserPassword);
+  const exportMyData = useAuthStore((state) => state.exportMyData);
+  const deleteMyAccount = useAuthStore((state) => state.deleteMyAccount);
   const syncFromStorage = useAuthStore((state) => state.syncFromStorage);
 
   // Usuario simulado (mock) usado por el super admin para previsualizar
@@ -35,6 +38,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const previewUser = usePreviewStore((state) => state.previewUser);
   const setPreviewUserStore = usePreviewStore((state) => state.startPreview);
   const clearPreview = usePreviewStore((state) => state.stopPreview);
+  const updatePreviewUser = usePreviewStore((state) => state.updatePreviewUser);
 
   // Usuario "efectivo": el simulado si hay vista previa activa, o el real.
   const effectiveUser = previewUser || currentUser;
@@ -106,6 +110,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = () => currentUser !== null;
 
   /**
+   * Actualizar el perfil del usuario "efectivo": si hay una vista previa
+   * activa (super admin viendo como Entrenador/Atleta), actualiza el perfil
+   * mock en localStorage (ya sembrado como usuario real, ver MockDatabase)
+   * y refleja el resultado en el objeto `previewUser` en memoria. Si no,
+   * delega en el `updateProfile` normal del store (usuario real logueado).
+   */
+  const updateProfileForEffectiveUser = async (updates: any) => {
+    if (previewUser) {
+      try {
+        const updatedUser = updateUserProfile(previewUser.id, updates);
+        updatePreviewUser(updatedUser);
+        return { success: true, user: updatedUser };
+      } catch (err) {
+        return { success: false, error: (err as Error).message };
+      }
+    }
+    return updateProfile(updates);
+  };
+
+  /**
    * Verificar si el usuario es entrenador
    */
   const isTrainer = () => effectiveUser?.role === ROLES.TRAINER;
@@ -141,7 +165,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     logout: handleLogout,
     quickAdminLogin,
     upgradePlan,
-    updateProfile,
+    updateProfile: updateProfileForEffectiveUser,
+    changeUserPassword,
+    exportMyData,
+    deleteMyAccount,
     hasFeatureAccess,
     getUserLimits,
     trialDaysRemaining,

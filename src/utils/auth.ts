@@ -349,10 +349,22 @@ export const completeUserProfile = async (userId, email, password) => {
   return updatedUser;
 };
 
-// Actualizar datos de contacto del perfil (email/teléfono), editables por el propio usuario
+// Actualizar datos de contacto del perfil (email/teléfono/contacto de
+// emergencia/notas médicas/notificaciones/avatar), editables por el propio usuario
 export const updateUserProfile = (
   userId: string,
-  updates: { email?: string | null; phone?: string | null },
+  updates: {
+    email?: string | null;
+    phone?: string | null;
+    emergencyContact?: User["emergencyContact"];
+    medicalNotes?: string | null;
+    notificationPrefs?: User["notificationPrefs"];
+    avatarId?: string | null;
+    companyName?: string | null;
+    companyLegalId?: string | null;
+    companyPhone?: string | null;
+    companyAddress?: string | null;
+  },
 ) => {
   const users = getAllUsers();
   const userIndex = users.findIndex((u) => u.id === userId);
@@ -368,10 +380,41 @@ export const updateUserProfile = (
     throw new Error("Este email ya está registrado por otro usuario");
   }
 
+  const isCompanyUpdate =
+    updates.companyName !== undefined ||
+    updates.companyLegalId !== undefined ||
+    updates.companyPhone !== undefined ||
+    updates.companyAddress !== undefined;
+  if (isCompanyUpdate && users[userIndex].role !== ROLES.TRAINER) {
+    throw new Error("Solo un entrenador puede editar los datos de la empresa");
+  }
+
   const updatedUser: User = {
     ...users[userIndex],
     ...(updates.email !== undefined ? { email: updates.email } : {}),
     ...(updates.phone !== undefined ? { phone: updates.phone } : {}),
+    ...(updates.emergencyContact !== undefined
+      ? { emergencyContact: updates.emergencyContact }
+      : {}),
+    ...(updates.medicalNotes !== undefined
+      ? { medicalNotes: updates.medicalNotes }
+      : {}),
+    ...(updates.notificationPrefs !== undefined
+      ? { notificationPrefs: updates.notificationPrefs }
+      : {}),
+    ...(updates.avatarId !== undefined ? { avatarId: updates.avatarId } : {}),
+    ...(updates.companyName !== undefined
+      ? { companyName: updates.companyName }
+      : {}),
+    ...(updates.companyLegalId !== undefined
+      ? { companyLegalId: updates.companyLegalId }
+      : {}),
+    ...(updates.companyPhone !== undefined
+      ? { companyPhone: updates.companyPhone }
+      : {}),
+    ...(updates.companyAddress !== undefined
+      ? { companyAddress: updates.companyAddress }
+      : {}),
   };
 
   users[userIndex] = updatedUser;
@@ -383,6 +426,90 @@ export const updateUserProfile = (
   }
 
   return updatedUser;
+};
+
+// "Datos Básicos" del atleta: SOLO el Entrenador puede crear/editar esto,
+// por eso vive fuera de updateUserProfile (que es autoedición) y se llama
+// exclusivamente desde CoachDashboard ("Mis Atletas").
+export const updateAthleteBasicInfo = (
+  athleteId: string,
+  basicInfo: User["basicInfo"],
+) => {
+  const users = getAllUsers();
+  const userIndex = users.findIndex((u) => u.id === athleteId);
+  if (userIndex === -1) throw new Error("Atleta no encontrado");
+
+  const updatedUser: User = { ...users[userIndex], basicInfo };
+  users[userIndex] = updatedUser;
+  saveUsers(users);
+  return updatedUser;
+};
+
+// "Lesiones": estrictamente solo lectura para el Atleta; únicamente el
+// Entrenador puede agregar/modificar. Reemplaza la lista completa.
+export const setAthleteInjuries = (
+  athleteId: string,
+  injuries: User["injuries"],
+) => {
+  const users = getAllUsers();
+  const userIndex = users.findIndex((u) => u.id === athleteId);
+  if (userIndex === -1) throw new Error("Atleta no encontrado");
+
+  const updatedUser: User = { ...users[userIndex], injuries };
+  users[userIndex] = updatedUser;
+  saveUsers(users);
+  return updatedUser;
+};
+
+// Cambiar contraseña (requiere validar la contraseña actual)
+export const changePassword = async (
+  userId: string,
+  currentPassword: string,
+  newPassword: string,
+) => {
+  const users = getAllUsers();
+  const userIndex = users.findIndex((u) => u.id === userId);
+  if (userIndex === -1) throw new Error("Usuario no encontrado");
+
+  const user = users[userIndex];
+  const currentHash = await hashPassword(currentPassword);
+  if (user.passwordHash && user.passwordHash !== currentHash) {
+    throw new Error("La contraseña actual no es correcta");
+  }
+
+  const updatedUser: User = {
+    ...user,
+    passwordHash: await hashPassword(newPassword),
+  };
+  users[userIndex] = updatedUser;
+  saveUsers(users);
+
+  const currentUser = getCurrentUser();
+  if (currentUser && currentUser.id === userId) {
+    setCurrentUser(updatedUser);
+  }
+
+  return updatedUser;
+};
+
+// Exportar los datos del usuario (simula una descarga de "mis datos" en JSON)
+export const exportUserData = (userId: string) => {
+  const users = getAllUsers();
+  const user = users.find((u) => u.id === userId);
+  if (!user) throw new Error("Usuario no encontrado");
+
+  // Nunca incluir el hash de contraseña en el export.
+  const { passwordHash: _passwordHash, ...safeUser } = user;
+  return {
+    exportedAt: new Date().toISOString(),
+    profile: safeUser,
+  };
+};
+
+// Eliminar cuenta (autoeliminación del propio usuario)
+export const deleteAccount = (userId: string) => {
+  deleteUser(userId);
+  setCurrentUser(null);
 };
 
 // Actualizar suscripción de usuario

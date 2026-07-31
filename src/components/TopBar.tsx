@@ -1,6 +1,7 @@
 import React from "react";
 import { Sun, Moon, LogOut } from "lucide-react";
 import { useTheme } from "../hooks/useTheme";
+import { useAuth } from "../context/AuthContext";
 import "./TopBar.css";
 
 // Same silhouette as the PulseLoader waveform (and lucide-react's "Activity"
@@ -43,6 +44,10 @@ const TopBar = ({
   userRole?: string;
 }) => {
   const { toggleTheme, isDark } = useTheme();
+  const { currentUser } = useAuth();
+  const isTrainerPanel =
+    userRole?.toLowerCase() === "coach" ||
+    userRole?.toLowerCase() === "trainer";
 
   const getRoleBadge = () => {
     if (!userRole) return null;
@@ -69,6 +74,11 @@ const TopBar = ({
             <h1 className="brand-name">Expert Sport Planner</h1>
           </div>
         </div>
+
+        {/* Nombre de la empresa del entrenador, centrado (solo panel de Entrenador) */}
+        {isTrainerPanel && currentUser?.companyName && (
+          <div className="top-bar-company">{currentUser.companyName}</div>
+        )}
 
         {/* Actions */}
         <div className="top-bar-actions">

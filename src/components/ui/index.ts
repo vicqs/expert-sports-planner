@@ -9,3 +9,8 @@ export { useToast, ToastProvider } from "./Toast";
 export { default as Modal } from "./Modal";
 export { default as ConfirmDialog } from "./ConfirmDialog";
 export { default as PlanCard } from "./PlanCard";
+export {
+  default as AvatarSelector,
+  AVATAR_OPTIONS,
+  getAvatarById,
+} from "./AvatarSelector";

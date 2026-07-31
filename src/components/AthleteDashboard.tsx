@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "../hooks/useTheme";
 import { ExplorarTab, ProgresoTab, PerfilTab } from "./athlete/AthleteTabs";
+import { getAvatarById } from "./ui/AvatarSelector";
 
 const AthleteDashboard = ({
   onExit,
@@ -40,6 +41,7 @@ const AthleteDashboard = ({
   } = useMockDatabase();
   const { currentUser } = useAuth();
   const { toggleTheme, isDark } = useTheme();
+  const selectedAvatar = getAvatarById(currentUser?.avatarId);
   const [view, setView] = useState("home"); // home, trainer-search, plan-detail, gym-booking, appointments
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [myTrainer, setMyTrainer] = useState<any>(null);
@@ -174,8 +176,19 @@ const AthleteDashboard = ({
     <div className="athlete-dashboard">
       <div className="dashboard-header">
         <div className="user-welcome">
-          <div className="avatar">
-            <User size={24} />
+          <div
+            className="avatar"
+            style={
+              selectedAvatar
+                ? { background: selectedAvatar.gradient }
+                : undefined
+            }
+          >
+            {selectedAvatar ? (
+              <span className="avatar-emoji">{selectedAvatar.emoji}</span>
+            ) : (
+              <User size={24} />
+            )}
           </div>
           <div>
             <h1>Hola, {currentUser?.name?.split(" ")[0] || "Atleta"}</h1>
@@ -443,6 +456,7 @@ const AthleteDashboard = ({
             box-shadow: var(--shadow-lg);
             transition: transform var(--transition-normal);
         }
+        .avatar-emoji { font-size: 1.5rem; line-height: 1; }
         .avatar:hover {
             transform: scale(1.05) rotate(5deg);
         }

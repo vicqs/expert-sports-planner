@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { STORAGE_KEYS, getFromStorage, setToStorage } from "../utils/storage";
+import { getAllUsers } from "../utils/auth";
 import {
   mockClients,
   mockCompletedClients,
@@ -7,6 +8,9 @@ import {
   mockGymAvailability,
   mockGymBookings,
   mockAppointments,
+  mockTrainerUser,
+  mockAthlete1User,
+  mockAthlete2User,
 } from "../utils/mockProfiles";
 
 const MockDatabaseContext = createContext<any>(null);
@@ -74,6 +78,22 @@ export const MockDatabaseProvider = ({
   // que se sembraron originalmente y ya no aparecerían como disponibles hoy.
   // Es seguro repetirlo: cada bloque hace dedupe por id/fecha antes de agregar.
   useEffect(() => {
+    // Los perfiles mock (entrenador + 2 atletas) antes solo vivían en memoria
+    // vía `startPreview()` (Zustand, ver usePreviewStore.ts) y NUNCA se
+    // guardaban como registros reales en la clave "users" de localStorage
+    // (la que lee `getAllUsers()` en utils/auth.ts). Esto rompía cualquier
+    // función trainer-only que busca al atleta por id ahí — ej.
+    // `updateAthleteBasicInfo`/`setAthleteInjuries` lanzaban "Atleta no
+    // encontrado" al editar Datos Básicos/Lesiones desde "Mis Atletas" en
+    // modo vista previa. Se hace upsert (igual que `mockClients` arriba) por
+    // si el usuario ya tenía una copia vieja guardada de una sesión anterior.
+    const liveUsers = getAllUsers();
+    const byId = new Map(liveUsers.map((u: any) => [u.id, u]));
+    [mockTrainerUser, mockAthlete1User, mockAthlete2User].forEach((u) => {
+      byId.set(u.id, { ...byId.get(u.id), ...u });
+    });
+    localStorage.setItem("users", JSON.stringify(Array.from(byId.values())));
+
     // Los planes ACTIVOS de los atletas mock (`mockClients`) se refrescan
     // (upsert) en cada carga en lugar de solo agregarse si faltan: sus fechas
     // se calculan relativas a "hoy", así que una copia vieja guardada en

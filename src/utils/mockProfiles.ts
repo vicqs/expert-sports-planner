@@ -21,6 +21,8 @@ export const mockTrainerUser = {
   name: "Carlos Mendoza (Demo)",
   role: ROLES.TRAINER,
   trainerId: MOCK_TRAINER_ID,
+  companyId: "empresa-elite-fitness",
+  companyName: "Elite Fitness Center",
   subscription: {
     plan: SUBSCRIPTION_PLANS.PRO,
     status: SUBSCRIPTION_STATUS.ACTIVE,

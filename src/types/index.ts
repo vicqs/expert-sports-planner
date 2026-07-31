@@ -20,6 +20,31 @@ export interface UserLimits {
   maxTrainers?: number;
 }
 
+export interface EmergencyContact {
+  name: string;
+  phone: string;
+  relationship?: string;
+}
+
+export interface Injury {
+  id: string;
+  description: string;
+  date: string;
+  status: "ACTIVE" | "RECOVERED";
+}
+
+export interface AthleteBasicInfo {
+  birthDate: string | null;
+  weightKg: number | null;
+  heightCm: number | null;
+  sport: string | null;
+}
+
+export interface NotificationPrefs {
+  sessionReminders: boolean;
+  appointmentReminders: boolean;
+}
+
 export interface User {
   id: string;
   email: string | null;
@@ -31,5 +56,28 @@ export interface User {
   subscription: Subscription;
   limits: UserLimits;
   createdAt: string;
+  // Empresa a la que pertenece el entrenador (los atletas heredan esta
+  // asociación mientras estén vinculados a ese entrenador; no se persiste en
+  // el atleta, se deriva en vivo del entrenador vinculado — así la
+  // desvinculación "cascada" ocurre automáticamente sin lógica extra).
+  companyId?: string | null;
+  companyName?: string | null;
+  // Datos adicionales de la empresa del entrenador (por ahora hay un solo
+  // entrenador por empresa, y es él quien administra estos datos desde su
+  // propio perfil). Al igual que companyId/companyName, los atletas los ven
+  // en vivo a través del entrenador vinculado, nunca se copian al atleta.
+  companyLegalId?: string | null;
+  companyPhone?: string | null;
+  companyAddress?: string | null;
+  avatarId?: string | null;
+  // "Datos Básicos": solo el Entrenador puede crear/editar estos campos.
+  basicInfo?: AthleteBasicInfo | null;
+  // "Contacto de Emergencia": visible y editable por el propio Atleta.
+  emergencyContact?: EmergencyContact | null;
+  // "Notas Médicas": el Atleta puede agregarlas/editarlas.
+  medicalNotes?: string | null;
+  // "Lesiones": solo lectura para el Atleta, solo el Entrenador las agrega/edita.
+  injuries?: Injury[];
+  notificationPrefs?: NotificationPrefs;
   isSuper?: boolean;
 }

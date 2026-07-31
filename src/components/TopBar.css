@@ -31,6 +31,31 @@
   justify-content: space-between;
   gap: var(--space-4);
   min-height: 64px;
+  position: relative;
+}
+
+/* Nombre de la empresa del entrenador, centrado en el header (solo panel
+   de Entrenador). Posicionado absoluto para no empujar brand/actions y
+   quedar realmente centrado respecto al ancho completo del header. */
+.top-bar-company {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-weight: 700;
+  font-size: var(--text-base, 1rem);
+  color: var(--color-text-primary);
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .top-bar-company {
+    display: none;
+  }
 }
 
 /* Brand Section */

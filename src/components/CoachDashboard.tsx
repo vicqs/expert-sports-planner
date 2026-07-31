@@ -1,8 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMockDatabase } from "../context/MockDatabase";
 import { useAuth } from "../context/AuthContext";
-import { getAllUsers } from "../utils/auth";
+import {
+  getAllUsers,
+  updateAthleteBasicInfo,
+  setAthleteInjuries,
+} from "../utils/auth";
 import { generatePlan } from "../utils/generator";
 import {
   Play,
@@ -21,13 +25,17 @@ import {
   ClipboardList,
   Mail,
   Phone,
+  Pencil,
+  ShieldAlert,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import PlanEditor from "./PlanEditor";
 import TrainerScheduleConfig from "./TrainerScheduleConfig";
 import TrainerAppointmentCalendar from "./TrainerAppointmentCalendar";
 import TrainerExerciseLibrary from "./TrainerExerciseLibrary";
 import TrainerEquipmentLibrary from "./TrainerEquipmentLibrary";
-import { Card, Button, useToast, ConfirmDialog } from "./ui";
+import { Card, Button, useToast, ConfirmDialog, Modal } from "./ui";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import "@/styles/trainer-library.css";
 
@@ -56,7 +64,7 @@ const CoachDashboard = ({
     removeAthlete,
     addAppointment,
   } = useMockDatabase();
-  const { getTrainerId, getUserLimits } = useAuth();
+  const { getTrainerId, getUserLimits, currentUser, updateProfile } = useAuth();
   const { addToast } = useToast();
   // Si el padre controla la pestaña activa (ej. BottomNav en mobile), se usa esa;
   // si no, cae a un estado interno propio (uso standalone / retro-compatible).
@@ -87,6 +95,107 @@ const CoachDashboard = ({
     athleteId: string;
     athleteName: string;
   } | null>(null);
+  // Datos Básicos + Lesiones: solo el entrenador los edita. `refreshTick` fuerza
+  // un rerender tras guardar, ya que estos datos se leen en vivo con getAllUsers()
+  // (mismo patrón usado para email/teléfono desde la Sesión 34) y no viven en
+  // ningún estado de React propio de este componente.
+  const [refreshTick, setRefreshTick] = useState(0);
+  const [editingAthleteId, setEditingAthleteId] = useState<string | null>(null);
+  const [basicInfoDraft, setBasicInfoDraft] = useState<{
+    birthDate: string;
+    weightKg: string;
+    heightCm: string;
+    sport: string;
+  }>({ birthDate: "", weightKg: "", heightCm: "", sport: "" });
+  const [injuriesDraft, setInjuriesDraft] = useState<any[]>([]);
+  const [savingAthleteData, setSavingAthleteData] = useState(false);
+  // Validación de "Datos Básicos y Lesiones": todos los campos son opcionales,
+  // pero si se completan deben tener valores razonables. El botón "Guardar"
+  // queda deshabilitado mientras haya algún error.
+  const athleteEditErrors = useMemo(() => {
+    const errors: Record<string, string> = {};
+    const { birthDate, weightKg, heightCm } = basicInfoDraft;
+    if (birthDate) {
+      const parsed = new Date(birthDate);
+      if (Number.isNaN(parsed.getTime())) {
+        errors.birthDate = "Fecha inválida";
+      } else if (parsed.getTime() > Date.now()) {
+        errors.birthDate = "La fecha no puede ser futura";
+      }
+    }
+    if (weightKg) {
+      const n = Number(weightKg);
+      if (Number.isNaN(n) || n <= 0 || n > 300) {
+        errors.weightKg = "Peso inválido (entre 1 y 300 kg)";
+      }
+    }
+    if (heightCm) {
+      const n = Number(heightCm);
+      if (Number.isNaN(n) || n <= 0 || n > 250) {
+        errors.heightCm = "Altura inválida (entre 1 y 250 cm)";
+      }
+    }
+    injuriesDraft.forEach((injury, idx) => {
+      if (!injury.description.trim()) {
+        errors[`injury-${idx}`] = "La descripción de la lesión es obligatoria";
+      }
+    });
+    return errors;
+  }, [basicInfoDraft, injuriesDraft]);
+  const hasAthleteEditErrors = Object.keys(athleteEditErrors).length > 0;
+  // "Empresa": datos de negocio del entrenador (por ahora hay un único
+  // entrenador por empresa y es él quien los administra). Se editan desde
+  // Configuración > Empresa y se guardan vía updateProfile (mismo mecanismo
+  // que el resto del perfil), sin afectar el modelo actual de un solo
+  // entrenador por companyId.
+  const [companyDraft, setCompanyDraft] = useState({
+    companyName: "",
+    companyLegalId: "",
+    companyPhone: "",
+    companyAddress: "",
+  });
+  const [editingCompany, setEditingCompany] = useState(false);
+  const [savingCompany, setSavingCompany] = useState(false);
+  const startEditingCompany = () => {
+    setCompanyDraft({
+      companyName: currentUser?.companyName || "",
+      companyLegalId: currentUser?.companyLegalId || "",
+      companyPhone: currentUser?.companyPhone || "",
+      companyAddress: currentUser?.companyAddress || "",
+    });
+    setEditingCompany(true);
+  };
+  const companyErrors = useMemo(() => {
+    const errors: Record<string, string> = {};
+    if (!companyDraft.companyName.trim()) {
+      errors.companyName = "El nombre de la empresa es obligatorio";
+    }
+    if (!companyDraft.companyPhone.trim()) {
+      errors.companyPhone = "El teléfono de la empresa es obligatorio";
+    }
+    return errors;
+  }, [companyDraft]);
+  const hasCompanyErrors = Object.keys(companyErrors).length > 0;
+  const handleSaveCompany = async () => {
+    if (hasCompanyErrors) return;
+    setSavingCompany(true);
+    try {
+      const result = await updateProfile({
+        companyName: companyDraft.companyName.trim(),
+        companyLegalId: companyDraft.companyLegalId.trim() || null,
+        companyPhone: companyDraft.companyPhone.trim() || null,
+        companyAddress: companyDraft.companyAddress.trim() || null,
+      });
+      if (result.success) {
+        addToast("Datos de la empresa actualizados", "success");
+        setEditingCompany(false);
+      } else {
+        addToast(result.error || "No se pudo guardar", "error");
+      }
+    } finally {
+      setSavingCompany(false);
+    }
+  };
   // Atleta/plan pendiente de confirmación para "Extender Plan" (el atleta
   // necesita más tiempo para trabajar el plan) + cuántas semanas elegidas.
   const [clientToExtend, setClientToExtend] = useState<any>(null);
@@ -530,7 +639,7 @@ const CoachDashboard = ({
                   </Button>
                 </Card>
               ) : (
-                <div className="athletes-list">
+                <div className="athletes-list" key={refreshTick}>
                   {myAthletes.map((request) => {
                     const liveAthlete = getAllUsers().find(
                       (u) => u.id === request.athleteId,
@@ -568,6 +677,28 @@ const CoachDashboard = ({
                             </small>
                           </div>
                         </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          leftIcon={<Pencil size={16} />}
+                          onClick={() => {
+                            setEditingAthleteId(request.athleteId);
+                            setBasicInfoDraft({
+                              birthDate:
+                                liveAthlete?.basicInfo?.birthDate || "",
+                              weightKg:
+                                liveAthlete?.basicInfo?.weightKg?.toString() ||
+                                "",
+                              heightCm:
+                                liveAthlete?.basicInfo?.heightCm?.toString() ||
+                                "",
+                              sport: liveAthlete?.basicInfo?.sport || "",
+                            });
+                            setInjuriesDraft(liveAthlete?.injuries || []);
+                          }}
+                        >
+                          Datos y Lesiones
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -674,6 +805,12 @@ const CoachDashboard = ({
                 >
                   Unidades
                 </button>
+                <button
+                  className={`sub-tab-btn tap-ripple ${activeSubTab === "empresa" ? "active" : ""}`}
+                  onClick={() => setActiveSubTab("empresa")}
+                >
+                  Empresa
+                </button>
               </div>
 
               {/* Renderizado condicional de sub-secciones */}
@@ -681,6 +818,142 @@ const CoachDashboard = ({
                 <TrainerExerciseLibrary trainerId={trainerId} />
               ) : activeSubTab === "equipamiento" ? (
                 <TrainerEquipmentLibrary trainerId={trainerId} />
+              ) : activeSubTab === "empresa" ? (
+                <Card className="company-settings-card">
+                  <h4>Datos de la empresa</h4>
+                  <p className="units-settings-hint">
+                    Por ahora hay un único entrenador por empresa. Estos datos
+                    se muestran a tus atletas vinculados.
+                  </p>
+
+                  {!editingCompany ? (
+                    <>
+                      <div className="company-view">
+                        <div className="company-view-row">
+                          <span className="perfil-row-label">
+                            Nombre de la empresa
+                          </span>
+                          <span className="perfil-row-value">
+                            {currentUser?.companyName || "Sin definir"}
+                          </span>
+                        </div>
+                        <div className="company-view-row">
+                          <span className="perfil-row-label">
+                            Cédula jurídica
+                          </span>
+                          <span className="perfil-row-value">
+                            {currentUser?.companyLegalId || "Sin definir"}
+                          </span>
+                        </div>
+                        <div className="company-view-row">
+                          <span className="perfil-row-label">Teléfono</span>
+                          <span className="perfil-row-value">
+                            {currentUser?.companyPhone || "Sin definir"}
+                          </span>
+                        </div>
+                        <div className="company-view-row">
+                          <span className="perfil-row-label">Dirección</span>
+                          <span className="perfil-row-value">
+                            {currentUser?.companyAddress || "Sin definir"}
+                          </span>
+                        </div>
+                      </div>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        leftIcon={<Pencil size={16} />}
+                        onClick={startEditingCompany}
+                      >
+                        Editar datos de la empresa
+                      </Button>
+                    </>
+                  ) : (
+                    <div className="company-edit-form">
+                      <label className="athlete-edit-field">
+                        <span>Nombre de la empresa</span>
+                        <input
+                          type="text"
+                          value={companyDraft.companyName}
+                          onChange={(e) =>
+                            setCompanyDraft((d) => ({
+                              ...d,
+                              companyName: e.target.value,
+                            }))
+                          }
+                          placeholder="Ej. Elite Fitness Center"
+                        />
+                        {companyErrors.companyName && (
+                          <span className="athlete-edit-field-error">
+                            {companyErrors.companyName}
+                          </span>
+                        )}
+                      </label>
+                      <label className="athlete-edit-field">
+                        <span>Cédula jurídica</span>
+                        <input
+                          type="text"
+                          value={companyDraft.companyLegalId}
+                          onChange={(e) =>
+                            setCompanyDraft((d) => ({
+                              ...d,
+                              companyLegalId: e.target.value,
+                            }))
+                          }
+                          placeholder="Ej. 3-101-123456"
+                        />
+                      </label>
+                      <label className="athlete-edit-field">
+                        <span>Teléfono</span>
+                        <input
+                          type="text"
+                          value={companyDraft.companyPhone}
+                          onChange={(e) =>
+                            setCompanyDraft((d) => ({
+                              ...d,
+                              companyPhone: e.target.value,
+                            }))
+                          }
+                          placeholder="Ej. +506 2222-3333"
+                        />
+                        {companyErrors.companyPhone && (
+                          <span className="athlete-edit-field-error">
+                            {companyErrors.companyPhone}
+                          </span>
+                        )}
+                      </label>
+                      <label className="athlete-edit-field">
+                        <span>Dirección</span>
+                        <input
+                          type="text"
+                          value={companyDraft.companyAddress}
+                          onChange={(e) =>
+                            setCompanyDraft((d) => ({
+                              ...d,
+                              companyAddress: e.target.value,
+                            }))
+                          }
+                          placeholder="Ej. San José, Costa Rica"
+                        />
+                      </label>
+                      <div className="athlete-edit-actions">
+                        <Button
+                          variant="ghost"
+                          onClick={() => setEditingCompany(false)}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          variant="primary"
+                          loading={savingCompany}
+                          disabled={hasCompanyErrors || savingCompany}
+                          onClick={handleSaveCompany}
+                        >
+                          Guardar
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </Card>
               ) : (
                 <Card className="units-settings-card">
                   <h4>Unidades de medida</h4>
@@ -1044,6 +1317,266 @@ const CoachDashboard = ({
         variant="danger"
         isLoading={removingAthleteId === athleteToRemove?.athleteId}
       />
+
+      <Modal
+        isOpen={!!editingAthleteId}
+        onClose={() => setEditingAthleteId(null)}
+        title="Datos Básicos y Lesiones"
+        size="md"
+      >
+        <div className="athlete-edit-form">
+          <h4 className="athlete-edit-section-title">Datos Básicos</h4>
+          <label className="athlete-edit-field">
+            <span>Fecha de nacimiento</span>
+            <input
+              type="date"
+              value={basicInfoDraft.birthDate}
+              max={new Date().toISOString().split("T")[0]}
+              onChange={(e) =>
+                setBasicInfoDraft((d) => ({ ...d, birthDate: e.target.value }))
+              }
+            />
+            {athleteEditErrors.birthDate && (
+              <span className="athlete-edit-field-error">
+                {athleteEditErrors.birthDate}
+              </span>
+            )}
+          </label>
+          <label className="athlete-edit-field">
+            <span>Peso (kg)</span>
+            <input
+              type="number"
+              min={1}
+              max={300}
+              value={basicInfoDraft.weightKg}
+              onChange={(e) =>
+                setBasicInfoDraft((d) => ({ ...d, weightKg: e.target.value }))
+              }
+            />
+            {athleteEditErrors.weightKg && (
+              <span className="athlete-edit-field-error">
+                {athleteEditErrors.weightKg}
+              </span>
+            )}
+          </label>
+          <label className="athlete-edit-field">
+            <span>Altura (cm)</span>
+            <input
+              type="number"
+              min={1}
+              max={250}
+              value={basicInfoDraft.heightCm}
+              onChange={(e) =>
+                setBasicInfoDraft((d) => ({ ...d, heightCm: e.target.value }))
+              }
+            />
+            {athleteEditErrors.heightCm && (
+              <span className="athlete-edit-field-error">
+                {athleteEditErrors.heightCm}
+              </span>
+            )}
+          </label>
+          <label className="athlete-edit-field">
+            <span>Deporte</span>
+            <input
+              type="text"
+              value={basicInfoDraft.sport}
+              onChange={(e) =>
+                setBasicInfoDraft((d) => ({ ...d, sport: e.target.value }))
+              }
+              placeholder="Ej. Atletismo, Natación..."
+            />
+          </label>
+
+          <h4 className="athlete-edit-section-title">
+            <ShieldAlert size={16} /> Lesiones
+          </h4>
+          {injuriesDraft.map((injury, idx) => (
+            <div className="athlete-injury-row-wrapper" key={injury.id || idx}>
+              <div className="athlete-injury-row">
+                <input
+                  type="text"
+                  value={injury.description}
+                  placeholder="Descripción de la lesión"
+                  onChange={(e) =>
+                    setInjuriesDraft((list) =>
+                      list.map((it, i) =>
+                        i === idx ? { ...it, description: e.target.value } : it,
+                      ),
+                    )
+                  }
+                />
+                <select
+                  value={injury.status}
+                  onChange={(e) =>
+                    setInjuriesDraft((list) =>
+                      list.map((it, i) =>
+                        i === idx ? { ...it, status: e.target.value } : it,
+                      ),
+                    )
+                  }
+                >
+                  <option value="ACTIVE">Activa</option>
+                  <option value="RECOVERED">Recuperada</option>
+                </select>
+                <button
+                  type="button"
+                  className="athlete-injury-remove"
+                  aria-label="Eliminar lesión"
+                  onClick={() =>
+                    setInjuriesDraft((list) => list.filter((_, i) => i !== idx))
+                  }
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+              {athleteEditErrors[`injury-${idx}`] && (
+                <span className="athlete-edit-field-error">
+                  {athleteEditErrors[`injury-${idx}`]}
+                </span>
+              )}
+            </div>
+          ))}
+          <Button
+            variant="ghost"
+            size="sm"
+            leftIcon={<Plus size={16} />}
+            onClick={() =>
+              setInjuriesDraft((list) => [
+                ...list,
+                {
+                  id: `injury-${Date.now()}-${list.length}`,
+                  description: "",
+                  status: "ACTIVE",
+                  date: new Date().toISOString(),
+                },
+              ])
+            }
+          >
+            Agregar lesión
+          </Button>
+
+          <div className="athlete-edit-actions">
+            <Button variant="ghost" onClick={() => setEditingAthleteId(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="primary"
+              loading={savingAthleteData}
+              disabled={hasAthleteEditErrors || savingAthleteData}
+              onClick={async () => {
+                if (!editingAthleteId || hasAthleteEditErrors) return;
+                setSavingAthleteData(true);
+                try {
+                  updateAthleteBasicInfo(editingAthleteId, {
+                    birthDate: basicInfoDraft.birthDate || null,
+                    weightKg: basicInfoDraft.weightKg
+                      ? Number(basicInfoDraft.weightKg)
+                      : null,
+                    heightCm: basicInfoDraft.heightCm
+                      ? Number(basicInfoDraft.heightCm)
+                      : null,
+                    sport: basicInfoDraft.sport || null,
+                  });
+                  setAthleteInjuries(
+                    editingAthleteId,
+                    injuriesDraft.filter((i) => i.description.trim()),
+                  );
+                  setEditingAthleteId(null);
+                  setRefreshTick((t) => t + 1);
+                  addToast("Datos del atleta actualizados", "success");
+                } catch (err: any) {
+                  addToast(
+                    err?.message ||
+                      "No se pudieron guardar los datos del atleta",
+                    "error",
+                  );
+                } finally {
+                  setSavingAthleteData(false);
+                }
+              }}
+            >
+              Guardar
+            </Button>
+          </div>
+        </div>
+
+        <style>{`
+          .athlete-edit-form { display: flex; flex-direction: column; gap: var(--space-3); }
+          .athlete-edit-section-title {
+            margin: var(--space-2) 0 0;
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            font-family: var(--font-display);
+            font-size: var(--text-base);
+          }
+          .athlete-edit-field { display: flex; flex-direction: column; gap: 4px; font-size: var(--text-sm); font-weight: 600; }
+          .athlete-edit-field input {
+            font-size: 16px;
+            padding: var(--space-3);
+            min-height: var(--touch-target-min, 44px);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--color-border);
+            background: var(--color-surface);
+            color: var(--color-text-primary);
+          }
+          .athlete-injury-row-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-1);
+          }
+          .athlete-injury-row {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+          }
+          .athlete-injury-row input {
+            flex: 1 1 auto;
+            min-width: 0;
+            width: auto;
+            font-size: 16px;
+            padding: var(--space-2);
+            min-height: var(--touch-target-min, 44px);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--color-border);
+            background: var(--color-surface);
+            color: var(--color-text-primary);
+          }
+          .athlete-injury-row select {
+            flex: 0 0 auto;
+            width: auto;
+            min-width: 116px;
+            font-size: 14px;
+            padding: var(--space-2);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--color-border);
+            background: var(--color-surface);
+            color: var(--color-text-primary);
+          }
+          .athlete-edit-field-error {
+            color: var(--color-error);
+            font-size: 13px;
+            margin-top: var(--space-1);
+          }
+          .athlete-injury-remove {
+            border: none;
+            background: none;
+            color: var(--color-error);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: var(--touch-target-min, 44px);
+            min-height: var(--touch-target-min, 44px);
+          }
+          .athlete-edit-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: var(--space-2);
+            margin-top: var(--space-2);
+          }
+        `}</style>
+      </Modal>
 
       <ConfirmDialog
         isOpen={!!clientToExtend}

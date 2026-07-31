@@ -1,7 +1,15 @@
 import React, { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Card, Button, useToast } from "../ui";
+import {
+  Card,
+  Button,
+  useToast,
+  ConfirmDialog,
+  AvatarSelector,
+  getAvatarById,
+} from "../ui";
 import { useAuth } from "../../context/AuthContext";
+import { getAllUsers } from "../../utils/auth";
 import {
   Search,
   TrendingUp,
@@ -17,6 +25,15 @@ import {
   Mail,
   Phone,
   UserCog,
+  Building2,
+  HeartPulse,
+  ShieldAlert,
+  Bell,
+  BellRing,
+  KeyRound,
+  Download,
+  Trash2,
+  Pencil,
 } from "lucide-react";
 
 /**
@@ -443,12 +460,64 @@ export const PerfilTab: React.FC<PerfilTabProps> = ({
   onToggleTheme,
   onExit,
 }) => {
-  const { updateProfile } = useAuth();
+  const { updateProfile, changeUserPassword, exportMyData, deleteMyAccount } =
+    useAuth();
   const { addToast } = useToast();
+
+  // ------ Datos de contacto (email/teléfono, autoedición) ------
   const [editingContact, setEditingContact] = useState(false);
   const [emailDraft, setEmailDraft] = useState(currentUser?.email || "");
   const [phoneDraft, setPhoneDraft] = useState(currentUser?.phone || "");
   const [saving, setSaving] = useState(false);
+
+  // ------ Empresa: se deriva EN VIVO del entrenador vinculado. Si el atleta
+  // se desvincula, myTrainer pasa a null y esta fila desaparece sola — no
+  // hace falta limpiar ningún estado "empresa" guardado aparte. ------
+  const trainerCompanyName = useMemo(() => {
+    if (!myTrainer) return null;
+    const liveTrainer = getAllUsers().find((u) => u.id === myTrainer.id);
+    return liveTrainer?.companyName || null;
+  }, [myTrainer]);
+
+  // ------ Contacto de emergencia (autoedición del atleta) ------
+  const [editingEmergency, setEditingEmergency] = useState(false);
+  const [emergencyName, setEmergencyName] = useState(
+    currentUser?.emergencyContact?.name || "",
+  );
+  const [emergencyPhone, setEmergencyPhone] = useState(
+    currentUser?.emergencyContact?.phone || "",
+  );
+  const [savingEmergency, setSavingEmergency] = useState(false);
+
+  // ------ Notas médicas (autoedición del atleta) ------
+  const [editingMedical, setEditingMedical] = useState(false);
+  const [medicalDraft, setMedicalDraft] = useState(
+    currentUser?.medicalNotes || "",
+  );
+  const [savingMedical, setSavingMedical] = useState(false);
+
+  // ------ Notificaciones ------
+  const notifPrefs = currentUser?.notificationPrefs || {
+    sessionReminders: true,
+    appointmentReminders: true,
+  };
+  const [savingNotif, setSavingNotif] = useState(false);
+
+  // ------ Avatar (Fase 4) ------
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
+  const selectedAvatar = getAvatarById(currentUser?.avatarId);
+
+  // ------ Seguridad: cambiar contraseña ------
+  const [editingPassword, setEditingPassword] = useState(false);
+  const [currentPasswordDraft, setCurrentPasswordDraft] = useState("");
+  const [newPasswordDraft, setNewPasswordDraft] = useState("");
+  const [confirmPasswordDraft, setConfirmPasswordDraft] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
+
+  // ------ Seguridad: eliminar cuenta ------
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const startEditingContact = () => {
     setEmailDraft(currentUser?.email || "");
@@ -486,12 +555,166 @@ export const PerfilTab: React.FC<PerfilTabProps> = ({
     }
   };
 
+  // ------ Contacto de emergencia ------
+  const startEditingEmergency = () => {
+    setEmergencyName(currentUser?.emergencyContact?.name || "");
+    setEmergencyPhone(currentUser?.emergencyContact?.phone || "");
+    setEditingEmergency(true);
+  };
+  const emergencyPhoneError =
+    emergencyPhone.trim() && !CR_PHONE_REGEX.test(emergencyPhone.trim())
+      ? "Ingresa un teléfono válido de Costa Rica (+506 1234-5678)"
+      : "";
+  const canSaveEmergency = !emergencyPhoneError && emergencyName.trim();
+
+  const handleSaveEmergency = async () => {
+    if (!canSaveEmergency) return;
+    setSavingEmergency(true);
+    const result = await updateProfile({
+      emergencyContact: {
+        name: emergencyName.trim(),
+        phone: emergencyPhone.trim(),
+      },
+    });
+    setSavingEmergency(false);
+    if (result.success) {
+      addToast("Contacto de emergencia actualizado", "success");
+      setEditingEmergency(false);
+    } else {
+      addToast(result.error || "No se pudo guardar", "error");
+    }
+  };
+
+  // ------ Notas médicas ------
+  const handleSaveMedical = async () => {
+    setSavingMedical(true);
+    const result = await updateProfile({
+      medicalNotes: medicalDraft.trim() || null,
+    });
+    setSavingMedical(false);
+    if (result.success) {
+      addToast("Notas médicas actualizadas", "success");
+      setEditingMedical(false);
+    } else {
+      addToast(result.error || "No se pudo guardar", "error");
+    }
+  };
+
+  // ------ Notificaciones ------
+  const handleToggleNotif = async (
+    key: "sessionReminders" | "appointmentReminders",
+  ) => {
+    setSavingNotif(true);
+    const result = await updateProfile({
+      notificationPrefs: { ...notifPrefs, [key]: !notifPrefs[key] },
+    });
+    setSavingNotif(false);
+    if (!result.success) {
+      addToast(result.error || "No se pudo guardar", "error");
+    }
+  };
+
+  // ------ Avatar ------
+  const handleSelectAvatar = async (avatarId: string) => {
+    const result = await updateProfile({ avatarId });
+    if (result.success) {
+      addToast("Avatar actualizado", "success");
+    } else {
+      addToast(result.error || "No se pudo guardar", "error");
+    }
+  };
+
+  // ------ Cambiar contraseña ------
+  const passwordsMismatch =
+    confirmPasswordDraft.length > 0 &&
+    newPasswordDraft !== confirmPasswordDraft;
+  const passwordTooShort =
+    newPasswordDraft.length > 0 && newPasswordDraft.length < 6;
+  const canSavePassword =
+    currentPasswordDraft.length > 0 &&
+    newPasswordDraft.length >= 6 &&
+    !passwordsMismatch;
+
+  const handleChangePassword = async () => {
+    if (!canSavePassword) return;
+    setSavingPassword(true);
+    const result = await changeUserPassword(
+      currentPasswordDraft,
+      newPasswordDraft,
+    );
+    setSavingPassword(false);
+    if (result.success) {
+      addToast("Contraseña actualizada", "success");
+      setEditingPassword(false);
+      setCurrentPasswordDraft("");
+      setNewPasswordDraft("");
+      setConfirmPasswordDraft("");
+    } else {
+      addToast(result.error || "No se pudo cambiar la contraseña", "error");
+    }
+  };
+
+  // ------ Exportar mis datos ------
+  const handleExportData = async () => {
+    const result = await exportMyData();
+    if (!result.success) {
+      addToast(result.error || "No se pudieron exportar los datos", "error");
+      return;
+    }
+    const blob = new Blob([JSON.stringify(result.data, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `mis-datos-${currentUser?.name?.replace(/\s+/g, "-").toLowerCase() || "atleta"}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    addToast("Tus datos se descargaron correctamente", "success");
+  };
+
+  // ------ Eliminar cuenta ------
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    const result = await deleteMyAccount();
+    setDeleting(false);
+    if (result.success) {
+      setDeleteDialogOpen(false);
+      onExit();
+    } else {
+      addToast(result.error || "No se pudo eliminar la cuenta", "error");
+    }
+  };
+
   return (
     <div className="perfil-tab">
       <Card className="perfil-header">
-        <div className="perfil-avatar">
-          <UserCog size={28} />
-        </div>
+        <span className="perfil-avatar-wrapper">
+          <button
+            type="button"
+            className="perfil-avatar tap-ripple"
+            style={
+              selectedAvatar
+                ? { background: selectedAvatar.gradient }
+                : undefined
+            }
+            onClick={() => setAvatarPickerOpen(true)}
+            aria-label="Elegir avatar"
+          >
+            {selectedAvatar ? (
+              <span className="perfil-avatar-emoji">
+                {selectedAvatar.emoji}
+              </span>
+            ) : (
+              <UserCog size={28} />
+            )}
+          </button>
+          <span className="perfil-avatar-edit">
+            <Pencil size={12} />
+          </span>
+        </span>
         <div>
           <h3>{currentUser?.name || "Atleta"}</h3>
           {currentUser?.email && (
@@ -508,6 +731,56 @@ export const PerfilTab: React.FC<PerfilTabProps> = ({
           <span className="perfil-row-value">{myTrainer.name}</span>
         </Card>
       )}
+
+      {trainerCompanyName && (
+        <Card className="perfil-row">
+          <span className="perfil-row-label">
+            <Building2 size={16} /> Empresa
+          </span>
+          <span className="perfil-row-value">{trainerCompanyName}</span>
+        </Card>
+      )}
+
+      <Card className="perfil-contact-card">
+        <div className="perfil-contact-header">
+          <span className="perfil-row-label">
+            <UserCog size={16} /> Datos Básicos
+          </span>
+          <span className="perfil-readonly-badge">
+            Solo tu entrenador edita
+          </span>
+        </div>
+        {currentUser?.basicInfo ? (
+          <div className="perfil-contact-view">
+            {currentUser.basicInfo.birthDate && (
+              <div className="perfil-contact-row">
+                <span>
+                  Fecha de nacimiento: {currentUser.basicInfo.birthDate}
+                </span>
+              </div>
+            )}
+            {currentUser.basicInfo.weightKg != null && (
+              <div className="perfil-contact-row">
+                <span>Peso: {currentUser.basicInfo.weightKg} kg</span>
+              </div>
+            )}
+            {currentUser.basicInfo.heightCm != null && (
+              <div className="perfil-contact-row">
+                <span>Altura: {currentUser.basicInfo.heightCm} cm</span>
+              </div>
+            )}
+            {currentUser.basicInfo.sport && (
+              <div className="perfil-contact-row">
+                <span>Deporte: {currentUser.basicInfo.sport}</span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="perfil-contact-hint">
+            Tu entrenador aún no ha registrado tus datos básicos.
+          </p>
+        )}
+      </Card>
 
       <Card className="perfil-contact-card">
         <div className="perfil-contact-header">
@@ -596,6 +869,219 @@ export const PerfilTab: React.FC<PerfilTabProps> = ({
         )}
       </Card>
 
+      {/* Contacto de emergencia: visible y editable por el propio atleta */}
+      <Card className="perfil-contact-card">
+        <div className="perfil-contact-header">
+          <span className="perfil-row-label">
+            <HeartPulse size={16} /> Contacto de Emergencia
+          </span>
+          {!editingEmergency && (
+            <button
+              className="perfil-contact-edit tap-ripple"
+              onClick={startEditingEmergency}
+              aria-label="Editar contacto de emergencia"
+            >
+              Editar
+            </button>
+          )}
+        </div>
+
+        {editingEmergency ? (
+          <div className="perfil-contact-form">
+            <label className="perfil-contact-field">
+              <span>Nombre</span>
+              <input
+                type="text"
+                value={emergencyName}
+                onChange={(e) => setEmergencyName(e.target.value)}
+                placeholder="Nombre del contacto"
+              />
+            </label>
+            <label className="perfil-contact-field">
+              <span>Teléfono</span>
+              <input
+                type="tel"
+                value={emergencyPhone}
+                onChange={(e) =>
+                  setEmergencyPhone(formatCRPhone(e.target.value))
+                }
+                placeholder="+506 1234-5678"
+                inputMode="numeric"
+                maxLength={13}
+                aria-invalid={!!emergencyPhoneError}
+                className={emergencyPhoneError ? "has-error" : ""}
+              />
+              {emergencyPhoneError && (
+                <small className="perfil-field-error">
+                  {emergencyPhoneError}
+                </small>
+              )}
+            </label>
+            <div className="perfil-contact-actions">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setEditingEmergency(false)}
+                disabled={savingEmergency}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleSaveEmergency}
+                loading={savingEmergency}
+                disabled={!canSaveEmergency}
+              >
+                Guardar
+              </Button>
+            </div>
+          </div>
+        ) : currentUser?.emergencyContact ? (
+          <div className="perfil-contact-view">
+            <div className="perfil-contact-row">
+              <span>{currentUser.emergencyContact.name}</span>
+            </div>
+            <div className="perfil-contact-row">
+              <Phone size={16} />
+              <span>{currentUser.emergencyContact.phone}</span>
+            </div>
+          </div>
+        ) : (
+          <p className="perfil-contact-hint">
+            Agrega un contacto para emergencias durante tus entrenamientos.
+          </p>
+        )}
+      </Card>
+
+      {/* Notas médicas: el atleta puede agregarlas/editarlas libremente */}
+      <Card className="perfil-contact-card">
+        <div className="perfil-contact-header">
+          <span className="perfil-row-label">
+            <HeartPulse size={16} /> Notas Médicas
+          </span>
+          {!editingMedical && (
+            <button
+              className="perfil-contact-edit tap-ripple"
+              onClick={() => {
+                setMedicalDraft(currentUser?.medicalNotes || "");
+                setEditingMedical(true);
+              }}
+              aria-label="Editar notas médicas"
+            >
+              Editar
+            </button>
+          )}
+        </div>
+        {editingMedical ? (
+          <div className="perfil-contact-form">
+            <label className="perfil-contact-field">
+              <span>Alergias, condiciones, medicamentos, etc.</span>
+              <textarea
+                className="perfil-medical-textarea"
+                value={medicalDraft}
+                onChange={(e) => setMedicalDraft(e.target.value)}
+                placeholder="Ej. Alergia a la penicilina, asma leve..."
+                maxLength={500}
+                rows={3}
+              />
+            </label>
+            <div className="perfil-contact-actions">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setEditingMedical(false)}
+                disabled={savingMedical}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleSaveMedical}
+                loading={savingMedical}
+              >
+                Guardar
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <p className="perfil-contact-hint">
+            {currentUser?.medicalNotes || "Sin notas médicas registradas."}
+          </p>
+        )}
+      </Card>
+
+      {/* Lesiones: solo lectura para el atleta, solo el entrenador las agrega/edita */}
+      <Card className="perfil-contact-card">
+        <div className="perfil-contact-header">
+          <span className="perfil-row-label">
+            <ShieldAlert size={16} /> Lesiones
+          </span>
+          <span className="perfil-readonly-badge">
+            Solo tu entrenador edita
+          </span>
+        </div>
+        {currentUser?.injuries?.length ? (
+          <div className="perfil-injuries-list">
+            {currentUser.injuries.map((injury: any) => (
+              <div key={injury.id} className="perfil-injury-item">
+                <span
+                  className={`perfil-injury-status ${injury.status === "ACTIVE" ? "active" : "recovered"}`}
+                >
+                  {injury.status === "ACTIVE" ? "Activa" : "Recuperada"}
+                </span>
+                <span className="perfil-injury-desc">{injury.description}</span>
+                <small className="perfil-injury-date">
+                  {new Date(injury.date).toLocaleDateString()}
+                </small>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="perfil-contact-hint">Sin lesiones registradas.</p>
+        )}
+      </Card>
+
+      {/* Notificaciones: únicamente estos 2 tipos */}
+      <Card className="perfil-contact-card">
+        <div className="perfil-contact-header">
+          <span className="perfil-row-label">
+            <Bell size={16} /> Notificaciones
+          </span>
+        </div>
+        <div className="perfil-notif-row">
+          <span className="perfil-notif-label">
+            <BellRing size={14} /> Recordatorios de Sesiones de Entrenamiento
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={notifPrefs.sessionReminders}
+            className={`perfil-switch ${notifPrefs.sessionReminders ? "on" : ""}`}
+            disabled={savingNotif}
+            onClick={() => handleToggleNotif("sessionReminders")}
+          >
+            <span className="perfil-switch-knob" />
+          </button>
+        </div>
+        <div className="perfil-notif-row">
+          <span className="perfil-notif-label">
+            <BellRing size={14} /> Recordatorios de Citas 1 a 1
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={notifPrefs.appointmentReminders}
+            className={`perfil-switch ${notifPrefs.appointmentReminders ? "on" : ""}`}
+            disabled={savingNotif}
+            onClick={() => handleToggleNotif("appointmentReminders")}
+          >
+            <span className="perfil-switch-knob" />
+          </button>
+        </div>
+      </Card>
+
       <Card
         className="perfil-row perfil-row-button tap-ripple"
         onClick={onToggleTheme}
@@ -614,6 +1100,149 @@ export const PerfilTab: React.FC<PerfilTabProps> = ({
         </span>
         <span className="perfil-row-value">{isDark ? "Oscuro" : "Claro"}</span>
       </Card>
+
+      {/* Seguridad y privacidad */}
+      <Card className="perfil-contact-card">
+        <div className="perfil-contact-header">
+          <span className="perfil-row-label">
+            <KeyRound size={16} /> Seguridad y Privacidad
+          </span>
+        </div>
+
+        {editingPassword ? (
+          <div className="perfil-contact-form">
+            <label className="perfil-contact-field">
+              <span>Contraseña actual</span>
+              <input
+                type="password"
+                value={currentPasswordDraft}
+                onChange={(e) => setCurrentPasswordDraft(e.target.value)}
+                autoComplete="current-password"
+              />
+            </label>
+            <label className="perfil-contact-field">
+              <span>Nueva contraseña</span>
+              <input
+                type="password"
+                value={newPasswordDraft}
+                onChange={(e) => setNewPasswordDraft(e.target.value)}
+                autoComplete="new-password"
+                aria-invalid={passwordTooShort}
+                className={passwordTooShort ? "has-error" : ""}
+              />
+              {passwordTooShort && (
+                <small className="perfil-field-error">
+                  Debe tener al menos 6 caracteres
+                </small>
+              )}
+            </label>
+            <label className="perfil-contact-field">
+              <span>Confirmar nueva contraseña</span>
+              <input
+                type="password"
+                value={confirmPasswordDraft}
+                onChange={(e) => setConfirmPasswordDraft(e.target.value)}
+                autoComplete="new-password"
+                aria-invalid={passwordsMismatch}
+                className={passwordsMismatch ? "has-error" : ""}
+              />
+              {passwordsMismatch && (
+                <small className="perfil-field-error">
+                  Las contraseñas no coinciden
+                </small>
+              )}
+            </label>
+            <div className="perfil-contact-actions">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setEditingPassword(false);
+                  setCurrentPasswordDraft("");
+                  setNewPasswordDraft("");
+                  setConfirmPasswordDraft("");
+                }}
+                disabled={savingPassword}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleChangePassword}
+                loading={savingPassword}
+                disabled={!canSavePassword}
+              >
+                Guardar
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <button
+            className="perfil-security-row tap-ripple"
+            onClick={() => setEditingPassword(true)}
+          >
+            <span>
+              <KeyRound size={16} /> Cambiar Contraseña
+            </span>
+            <ChevronRight size={18} />
+          </button>
+        )}
+
+        <button
+          className="perfil-security-row tap-ripple"
+          onClick={handleExportData}
+        >
+          <span>
+            <Download size={16} /> Exportar Mis Datos
+          </span>
+          <ChevronRight size={18} />
+        </button>
+
+        <button
+          className="perfil-security-row perfil-security-danger tap-ripple"
+          onClick={() => setDeleteDialogOpen(true)}
+        >
+          <span>
+            <Trash2 size={16} /> Eliminar Cuenta
+          </span>
+          <ChevronRight size={18} />
+        </button>
+      </Card>
+
+      <AvatarSelector
+        isOpen={avatarPickerOpen}
+        onClose={() => setAvatarPickerOpen(false)}
+        selectedId={currentUser?.avatarId}
+        onSelect={handleSelectAvatar}
+      />
+
+      <ConfirmDialog
+        isOpen={deleteDialogOpen}
+        onClose={() => {
+          setDeleteDialogOpen(false);
+          setDeleteConfirmText("");
+        }}
+        onConfirm={handleDeleteAccount}
+        title="Eliminar cuenta"
+        message="Esta acción es permanente y no se puede deshacer. Se eliminará tu cuenta y perderás el acceso a tus planes, reservas y citas."
+        variant="danger"
+        confirmText="Eliminar mi cuenta"
+        isLoading={deleting}
+        confirmDisabled={deleteConfirmText.trim().toUpperCase() !== "ELIMINAR"}
+      >
+        <label className="perfil-contact-field">
+          <span>
+            Escribe <strong>ELIMINAR</strong> para confirmar
+          </span>
+          <input
+            type="text"
+            value={deleteConfirmText}
+            onChange={(e) => setDeleteConfirmText(e.target.value)}
+            placeholder="ELIMINAR"
+          />
+        </label>
+      </ConfirmDialog>
 
       <Button
         variant="ghost"
@@ -752,6 +1381,139 @@ export const PerfilTab: React.FC<PerfilTabProps> = ({
           justify-content: flex-end;
           gap: var(--space-2);
         }
+        .perfil-avatar {
+          position: relative;
+          border: none;
+          padding: 0;
+          cursor: pointer;
+        }
+        .perfil-avatar-emoji { font-size: 1.75rem; line-height: 1; }
+        .perfil-avatar-wrapper {
+          position: relative;
+          display: inline-flex;
+          flex-shrink: 0;
+        }
+        .perfil-avatar-edit {
+          position: absolute;
+          bottom: -2px;
+          right: -2px;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: var(--color-surface);
+          color: var(--color-text-primary);
+          border: 1px solid var(--color-border);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          pointer-events: none;
+        }
+        .perfil-readonly-badge {
+          font-size: var(--text-xs);
+          color: var(--color-text-subtle);
+          font-weight: 400;
+        }
+        .perfil-medical-textarea {
+          font-size: 16px;
+          padding: var(--space-3);
+          border-radius: var(--radius-md);
+          border: 1px solid var(--color-border);
+          background: var(--color-surface);
+          color: var(--color-text-primary);
+          resize: vertical;
+          font-family: inherit;
+        }
+        .perfil-medical-textarea:focus {
+          outline: none;
+          border-color: var(--color-primary);
+        }
+        .perfil-injuries-list {
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-2);
+        }
+        .perfil-injury-item {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: var(--space-2);
+          padding: var(--space-2) 0;
+          border-bottom: 1px solid var(--color-border);
+        }
+        .perfil-injury-item:last-child { border-bottom: none; }
+        .perfil-injury-status {
+          font-size: var(--text-xs);
+          font-weight: 700;
+          padding: 2px 8px;
+          border-radius: var(--radius-full);
+        }
+        .perfil-injury-status.active {
+          background: var(--color-error-bg, rgba(239,68,68,0.15));
+          color: var(--color-error);
+        }
+        .perfil-injury-status.recovered {
+          background: var(--color-success-bg, rgba(34,197,94,0.15));
+          color: var(--color-success);
+        }
+        .perfil-injury-desc { color: var(--color-text-primary); font-size: var(--text-sm); flex: 1; }
+        .perfil-injury-date { color: var(--color-text-subtle); font-size: var(--text-xs); }
+        .perfil-notif-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: var(--space-2);
+          padding: var(--space-1) 0;
+        }
+        .perfil-notif-label {
+          display: inline-flex;
+          align-items: center;
+          gap: var(--space-2);
+          font-size: var(--text-sm);
+          color: var(--color-text-primary);
+        }
+        .perfil-switch {
+          position: relative;
+          width: 44px;
+          height: 24px;
+          border-radius: var(--radius-full);
+          background: var(--color-border);
+          border: none;
+          flex-shrink: 0;
+          transition: background var(--transition-fast);
+        }
+        .perfil-switch.on { background: var(--color-primary); }
+        .perfil-switch-knob {
+          position: absolute;
+          top: 2px;
+          left: 2px;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: #fff;
+          transition: transform var(--transition-fast);
+        }
+        .perfil-switch.on .perfil-switch-knob { transform: translateX(20px); }
+        .perfil-security-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          width: 100%;
+          padding: var(--space-3) 0;
+          border: none;
+          background: none;
+          color: var(--color-text-primary);
+          font-size: var(--text-sm);
+          font-weight: 600;
+          border-top: 1px solid var(--color-border);
+          min-height: var(--touch-target-min, 44px);
+        }
+        .perfil-security-row:first-of-type { border-top: none; }
+        .perfil-security-row span {
+          display: inline-flex;
+          align-items: center;
+          gap: var(--space-2);
+        }
+        .perfil-security-danger { color: var(--color-error); }
       `}</style>
     </div>
   );

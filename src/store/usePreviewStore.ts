@@ -6,6 +6,7 @@ interface PreviewState {
   startPreview: (mockUser: User) => void;
   stopPreview: () => void;
   isPreviewMode: () => boolean;
+  updatePreviewUser: (updates: Partial<User>) => void;
 }
 
 /**
@@ -19,4 +20,15 @@ export const usePreviewStore = create<PreviewState>((set, get) => ({
   startPreview: (mockUser) => set({ previewUser: mockUser }),
   stopPreview: () => set({ previewUser: null }),
   isPreviewMode: () => get().previewUser !== null,
+  // Refleja en el objeto `previewUser` (en memoria) los cambios que se
+  // guardaron en localStorage vía `updateUserProfile` para el usuario mock
+  // actualmente en preview. Sin esto, el perfil simulado nunca reflejaba
+  // ediciones (avatar, notificaciones, etc.) porque `previewUser` es un
+  // objeto estático que no se releía de `getAllUsers()`.
+  updatePreviewUser: (updates) =>
+    set((state) =>
+      state.previewUser
+        ? { previewUser: { ...state.previewUser, ...updates } }
+        : state,
+    ),
 }));
