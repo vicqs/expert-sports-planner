@@ -1,11 +1,26 @@
 import React, { useState } from "react";
-import { Search, Eye, Trash2, Shield, User as UserIcon } from "lucide-react";
-import { getAllUsers, ROLES } from "@/utils/auth";
+import {
+  Search,
+  Eye,
+  Trash2,
+  Shield,
+  User as UserIcon,
+  Mail,
+  Calendar,
+} from "lucide-react";
+import { getAllUsers, deleteUser, ROLES } from "@/utils/auth";
+import { ConfirmDialog, Modal, useToast } from "@/components/ui";
 import "@/admin/styles/users.css";
 
 const UserManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [userToDelete, setUserToDelete] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [viewingUser, setViewingUser] = useState<any>(null);
   const allUsers = getAllUsers();
+  const { addToast } = useToast();
 
   const filteredUsers = allUsers.filter(
     (user) =>
@@ -14,18 +29,30 @@ const UserManagement = () => {
   );
 
   const handleViewUser = (userId: string) => {
-    console.log("View user:", userId);
-    // Implementar vista de detalles del usuario
+    const user = allUsers.find((u) => u.id === userId);
+    setViewingUser(user || null);
   };
 
   const handleDeleteUser = (userId, isSuper) => {
     if (isSuper) {
-      alert("No puedes eliminar al super administrador");
+      addToast("No puedes eliminar al super administrador", "error");
       return;
     }
-    if (window.confirm("¿Estás seguro de eliminar este usuario?")) {
-      console.log("Delete user:", userId);
-      // Implementar eliminación de usuario
+    const user = allUsers.find((u) => u.id === userId);
+    setUserToDelete({ id: userId, name: user?.name || "este usuario" });
+  };
+
+  const confirmDeleteUser = () => {
+    if (!userToDelete) return;
+    try {
+      deleteUser(userToDelete.id);
+      addToast(`Usuario "${userToDelete.name}" eliminado`, "success");
+      setUserToDelete(null);
+    } catch (err) {
+      addToast(
+        err instanceof Error ? err.message : "No se pudo eliminar el usuario",
+        "error",
+      );
     }
   };
 
@@ -106,16 +133,18 @@ const UserManagement = () => {
                 <td>
                   <div className="action-buttons">
                     <button
-                      className="btn-icon"
+                      className="btn-icon tap-ripple"
                       title="Ver detalles"
+                      aria-label="Ver detalles"
                       onClick={() => handleViewUser(user.id)}
                     >
                       <Eye size={16} />
                     </button>
                     {!user.isSuper && (
                       <button
-                        className="btn-icon danger"
+                        className="btn-icon danger tap-ripple"
                         title="Eliminar"
+                        aria-label="Eliminar usuario"
                         onClick={() => handleDeleteUser(user.id, user.isSuper)}
                       >
                         <Trash2 size={16} />
@@ -142,7 +171,7 @@ const UserManagement = () => {
           <span className="summary-value">{allUsers.length}</span>
         </div>
         <div className="summary-item">
-          <span className="summary-label">Trainers:</span>
+          <span className="summary-label">Entrenadores:</span>
           <span className="summary-value">
             {allUsers.filter((u) => u.role === ROLES.TRAINER).length}
           </span>
@@ -154,12 +183,70 @@ const UserManagement = () => {
           </span>
         </div>
         <div className="summary-item">
-          <span className="summary-label">Admins:</span>
+          <span className="summary-label">Administradores:</span>
           <span className="summary-value">
             {allUsers.filter((u) => u.role === ROLES.ADMIN).length}
           </span>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={!!userToDelete}
+        onClose={() => setUserToDelete(null)}
+        onConfirm={confirmDeleteUser}
+        title="Eliminar usuario"
+        message={`¿Estás seguro de eliminar a "${userToDelete?.name}"? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        variant="danger"
+      />
+
+      <Modal
+        isOpen={!!viewingUser}
+        onClose={() => setViewingUser(null)}
+        title="Detalles del usuario"
+        size="sm"
+      >
+        {viewingUser && (
+          <div className="user-detail">
+            <div className="user-detail-avatar">
+              {viewingUser.isSuper ? (
+                <Shield size={28} />
+              ) : (
+                <UserIcon size={28} />
+              )}
+            </div>
+            <h3 className="user-detail-name">{viewingUser.name}</h3>
+            <div className="user-detail-row">
+              <Mail size={16} /> {viewingUser.email || "Sin email"}
+            </div>
+            <div className="user-detail-row">
+              <Shield size={16} />
+              <span className={`role-badge ${viewingUser.role.toLowerCase()}`}>
+                {viewingUser.role === ROLES.ADMIN
+                  ? "ADMIN"
+                  : viewingUser.role === ROLES.TRAINER
+                    ? "TRAINER"
+                    : "ATHLETE"}
+              </span>
+            </div>
+            <div className="user-detail-row">
+              <Calendar size={16} />
+              Registrado el{" "}
+              {new Date(viewingUser.createdAt).toLocaleDateString("es-ES", {
+                day: "2-digit",
+                month: "long",
+                year: "numeric",
+              })}
+            </div>
+            <div className="user-detail-row">
+              Plan: <strong>{viewingUser.subscription?.plan || "FREE"}</strong>{" "}
+              · Estado:{" "}
+              <strong>{viewingUser.subscription?.status || "ACTIVE"}</strong>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

@@ -145,6 +145,48 @@ export const MockDatabaseProvider = ({
     setToStorage("athleteRequests", athleteRequests);
   }, [athleteRequests]);
 
+  // Invariante de negocio: un mismo atleta no puede tener más de un plan
+  // ACTIVO simultáneo con el mismo entrenador (puede pasar con datos legacy,
+  // un reseed, o una doble generación de plan). Si se detectan varios
+  // registros ACTIVE para el mismo atleta (identificados por email o, si no
+  // hay email, por nombre) + entrenador, se conserva como ACTIVE solo el más
+  // reciente (por `planCreatedAt`/`submittedAt`) y el resto pasa a COMPLETED
+  // automáticamente. Efecto idempotente: si no hay duplicados, no dispara
+  // ningún re-render (retorna la misma referencia `prev`).
+  useEffect(() => {
+    setClients((prev) => {
+      const activeByKey = new Map<string, any[]>();
+      prev.forEach((c) => {
+        if (c.status !== "ACTIVE") return;
+        const identity = (c.email || c.name || "").toLowerCase().trim();
+        if (!identity) return;
+        const key = `${c.trainerId || "none"}::${identity}`;
+        const list = activeByKey.get(key) || [];
+        list.push(c);
+        activeByKey.set(key, list);
+      });
+
+      const toDowngrade = new Set<string>();
+      activeByKey.forEach((list) => {
+        if (list.length <= 1) return;
+        const sorted = [...list].sort(
+          (a, b) =>
+            new Date(b.planCreatedAt || b.submittedAt || 0).getTime() -
+            new Date(a.planCreatedAt || a.submittedAt || 0).getTime(),
+        );
+        sorted.slice(1).forEach((c) => toDowngrade.add(c.id));
+      });
+
+      if (toDowngrade.size === 0) return prev;
+
+      return prev.map((c) =>
+        toDowngrade.has(c.id)
+          ? { ...c, status: "COMPLETED", completedAt: new Date().toISOString() }
+          : c,
+      );
+    });
+  }, [clients]);
+
   const addClientRequest = (clientData, trainerId = null) => {
     const newClient = {
       id: crypto.randomUUID(),
@@ -164,22 +206,103 @@ export const MockDatabaseProvider = ({
     const startDate = new Date();
     const endDate = new Date();
     endDate.setDate(endDate.getDate() + (client?.planDuration || 4) * 7); // weeks to days
+    // Identidad del atleta (email si existe, si no nombre) para detectar si
+    // ya tiene OTRO plan ACTIVO con este entrenador — no puede quedar más de
+    // uno vigente al mismo tiempo (ver también el efecto de invariante más
+    // arriba, que cubre casos que no pasan por esta función).
+    const identity = (client?.email || client?.name || "").toLowerCase().trim();
 
     setClients((prev) =>
-      prev.map((c) =>
-        c.id === clientId
-          ? {
-              ...c,
-              status: "ACTIVE",
-              plan: planText,
-              planObject: planObject,
-              planCreatedAt: new Date().toISOString(),
-              startDate: startDate.toISOString(),
-              endDate: endDate.toISOString(),
-              progress: 0,
-            }
-          : c,
-      ),
+      prev.map((c) => {
+        if (c.id === clientId) {
+          return {
+            ...c,
+            status: "ACTIVE",
+            plan: planText,
+            planObject: planObject,
+            planCreatedAt: new Date().toISOString(),
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString(),
+            progress: 0,
+          };
+        }
+        // Cualquier OTRO plan ACTIVE del mismo atleta con el mismo
+        // entrenador pasa a COMPLETED: solo puede haber un plan activo.
+        if (
+          identity &&
+          c.status === "ACTIVE" &&
+          c.trainerId === client?.trainerId &&
+          (c.email || c.name || "").toLowerCase().trim() === identity
+        ) {
+          return {
+            ...c,
+            status: "COMPLETED",
+            completedAt: new Date().toISOString(),
+          };
+        }
+        return c;
+      }),
+    );
+  };
+
+  /**
+   * Extiende un plan ACTIVO ya existente N semanas más (1 o 2 semanas
+   * típicamente), para los casos en que el atleta necesita más tiempo para
+   * completar los objetivos del plan (no lo trabajó bien, se lesionó, etc.).
+   * - Agrega `weeksToAdd` semanas nuevas al final de `planObject`, clonando
+   *   el patrón (días/sesiones) de la ÚLTIMA semana existente, pero
+   *   reseteando `completed`/`completedSets`/`note` de esos días nuevos (no
+   *   deben heredar el progreso ya marcado de la semana original).
+   * - Corre `endDate` hacia adelante `weeksToAdd * 7` días y suma
+   *   `weeksToAdd` a `planDuration`. NO resetea `progress` (se recalcula solo
+   *   cuando se marca/desmarca una sesión vía `toggleSessionCompletion`; el
+   *   progreso existente sigue siendo válido, solo baja el % porque ahora hay
+   *   más sesiones totales).
+   */
+  const extendPlan = (clientId, weeksToAdd = 1) => {
+    setClients((prev) =>
+      prev.map((c) => {
+        if (c.id !== clientId || !c.planObject || c.planObject.length === 0) {
+          return c;
+        }
+
+        const lastWeek = c.planObject[c.planObject.length - 1];
+        const newWeeks: any[] = [];
+        for (let i = 0; i < weeksToAdd; i++) {
+          const clonedDays = JSON.parse(JSON.stringify(lastWeek.days)).map(
+            (day: any) => {
+              const { completed: _completed, note: _note, ...rest } = day;
+              if (rest.session?.exercises) {
+                rest.session = {
+                  ...rest.session,
+                  exercises: rest.session.exercises.map((ex: any) => {
+                    const { completedSets: _cs, ...exRest } = ex;
+                    return exRest;
+                  }),
+                };
+              }
+              return rest;
+            },
+          );
+          newWeeks.push({ days: clonedDays });
+        }
+
+        const newPlanObject = [...c.planObject, ...newWeeks].map((w, i) => ({
+          ...w,
+          weekNum: i + 1,
+        }));
+
+        const newEndDate = c.endDate ? new Date(c.endDate) : new Date();
+        newEndDate.setDate(newEndDate.getDate() + weeksToAdd * 7);
+
+        return {
+          ...c,
+          planObject: newPlanObject,
+          planDuration: (c.planDuration || newPlanObject.length) + weeksToAdd,
+          endDate: newEndDate.toISOString(),
+          extendedAt: new Date().toISOString(),
+        };
+      }),
     );
   };
 
@@ -345,12 +468,21 @@ export const MockDatabaseProvider = ({
     return { success: true, booking: newBooking };
   };
 
-  const cancelGymBooking = (bookingId) => {
+  const cancelGymBooking = (bookingId, reason = "") => {
     const booking = gymBookings.find((b) => b.id === bookingId);
     if (!booking) return;
 
     setGymBookings((prev) =>
-      prev.map((b) => (b.id === bookingId ? { ...b, status: "CANCELLED" } : b)),
+      prev.map((b) =>
+        b.id === bookingId
+          ? {
+              ...b,
+              status: "CANCELLED",
+              cancellationReason: reason,
+              cancelledAt: new Date().toISOString(),
+            }
+          : b,
+      ),
     );
 
     // Decrease reserved count
@@ -383,6 +515,21 @@ export const MockDatabaseProvider = ({
   const updateAppointmentStatus = (id, status) => {
     setAppointments((prev) =>
       prev.map((a) => (a.id === id ? { ...a, status } : a)),
+    );
+  };
+
+  const cancelAppointment = (id, reason = "") => {
+    setAppointments((prev) =>
+      prev.map((a) =>
+        a.id === id
+          ? {
+              ...a,
+              status: "CANCELLED",
+              cancellationReason: reason,
+              cancelledAt: new Date().toISOString(),
+            }
+          : a,
+      ),
     );
   };
 
@@ -452,7 +599,6 @@ export const MockDatabaseProvider = ({
     const now = new Date();
     return clients.filter((c) => {
       if (c.status !== "ACTIVE" || !c.planObject) return false;
-      if (!c.startDate || !c.endDate) return true; // legacy plans
 
       // Filter by trainerId if provided
       if (trainerId && c.trainerId !== trainerId) return false;
@@ -460,9 +606,17 @@ export const MockDatabaseProvider = ({
       // Filter by athleteId if provided
       if (athleteId && c.id !== athleteId) return false;
 
+      if (!c.startDate) return true; // legacy plans
+
+      // Nota: no se filtra por `endDate` aquí a propósito. El estado
+      // "ACTIVE" es la fuente de verdad de si el plan sigue vigente;
+      // `autoCompletePlans` (con su margen de gracia) es quien decide
+      // cuándo pasa a COMPLETED. Si filtráramos por `endDate <= now`
+      // acá, el plan desaparecería del dashboard del atleta apenas
+      // llega la fecha de fin, aunque el entrenador todavía no haya
+      // decidido extenderlo o agendar una cita de cambio de plan.
       const startDate = new Date(c.startDate);
-      const endDate = new Date(c.endDate);
-      return now >= startDate && now <= endDate;
+      return now >= startDate;
     });
   };
 
@@ -524,15 +678,22 @@ export const MockDatabaseProvider = ({
   };
 
   /**
-   * Auto-complete expired plans
+   * Auto-complete expired plans.
+   * Se da un margen de gracia de 2 días después de `endDate` antes de marcar
+   * el plan como COMPLETED (en vez de completarlo apenas vence): esto le da
+   * tiempo al entrenador de ver la notificación de "cambio de plan" (ver
+   * `CoachDashboard.tsx`) y decidir si extiende el plan o agenda una cita,
+   * en vez de que el plan desaparezca de "Activos" de inmediato.
    */
   const autoCompletePlans = () => {
     const now = new Date();
+    const GRACE_DAYS = 2;
     setClients((prev) =>
       prev.map((c) => {
         if (c.status === "ACTIVE" && c.endDate) {
-          const endDate = new Date(c.endDate);
-          if (now > endDate) {
+          const graceDeadline = new Date(c.endDate);
+          graceDeadline.setDate(graceDeadline.getDate() + GRACE_DAYS);
+          if (now > graceDeadline) {
             return {
               ...c,
               status: "COMPLETED",
@@ -722,6 +883,7 @@ export const MockDatabaseProvider = ({
         clients,
         addClientRequest,
         updateClientPlan,
+        extendPlan,
         toggleSessionCompletion,
         updateSessionNote,
         toggleSetCompletion,
@@ -738,6 +900,7 @@ export const MockDatabaseProvider = ({
         appointments,
         addAppointment,
         updateAppointmentStatus,
+        cancelAppointment,
         rescheduleAppointment,
         getTrainerAppointments,
         getAthleteAppointments,

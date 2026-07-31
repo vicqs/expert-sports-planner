@@ -23,6 +23,20 @@ const ConfirmDialog = ({
   cancelText = "Cancelar",
   variant = "warning", // warning, danger, info, success
   isLoading = false,
+  confirmDisabled = false,
+  children = null,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void | Promise<void>;
+  title?: string;
+  message?: React.ReactNode;
+  confirmText?: string;
+  cancelText?: string;
+  variant?: "warning" | "danger" | "info" | "success";
+  isLoading?: boolean;
+  confirmDisabled?: boolean;
+  children?: React.ReactNode;
 }) => {
   const handleConfirm = async () => {
     await onConfirm();
@@ -51,7 +65,7 @@ const ConfirmDialog = ({
       <Button
         variant={variant === "danger" ? "danger" : "primary"}
         onClick={handleConfirm}
-        disabled={isLoading}
+        disabled={isLoading || confirmDisabled}
       >
         {isLoading ? "Procesando..." : confirmText}
       </Button>
@@ -90,6 +104,7 @@ const ConfirmDialog = ({
         >
           {message}
         </p>
+        {children && <div style={{ width: "100%" }}>{children}</div>}
       </div>
     </Modal>
   );

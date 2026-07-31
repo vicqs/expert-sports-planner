@@ -9,6 +9,8 @@ import {
   LogIn,
   UserPlus,
   Shield,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { ROLES } from "../utils/auth";
 
@@ -22,6 +24,8 @@ const AuthPage = ({ onSuccess }: { onSuccess?: (role?: string) => void }) => {
     role: ROLES.TRAINER,
   });
   const [formError, setFormError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const { login, register, loading, quickAdminLogin } = useAuth();
 
@@ -111,15 +115,19 @@ const AuthPage = ({ onSuccess }: { onSuccess?: (role?: string) => void }) => {
                   <User size={18} />
                   Nombre Completo
                 </label>
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  placeholder="Juan Pérez"
-                  required
-                />
+                <div className="input-shell">
+                  <User size={18} className="input-icon" />
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    placeholder="Juan Pérez"
+                    autoComplete="name"
+                    required
+                  />
+                </div>
               </div>
 
               <div className="form-group">
@@ -161,15 +169,20 @@ const AuthPage = ({ onSuccess }: { onSuccess?: (role?: string) => void }) => {
               <Mail size={18} />
               Email
             </label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="tu@email.com"
-              required
-            />
+            <div className="input-shell">
+              <Mail size={18} className="input-icon" />
+              <input
+                type="email"
+                id="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="tu@email.com"
+                autoComplete="email"
+                inputMode="email"
+                required
+              />
+            </div>
           </div>
 
           <div className="form-group">
@@ -177,16 +190,31 @@ const AuthPage = ({ onSuccess }: { onSuccess?: (role?: string) => void }) => {
               <Lock size={18} />
               Contraseña
             </label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="••••••••"
-              required
-              minLength={6}
-            />
+            <div className="input-shell">
+              <Lock size={18} className="input-icon" />
+              <input
+                type={showPassword ? "text" : "password"}
+                id="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="••••••••"
+                autoComplete={isLoginMode ? "current-password" : "new-password"}
+                required
+                minLength={6}
+              />
+              <button
+                type="button"
+                className="input-suffix-btn tap-ripple"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={
+                  showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                }
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
           {!isLoginMode && (
@@ -195,16 +223,37 @@ const AuthPage = ({ onSuccess }: { onSuccess?: (role?: string) => void }) => {
                 <Lock size={18} />
                 Confirmar Contraseña
               </label>
-              <input
-                type="password"
-                id="confirmPassword"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                placeholder="••••••••"
-                required
-                minLength={6}
-              />
+              <div className="input-shell">
+                <Lock size={18} className="input-icon" />
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                  required
+                  minLength={6}
+                />
+                <button
+                  type="button"
+                  className="input-suffix-btn tap-ripple"
+                  onClick={() => setShowConfirmPassword((v) => !v)}
+                  aria-label={
+                    showConfirmPassword
+                      ? "Ocultar contraseña"
+                      : "Mostrar contraseña"
+                  }
+                  tabIndex={-1}
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff size={18} />
+                  ) : (
+                    <Eye size={18} />
+                  )}
+                </button>
+              </div>
             </div>
           )}
 
@@ -336,14 +385,53 @@ const AuthPage = ({ onSuccess }: { onSuccess?: (role?: string) => void }) => {
           gap: 0.5rem;
         }
 
+        .input-shell {
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
+
+        .input-icon {
+          position: absolute;
+          left: 0.875rem;
+          color: var(--color-text-muted);
+          pointer-events: none;
+        }
+
         .form-group input {
-          padding: 0.875rem 1rem;
+          width: 100%;
+          padding: 0.875rem 2.75rem 0.875rem 2.75rem;
           border: 2px solid var(--color-border);
           border-radius: var(--radius-md);
           background: var(--color-surface);
           color: var(--color-text);
-          font-size: 1rem;
+          font-size: 16px;
           transition: all var(--transition-normal);
+        }
+
+        .input-shell .input-suffix-btn ~ input,
+        .input-suffix-btn {
+          padding-right: 2.75rem;
+        }
+
+        .input-suffix-btn {
+          position: absolute;
+          right: 0.5rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 2.25rem;
+          height: 2.25rem;
+          border: none;
+          background: transparent;
+          color: var(--color-text-muted);
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+          transition: color var(--transition-normal);
+        }
+
+        .input-suffix-btn:hover {
+          color: var(--color-primary);
         }
 
         .form-group input:focus {

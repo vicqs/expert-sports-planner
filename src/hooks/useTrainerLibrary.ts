@@ -179,15 +179,14 @@ export const useTrainerLibrary = (trainerId) => {
   };
 
   /**
-   * Limpiar toda la biblioteca
+   * Limpiar toda la biblioteca.
+   * Nota: la confirmación es responsabilidad del componente que la invoca
+   * (usar `ConfirmDialog` en vez de `window.confirm`, mismo patrón que el
+   * resto del repo) — este hook solo ejecuta la limpieza.
    */
   const clearLibrary = () => {
-    if (window.confirm("¿Estás seguro de limpiar toda tu biblioteca?")) {
-      setSelectedExercises({});
-      setSelectedEquipment([]);
-      return true;
-    }
-    return false;
+    setSelectedExercises({});
+    setSelectedEquipment([]);
   };
 
   /**

@@ -1,9 +1,10 @@
 import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { useMockDatabase } from "@/context/MockDatabase";
 import { getAllUsers } from "@/utils/auth";
 import { Button } from "@/components/ui";
-import { Shield, Settings } from "lucide-react";
+import { Shield } from "lucide-react";
 import { useAdminStats, useEquipment } from "@/admin/hooks";
 import Overview from "@/admin/components/Overview";
 import UserManagement from "@/admin/components/UserManagement";
@@ -11,10 +12,9 @@ import ExerciseDatabase from "@/admin/components/ExerciseDatabase";
 import EquipmentManager from "@/admin/components/EquipmentManager";
 import Analytics from "@/admin/components/Analytics";
 import AdminSidebar from "@/admin/components/AdminSidebar";
+import SystemSettings from "@/admin/components/SystemSettings";
 import "@/admin/styles/dashboard.css";
-import "@/admin/styles/responsive-utils.css";
-import "@/admin/styles/breakpoint-fixes.css";
-import "@/admin/styles/mobile-devices.css";
+import "@/admin/styles/responsive.css";
 
 const AdminDashboard = ({ onExit }) => {
   const { currentUser } = useAuth();
@@ -27,6 +27,15 @@ const AdminDashboard = ({ onExit }) => {
   } = useMockDatabase();
   const [view, setView] = useState("overview");
   const { equipment } = useEquipment();
+
+  const viewTitles: Record<string, string> = {
+    overview: "Panel General",
+    users: "Gestión de Usuarios",
+    exercises: "Base de Datos de Ejercicios",
+    equipment: "Gestión de Equipamiento",
+    analytics: "Análisis y Estadísticas",
+    settings: "Configuración",
+  };
 
   const allUsers = getAllUsers();
   const activePlans = getActivePlans();
@@ -67,13 +76,7 @@ const AdminDashboard = ({ onExit }) => {
       case "analytics":
         return <Analytics stats={enhancedStats} />;
       case "settings":
-        return (
-          <div className="settings-placeholder">
-            <Settings size={48} />
-            <h2>Configuración del Sistema</h2>
-            <p>Opciones de configuración disponibles próximamente</p>
-          </div>
-        );
+        return <SystemSettings />;
       default:
         return <Overview stats={enhancedStats} />;
     }
@@ -88,7 +91,7 @@ const AdminDashboard = ({ onExit }) => {
           <div className="admin-title">
             <Shield size={32} />
             <div>
-              <h1>Panel de Administración CRM</h1>
+              <h1>{viewTitles[view] || "Panel de Administración CRM"}</h1>
               <p>
                 Bienvenido, {currentUser.name} • Sistema de Gestión Integral
               </p>
@@ -99,7 +102,19 @@ const AdminDashboard = ({ onExit }) => {
           </Button>
         </div>
 
-        <div className="admin-content">{renderView()}</div>
+        <div className="admin-content">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={view}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+            >
+              {renderView()}
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );

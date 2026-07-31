@@ -27,6 +27,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const quickAdminLogin = useAuthStore((state) => state.quickAdminLogin);
   const logout = useAuthStore((state) => state.logout);
   const upgradePlan = useAuthStore((state) => state.upgradePlan);
+  const updateProfile = useAuthStore((state) => state.updateProfile);
   const syncFromStorage = useAuthStore((state) => state.syncFromStorage);
 
   // Usuario simulado (mock) usado por el super admin para previsualizar
@@ -140,6 +141,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     logout: handleLogout,
     quickAdminLogin,
     upgradePlan,
+    updateProfile,
     hasFeatureAccess,
     getUserLimits,
     trialDaysRemaining,

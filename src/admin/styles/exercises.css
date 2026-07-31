@@ -21,8 +21,14 @@
   font-size: 1.5rem;
   font-weight: 700;
   margin: 0;
-  color: #111827;
+  color: var(--color-text);
   flex-shrink: 0;
+}
+
+.exercises-total {
+  margin: 0.25rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
 }
 
 .filters {
@@ -32,6 +38,54 @@
   flex-wrap: wrap;
   flex: 1;
   justify-content: flex-end;
+}
+
+.exercise-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: var(--touch-target-min, 44px);
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  min-width: 220px;
+  flex: 1;
+  max-width: 320px;
+  color: var(--color-text-muted);
+  transition: all 0.2s;
+}
+
+.exercise-search:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-subtle, rgba(59, 130, 246, 0.1));
+}
+
+.exercise-search input {
+  border: none;
+  outline: none;
+  font-size: 16px;
+  flex: 1;
+  color: var(--color-text);
+  background: transparent;
+}
+
+.exercise-search-clear {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  border-radius: 4px;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.exercise-search-clear:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
 }
 
 /* Mejorar responsive del header de sección */
@@ -52,23 +106,31 @@
     width: 100%;
     min-width: unset;
   }
+
+  .exercise-search {
+    width: 100%;
+    min-width: unset;
+    max-width: unset;
+  }
 }
 
 .category-filter {
+  min-height: var(--touch-target-min, 44px);
   padding: 0.625rem 0.875rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  font-size: 0.875rem;
+  font-size: 16px;
   min-width: 200px;
   transition: all 0.2s;
-  background: white;
+  background: var(--color-surface);
+  color: var(--color-text);
   cursor: pointer;
 }
 
 .category-filter:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-subtle, rgba(59, 130, 246, 0.1));
 }
 
 /* Exercises Grid */
@@ -77,6 +139,23 @@
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 350px), 1fr));
   gap: 1.25rem;
   margin-top: 1.5rem;
+}
+
+.exercises-empty-state {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 3rem 1.5rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.exercises-empty-state p {
+  margin: 0;
+  font-size: 0.9375rem;
 }
 
 /* Ajuste progresivo del grid */
@@ -134,16 +213,16 @@
 }
 
 .exercise-list::-webkit-scrollbar-track {
-  background: #f3f4f6;
+  background: var(--color-bg-subtle);
 }
 
 .exercise-list::-webkit-scrollbar-thumb {
-  background: #d1d5db;
+  background: var(--color-border);
   border-radius: 3px;
 }
 
 .exercise-list::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
+  background: var(--color-text-muted);
 }
 
 .exercise-item {
@@ -158,29 +237,38 @@
 }
 
 .exercise-item:hover {
-  background: #f9fafb;
+  background: var(--color-surface-hover);
 }
 
 .exercise-item.custom {
-  background: linear-gradient(to right, #fef3c7 0%, transparent 100%);
+  background: linear-gradient(
+    to right,
+    rgba(245, 158, 11, 0.15) 0%,
+    transparent 100%
+  );
   border-left: 3px solid #f59e0b;
   padding-left: calc(0.75rem - 3px);
 }
 
 .exercise-item.custom:hover {
-  background: linear-gradient(to right, #fde68a 0%, #f9fafb 100%);
+  background: linear-gradient(
+    to right,
+    rgba(245, 158, 11, 0.25) 0%,
+    var(--color-surface-hover) 100%
+  );
 }
 
 .exercise-item svg:first-child {
-  color: #6b7280;
+  color: var(--color-text-muted);
   flex-shrink: 0;
 }
 
 .exercise-name {
   flex: 1;
   font-size: 0.875rem;
-  color: #374151;
+  color: var(--color-text);
   font-weight: 500;
+  text-transform: capitalize;
 }
 
 .custom-badge {
@@ -213,21 +301,28 @@
 }
 
 .btn-icon-mini {
-  background: none;
+  background: var(--color-surface-hover);
   border: none;
   cursor: pointer;
-  padding: 0.375rem;
+  padding: 0.625rem;
+  min-width: 44px;
+  min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
-  color: #6b7280;
+  border-radius: 6px;
+  color: var(--color-text-muted);
   transition: all 0.2s;
 }
 
+.btn-icon-mini svg {
+  width: 20px;
+  height: 20px;
+}
+
 .btn-icon-mini:hover {
-  background: #e5e7eb;
-  color: #111827;
+  background: var(--color-border);
+  color: var(--color-text);
 }
 
 .btn-icon-mini.danger:hover {
@@ -346,13 +441,13 @@
   }
 
   .btn-icon-mini {
-    padding: 0.25rem;
+    padding: 0.5rem;
     min-width: var(--touch-target-min);
     min-height: var(--touch-target-min);
   }
 
   .btn-icon-mini svg {
-    width: 14px;
-    height: 14px;
+    width: 20px;
+    height: 20px;
   }
 }

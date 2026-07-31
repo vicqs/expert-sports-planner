@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Card, Button } from "@/components/ui";
+import { Card, Button, ConfirmDialog } from "@/components/ui";
 import {
   Search,
   PlusCircle,
@@ -11,13 +11,16 @@ import {
 } from "lucide-react";
 import { useEquipment } from "@/admin/hooks";
 import EquipmentModal from "@/admin/components/modals/EquipmentModal";
+import { useToast } from "@/components/ui";
 import "@/admin/styles/equipment.css";
 
 const EquipmentManager = () => {
   const { equipment, addEquipment, updateEquipment, deleteEquipment } =
     useEquipment();
+  const { addToast } = useToast();
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
+  const [itemToDelete, setItemToDelete] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [formData, setFormData] = useState({
     name: "",
@@ -68,14 +71,23 @@ const EquipmentManager = () => {
     e.preventDefault();
     if (editingItem) {
       updateEquipment(editingItem.id, formData);
+      addToast("Equipo actualizado correctamente", "success");
     } else {
       addEquipment(formData);
+      addToast("Equipo agregado correctamente", "success");
     }
     closeModal();
   };
 
   const handleDelete = (id) => {
-    deleteEquipment(id);
+    setItemToDelete(equipment.find((item) => item.id === id) || { id });
+  };
+
+  const confirmDelete = () => {
+    if (itemToDelete) {
+      deleteEquipment(itemToDelete.id);
+      addToast("Equipo eliminado", "success");
+    }
   };
 
   const filteredEquipment = equipment.filter(
@@ -135,18 +147,20 @@ const EquipmentManager = () => {
               </small>
               <div className="equipment-actions">
                 <button
-                  className="btn-icon"
+                  className="btn-icon tap-ripple"
                   onClick={() => openModal(item)}
                   title="Editar"
+                  aria-label="Editar equipo"
                 >
-                  <Edit size={14} />
+                  <Edit size={16} />
                 </button>
                 <button
-                  className="btn-icon danger"
+                  className="btn-icon danger tap-ripple"
                   onClick={() => handleDelete(item.id)}
                   title="Eliminar"
+                  aria-label="Eliminar equipo"
                 >
-                  <Trash2 size={14} />
+                  <Trash2 size={16} />
                 </button>
               </div>
             </div>
@@ -171,6 +185,17 @@ const EquipmentManager = () => {
         formData={formData}
         onChange={handleChange}
         isEditing={!!editingItem}
+      />
+
+      <ConfirmDialog
+        isOpen={!!itemToDelete}
+        onClose={() => setItemToDelete(null)}
+        onConfirm={confirmDelete}
+        title="Eliminar equipo"
+        message={`¿Estás seguro de eliminar "${itemToDelete?.name || "este equipo"}"?`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        variant="danger"
       />
     </div>
   );

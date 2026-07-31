@@ -86,35 +86,6 @@
   }
 }
 
-/* Settings Placeholder */
-.settings-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem 2rem;
-  text-align: center;
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border);
-}
-
-.settings-placeholder svg {
-  color: var(--color-text-muted);
-  margin-bottom: 1rem;
-}
-
-.settings-placeholder h2 {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.5rem;
-  color: var(--color-text);
-}
-
-.settings-placeholder p {
-  margin: 0;
-  color: var(--color-text-secondary);
-}
-
 /* Responsive Design */
 
 /* Tablet (1024px and down) */
@@ -200,22 +171,5 @@
   .admin-title p {
     font-size: 0.75rem;
     line-height: 1.4;
-  }
-
-  .settings-placeholder {
-    padding: 2rem 1rem;
-  }
-
-  .settings-placeholder svg {
-    width: 40px;
-    height: 40px;
-  }
-
-  .settings-placeholder h2 {
-    font-size: 1.25rem;
-  }
-
-  .settings-placeholder p {
-    font-size: 0.875rem;
   }
 }

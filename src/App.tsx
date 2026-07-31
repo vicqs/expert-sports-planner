@@ -52,10 +52,19 @@ function AppContent() {
   useEffect(() => {
     if (currentUser) {
       document.body.classList.add("has-bottom-nav");
+      if (currentUser.role === "TRAINER") {
+        document.body.classList.add("has-bottom-nav-extended");
+      } else {
+        document.body.classList.remove("has-bottom-nav-extended");
+      }
     } else {
       document.body.classList.remove("has-bottom-nav");
+      document.body.classList.remove("has-bottom-nav-extended");
     }
-    return () => document.body.classList.remove("has-bottom-nav");
+    return () => {
+      document.body.classList.remove("has-bottom-nav");
+      document.body.classList.remove("has-bottom-nav-extended");
+    };
   }, [currentUser]);
 
   // Asegura que activeTab siempre apunte a una pestaña válida para el rol
@@ -179,6 +188,7 @@ function AppContent() {
           activeTab={activeTab}
           onTabChange={setActiveTab}
           tabs={isTrainer() ? TRAINER_TABS : undefined}
+          extended={isTrainer()}
         />
       )}
       <style>{`

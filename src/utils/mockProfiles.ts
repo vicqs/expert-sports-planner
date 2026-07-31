@@ -89,6 +89,30 @@ export const MOCK_PROFILES = [
   },
 ];
 
+// Marca `completed: true` en los días de entrenamiento cuya fecha ya pasó,
+// para que las estadísticas/gráficos de "Progreso" (rol Atleta) tengan datos
+// reales que mostrar en vez de aparecer siempre en 0. Patrón determinístico
+// (no Math.random) para que el resultado sea estable entre recargas: se
+// completan todos los días pasados excepto 1 de cada 4 (simula una sesión
+// saltada, más realista que 100%).
+const seedPastCompletion = (planObject: any[], startDate: Date) => {
+  let dayCounter = 0;
+  return planObject.map((week) => ({
+    ...week,
+    days: week.days.map((day: any) => {
+      const dayDate = new Date(startDate);
+      dayDate.setDate(dayDate.getDate() + dayCounter);
+      dayCounter += 1;
+      const isPast = dayDate.getTime() < Date.now();
+      const skip = dayCounter % 4 === 0;
+      return {
+        ...day,
+        completed: Boolean(day.session) && isPast && !skip,
+      };
+    }),
+  }));
+};
+
 const buildMockClient = (athleteUser, overrides) => {
   const now = new Date();
   const start = new Date(now);
@@ -111,7 +135,7 @@ const buildMockClient = (athleteUser, overrides) => {
     objective: overrides.objective,
     planDuration: 4,
     plan: null,
-    planObject,
+    planObject: seedPastCompletion(planObject, start),
     planCreatedAt: start.toISOString(),
     startDate: start.toISOString(),
     endDate: end.toISOString(),

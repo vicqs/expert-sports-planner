@@ -1,8 +1,17 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useMockDatabase } from "../context/MockDatabase";
-import { Button, Card, useToast } from "./ui";
+import { Button, Card, ConfirmDialog, useToast } from "./ui";
+import { useConfirm } from "../hooks";
 import { Calendar, Clock, CheckCircle, CalendarX } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+
+const CANCEL_REASON_OPTIONS = [
+  "Imprevisto personal",
+  "Problema de salud",
+  "Cambio de horario",
+  "Ya no lo necesito",
+  "Otro",
+];
 
 const APPOINTMENT_TYPES = [
   { id: "eval", label: "Evaluación Inicial", duration: 60, icon: "📊" },
@@ -12,8 +21,11 @@ const APPOINTMENT_TYPES = [
 ];
 
 const AppointmentScheduler = ({ athleteId }) => {
-  const { addAppointment, getAthleteAppointments } = useMockDatabase();
+  const { addAppointment, getAthleteAppointments, cancelAppointment } =
+    useMockDatabase();
   const { addToast } = useToast();
+  const { isOpen, isLoading, confirm, handleConfirm, handleCancel } =
+    useConfirm();
   const [step, setStep] = useState(1); // 1: Type, 2: Date/Time, 3: Confirm
   const [selectedType, setSelectedType] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState("");
@@ -21,6 +33,10 @@ const AppointmentScheduler = ({ athleteId }) => {
   const [notes, setNotes] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [justConfirmed, setJustConfirmed] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [customCancelReason, setCustomCancelReason] = useState("");
+  const cancelReasonRef = useRef("");
+  const customCancelReasonRef = useRef("");
 
   const myAppointments = getAthleteAppointments(athleteId);
 
@@ -29,7 +45,44 @@ const AppointmentScheduler = ({ athleteId }) => {
     setStep(2);
   };
 
-  const handleConfirm = () => {
+  const handleCancelClick = (appointmentId) => {
+    setCancelReason("");
+    setCustomCancelReason("");
+    cancelReasonRef.current = "";
+    customCancelReasonRef.current = "";
+    confirm(() => {
+      const reason =
+        cancelReasonRef.current === "Otro"
+          ? customCancelReasonRef.current.trim()
+          : cancelReasonRef.current;
+      cancelAppointment(appointmentId, reason);
+      addToast("Cita cancelada", "success");
+      setCancelReason("");
+      setCustomCancelReason("");
+    });
+  };
+
+  const selectCancelReason = (value: string) => {
+    setCancelReason(value);
+    cancelReasonRef.current = value;
+  };
+
+  const updateCustomCancelReason = (value: string) => {
+    setCustomCancelReason(value);
+    customCancelReasonRef.current = value;
+  };
+
+  const isCancelReasonValid =
+    cancelReason !== "" &&
+    (cancelReason !== "Otro" || customCancelReason.trim().length > 0);
+
+  const handleCancelDialogClose = () => {
+    setCancelReason("");
+    setCustomCancelReason("");
+    handleCancel();
+  };
+
+  const handleConfirmBooking = () => {
     setConfirming(true);
     setTimeout(() => {
       const result = addAppointment({
@@ -141,7 +194,7 @@ const AppointmentScheduler = ({ athleteId }) => {
                 variant="primary"
                 disabled={!selectedDate || !selectedTime || confirming}
                 loading={confirming}
-                onClick={handleConfirm}
+                onClick={handleConfirmBooking}
               >
                 {confirming ? "Confirmando…" : "Confirmar Cita"}
               </Button>
@@ -175,6 +228,14 @@ const AppointmentScheduler = ({ athleteId }) => {
                       <Clock size={14} /> {app.time} ({app.duration} min)
                     </div>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleCancelClick(app.id)}
+                    className="cancel-btn"
+                  >
+                    Cancelar
+                  </Button>
                 </Card>
               ))}
             </div>
@@ -182,10 +243,103 @@ const AppointmentScheduler = ({ athleteId }) => {
         </div>
       </div>
 
+      <ConfirmDialog
+        isOpen={isOpen}
+        onClose={handleCancelDialogClose}
+        onConfirm={handleConfirm}
+        title="Cancelar Cita"
+        message="¿Estás seguro de cancelar esta cita?"
+        confirmText="Sí, Cancelar"
+        cancelText="No, Mantener"
+        variant="danger"
+        isLoading={isLoading}
+        confirmDisabled={!isCancelReasonValid}
+      >
+        <div className="cancel-reason-picker">
+          <span className="cancel-reason-label">
+            Motivo de cancelación (obligatorio)
+          </span>
+          <div className="cancel-reason-chips">
+            {CANCEL_REASON_OPTIONS.map((option) => (
+              <button
+                key={option}
+                type="button"
+                className={`cancel-reason-chip${
+                  cancelReason === option ? " selected" : ""
+                }`}
+                onClick={() => selectCancelReason(option)}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+          {cancelReason === "Otro" && (
+            <input
+              type="text"
+              className="cancel-reason-input"
+              placeholder="Cuéntanos el motivo..."
+              value={customCancelReason}
+              onChange={(e) => updateCustomCancelReason(e.target.value)}
+              maxLength={200}
+              autoFocus
+            />
+          )}
+        </div>
+      </ConfirmDialog>
+
       <style>{`
                 .appointment-scheduler {
                     padding-bottom: 80px;
                     position: relative;
+                }
+                .cancel-reason-picker {
+                    display: flex;
+                    flex-direction: column;
+                    gap: var(--space-2);
+                    width: 100%;
+                }
+                .cancel-reason-label {
+                    font-size: var(--text-sm);
+                    font-weight: 600;
+                    color: var(--color-text-secondary);
+                }
+                .cancel-reason-chips {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: var(--space-2);
+                }
+                .cancel-reason-chip {
+                    border: 1px solid var(--color-border);
+                    background: var(--color-bg-elevated);
+                    color: var(--color-text-primary);
+                    border-radius: var(--radius-full);
+                    padding: var(--space-2) var(--space-3);
+                    font-size: var(--text-sm);
+                    cursor: pointer;
+                    transition: all var(--transition-fast);
+                }
+                .cancel-reason-chip:hover {
+                    border-color: var(--color-error);
+                }
+                .cancel-reason-chip.selected {
+                    background: var(--color-error);
+                    border-color: var(--color-error);
+                    color: white;
+                    font-weight: 600;
+                }
+                .cancel-reason-input {
+                    width: 100%;
+                    border: 1px solid var(--color-border);
+                    border-radius: var(--radius-md);
+                    padding: var(--space-2) var(--space-3);
+                    font-size: var(--text-sm);
+                    font-family: inherit;
+                    color: var(--color-text-primary);
+                    background: var(--color-bg-elevated);
+                }
+                .cancel-reason-input:focus {
+                    outline: none;
+                    border-color: var(--color-error);
                 }
                 .confirm-overlay {
                     position: fixed;
@@ -244,11 +398,23 @@ const AppointmentScheduler = ({ athleteId }) => {
                 }
                 .input-field {
                     width: 100%;
+                    min-height: var(--touch-target-min);
                     padding: var(--space-3);
                     border: 1px solid var(--color-border);
                     border-radius: var(--radius-sm);
                     background: var(--color-surface);
                     color: var(--color-text);
+                    font-size: 16px;
+                    transition: all var(--transition-normal);
+                }
+                .input-field:focus {
+                    outline: none;
+                    border-color: var(--color-primary);
+                    box-shadow: 0 0 0 3px var(--color-primary-subtle, rgba(139, 92, 246, 0.1));
+                }
+                textarea.input-field {
+                    min-height: 88px;
+                    resize: vertical;
                 }
                 .actions {
                     display: flex;

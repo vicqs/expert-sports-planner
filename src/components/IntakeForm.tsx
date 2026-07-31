@@ -172,9 +172,17 @@ const IntakeForm = ({ onCancel, trainerId = null }) => {
                 <option value="fitness">Fitness General</option>
               </select>
             </div>
-            <button type="button" className="btn-primary" onClick={nextStep}>
-              Siguiente <ChevronRight size={16} />
-            </button>
+            <Button
+              type="button"
+              variant="primary"
+              size="lg"
+              className="btn-primary"
+              rightIcon={<ChevronRight size={16} />}
+              onClick={nextStep}
+              disabled={!formData.name || !formData.objective}
+            >
+              Siguiente
+            </Button>
           </div>
         )}
 
@@ -187,7 +195,7 @@ const IntakeForm = ({ onCancel, trainerId = null }) => {
                 {["Principiante", "Intermedio", "Avanzado"].map((l) => (
                   <label
                     key={l}
-                    className={`radio-card ${formData.level === l ? "selected" : ""}`}
+                    className={`radio-card tap-ripple ${formData.level === l ? "selected" : ""}`}
                   >
                     <input
                       type="radio"
@@ -212,7 +220,7 @@ const IntakeForm = ({ onCancel, trainerId = null }) => {
                 ].map((option) => (
                   <label
                     key={option.weeks}
-                    className={`radio-card ${formData.planDuration === option.weeks ? "selected" : ""}`}
+                    className={`radio-card tap-ripple ${formData.planDuration === option.weeks ? "selected" : ""}`}
                   >
                     <input
                       type="radio"
@@ -385,9 +393,11 @@ const IntakeForm = ({ onCancel, trainerId = null }) => {
           width: 100%;
           box-shadow: var(--shadow-md);
         }
-        .btn-primary:hover {
-          box-shadow: var(--shadow-lg), var(--shadow-glow);
-          transform: translateY(-2px);
+        @media (hover: hover) {
+          .btn-primary:hover {
+            box-shadow: var(--shadow-lg), var(--shadow-glow);
+            transform: translateY(-2px);
+          }
         }
         .btn-primary:active {
           transform: translateY(0);
@@ -411,10 +421,12 @@ const IntakeForm = ({ onCancel, trainerId = null }) => {
           align-items: center;
           justify-content: center;
         }
-        .radio-card:hover {
-          border-color: var(--color-primary);
-          transform: translateY(-2px);
-          box-shadow: var(--shadow-md);
+        @media (hover: hover) {
+          .radio-card:hover {
+            border-color: var(--color-primary);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+          }
         }
         .radio-card.selected {
           border-color: var(--color-primary);

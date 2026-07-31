@@ -123,6 +123,18 @@ const TrainerScheduleConfig = () => {
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
+              onClick={(e) => {
+                const el = e.currentTarget as HTMLInputElement & {
+                  showPicker?: () => void;
+                };
+                if (typeof el.showPicker === "function") {
+                  try {
+                    el.showPicker();
+                  } catch {
+                    /* algunos navegadores lanzan si no hay gesto de usuario activo */
+                  }
+                }
+              }}
               aria-label="Elegir fecha"
               title="Elegir fecha"
             />
@@ -437,6 +449,21 @@ const TrainerScheduleConfig = () => {
             border: none;
             color: var(--color-danger);
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: var(--touch-target-min);
+            min-height: var(--touch-target-min);
+            padding: 0.5rem;
+            border-radius: var(--radius-sm);
+            transition: background-color 0.15s ease, color 0.15s ease;
+        }
+        .delete-btn:hover {
+            background: rgba(220, 38, 38, 0.1);
+        }
+        .delete-btn svg {
+            width: 20px;
+            height: 20px;
         }
         .slot-form {
             display: grid;
@@ -454,16 +481,31 @@ const TrainerScheduleConfig = () => {
         }
         .form-group input {
             padding: 0.5rem;
+            min-height: var(--touch-target-min);
             border: 1px solid var(--color-border);
             border-radius: var(--radius-sm);
             background: var(--color-bg);
             color: var(--color-text);
+            font-size: 16px;
             width: 100%;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px var(--color-primary-subtle, rgba(139, 92, 246, 0.1));
         }
         .actions-row {
             display: flex;
             gap: 1rem;
             margin-top: 1rem;
+        }
+        @media (max-width: 480px) {
+            .slot-form {
+                grid-template-columns: 1fr 1fr;
+            }
+            .slot-form .form-group:nth-child(3) {
+                grid-column: 1 / -1;
+            }
         }
       `}</style>
     </div>

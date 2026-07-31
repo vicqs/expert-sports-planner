@@ -25,13 +25,15 @@ const BottomNav = ({
   activeTab = "entrenamientos",
   onTabChange,
   tabs = DEFAULT_ATHLETE_TABS,
+  extended = false,
 }: {
   activeTab?: string;
   onTabChange: (id: string) => void;
   tabs?: BottomNavTab[];
+  extended?: boolean;
 }) => {
   return (
-    <nav className="bottom-nav">
+    <nav className={`bottom-nav ${extended ? "bottom-nav-extended" : ""}`}>
       <div
         className={`bottom-nav-container ${tabs.length > 4 ? "compact" : ""}`}
       >

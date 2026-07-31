@@ -188,6 +188,7 @@ export const initializeSuperAdmin = async () => {
   const superAdmin = {
     id: "admin-super-user",
     email: adminEmail,
+    phone: null,
     passwordHash: newPasswordHash,
     name: adminName,
     role: ROLES.ADMIN,
@@ -246,6 +247,7 @@ export const registerUser = async ({
   const newUser = {
     id: crypto.randomUUID(),
     email: email || null,
+    phone: null,
     passwordHash: password ? await hashPassword(password) : null,
     name,
     role,
@@ -311,6 +313,16 @@ export const logoutUser = () => {
   setCurrentUser(null);
 };
 
+// Eliminar usuario (no permite eliminar al super admin)
+export const deleteUser = (userId: string) => {
+  const users = getAllUsers();
+  const user = users.find((u) => u.id === userId);
+  if (user?.isSuper) {
+    throw new Error("No se puede eliminar al super administrador");
+  }
+  saveUsers(users.filter((u) => u.id !== userId));
+};
+
 // Completar perfil de usuario (agregar email y contraseña)
 export const completeUserProfile = async (userId, email, password) => {
   const users = getAllUsers();
@@ -333,6 +345,42 @@ export const completeUserProfile = async (userId, email, password) => {
 
   users[userIndex] = updatedUser;
   saveUsers(users);
+
+  return updatedUser;
+};
+
+// Actualizar datos de contacto del perfil (email/teléfono), editables por el propio usuario
+export const updateUserProfile = (
+  userId: string,
+  updates: { email?: string | null; phone?: string | null },
+) => {
+  const users = getAllUsers();
+  const userIndex = users.findIndex((u) => u.id === userId);
+
+  if (userIndex === -1) {
+    throw new Error("Usuario no encontrado");
+  }
+
+  if (
+    updates.email &&
+    users.find((u) => u.email === updates.email && u.id !== userId)
+  ) {
+    throw new Error("Este email ya está registrado por otro usuario");
+  }
+
+  const updatedUser: User = {
+    ...users[userIndex],
+    ...(updates.email !== undefined ? { email: updates.email } : {}),
+    ...(updates.phone !== undefined ? { phone: updates.phone } : {}),
+  };
+
+  users[userIndex] = updatedUser;
+  saveUsers(users);
+
+  const currentUser = getCurrentUser();
+  if (currentUser && currentUser.id === userId) {
+    setCurrentUser(updatedUser);
+  }
 
   return updatedUser;
 };

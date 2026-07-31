@@ -1,13 +1,14 @@
 import React from "react";
-import { Card, Button } from "@/components/ui";
+import { Card, Button, useToast } from "@/components/ui";
 import { BarChart3, TrendingUp, Dumbbell, Download } from "lucide-react";
 import "@/admin/styles/analytics.css";
 
 const Analytics = ({ stats }) => {
+  const { addToast } = useToast();
+
   const handleExport = () => {
-    console.log("Exporting report...");
     // Implementar exportación de reportes
-    alert("Funcionalidad de exportación en desarrollo");
+    addToast("Funcionalidad de exportación en desarrollo", "info");
   };
 
   return (

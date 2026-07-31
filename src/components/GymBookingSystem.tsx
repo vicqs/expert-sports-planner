@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useMockDatabase } from "../context/MockDatabase";
 import { Button, Card, ConfirmDialog, useToast } from "./ui";
 import { useConfirm } from "../hooks";
@@ -30,6 +30,21 @@ const GymBookingSystem = ({ athleteId }) => {
   const [confirmMessage, setConfirmMessage] = useState("");
   const [bookingId, setBookingId] = useState<any>(null);
   const [justBookedId, setJustBookedId] = useState<any>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [customCancelReason, setCustomCancelReason] = useState("");
+  // Refs para que el callback de confirmación (creado al abrir el diálogo)
+  // siempre lea el motivo más reciente elegido por el usuario, evitando un
+  // closure obsoleto con el valor vacío inicial.
+  const cancelReasonRef = useRef("");
+  const customCancelReasonRef = useRef("");
+
+  const CANCEL_REASON_OPTIONS = [
+    "Imprevisto personal",
+    "Problema de salud",
+    "Cambio de horario",
+    "Ya no lo necesito",
+    "Otro",
+  ];
 
   useEffect(() => {
     setAvailableSlots(getGymSchedule(selectedDate));
@@ -61,10 +76,40 @@ const GymBookingSystem = ({ athleteId }) => {
 
   const handleCancelClick = (bookingId) => {
     setConfirmMessage("Esta acción cancelará tu reserva de gimnasio.");
+    setCancelReason("");
+    setCustomCancelReason("");
+    cancelReasonRef.current = "";
+    customCancelReasonRef.current = "";
     confirm(() => {
-      cancelGymBooking(bookingId);
+      const reason =
+        cancelReasonRef.current === "Otro"
+          ? customCancelReasonRef.current.trim()
+          : cancelReasonRef.current;
+      cancelGymBooking(bookingId, reason);
       addToast("Reserva cancelada", "success");
+      setCancelReason("");
+      setCustomCancelReason("");
     });
+  };
+
+  const selectCancelReason = (value: string) => {
+    setCancelReason(value);
+    cancelReasonRef.current = value;
+  };
+
+  const updateCustomCancelReason = (value: string) => {
+    setCustomCancelReason(value);
+    customCancelReasonRef.current = value;
+  };
+
+  const isCancelReasonValid =
+    cancelReason !== "" &&
+    (cancelReason !== "Otro" || customCancelReason.trim().length > 0);
+
+  const handleCancelDialogClose = () => {
+    setCancelReason("");
+    setCustomCancelReason("");
+    handleCancel();
   };
 
   const isSlotBooked = (slotId) => {
@@ -104,6 +149,18 @@ const GymBookingSystem = ({ athleteId }) => {
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
+              onClick={(e) => {
+                const el = e.currentTarget as HTMLInputElement & {
+                  showPicker?: () => void;
+                };
+                if (typeof el.showPicker === "function") {
+                  try {
+                    el.showPicker();
+                  } catch {
+                    /* algunos navegadores lanzan si no hay gesto de usuario activo */
+                  }
+                }
+              }}
               min={todayDateString()}
               aria-label="Elegir fecha"
               title="Elegir fecha"
@@ -225,7 +282,7 @@ const GymBookingSystem = ({ athleteId }) => {
 
       <ConfirmDialog
         isOpen={isOpen}
-        onClose={handleCancel}
+        onClose={handleCancelDialogClose}
         onConfirm={handleConfirm}
         title="Cancelar Reserva"
         message={confirmMessage || "¿Estás seguro de cancelar esta reserva?"}
@@ -233,11 +290,92 @@ const GymBookingSystem = ({ athleteId }) => {
         cancelText="No, Mantener"
         variant="danger"
         isLoading={isLoading}
-      />
+        confirmDisabled={!isCancelReasonValid}
+      >
+        <div className="cancel-reason-picker">
+          <span className="cancel-reason-label">
+            Motivo de cancelación (obligatorio)
+          </span>
+          <div className="cancel-reason-chips">
+            {CANCEL_REASON_OPTIONS.map((option) => (
+              <button
+                key={option}
+                type="button"
+                className={`cancel-reason-chip${
+                  cancelReason === option ? " selected" : ""
+                }`}
+                onClick={() => selectCancelReason(option)}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+          {cancelReason === "Otro" && (
+            <input
+              type="text"
+              className="cancel-reason-input"
+              placeholder="Cuéntanos el motivo..."
+              value={customCancelReason}
+              onChange={(e) => updateCustomCancelReason(e.target.value)}
+              maxLength={200}
+              autoFocus
+            />
+          )}
+        </div>
+      </ConfirmDialog>
 
       <style>{`
         .gym-booking {
             padding-bottom: 80px;
+        }
+        .cancel-reason-picker {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-2);
+            width: 100%;
+        }
+        .cancel-reason-label {
+            font-size: var(--text-sm);
+            font-weight: 600;
+            color: var(--color-text-secondary);
+        }
+        .cancel-reason-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-2);
+        }
+        .cancel-reason-chip {
+            border: 1px solid var(--color-border);
+            background: var(--color-bg-elevated);
+            color: var(--color-text-primary);
+            border-radius: var(--radius-full);
+            padding: var(--space-2) var(--space-3);
+            font-size: var(--text-sm);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+        .cancel-reason-chip:hover {
+            border-color: var(--color-error);
+        }
+        .cancel-reason-chip.selected {
+            background: var(--color-error);
+            border-color: var(--color-error);
+            color: white;
+            font-weight: 600;
+        }
+        .cancel-reason-input {
+            width: 100%;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            padding: var(--space-2) var(--space-3);
+            font-size: var(--text-sm);
+            font-family: inherit;
+            color: var(--color-text-primary);
+            background: var(--color-bg-elevated);
+        }
+        .cancel-reason-input:focus {
+            outline: none;
+            border-color: var(--color-error);
         }
         .empty-slots {
             text-align: center;

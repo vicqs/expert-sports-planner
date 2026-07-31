@@ -475,11 +475,12 @@ const GymSessionEditor = ({
         }
         .field-group input, .field-group select {
             width: 100%;
-            padding: 0.5rem;
+            min-height: var(--touch-target-min);
+            padding: 0.6rem 0.65rem;
             background: var(--color-bg);
             border: 1px solid var(--color-border);
             border-radius: var(--radius-sm);
-            font-size: 0.9rem;
+            font-size: 16px;
             color: var(--color-text);
             transition: all 0.2s;
         }
@@ -602,12 +603,13 @@ const GymSessionEditor = ({
 
         .autocomplete-input {
           width: 100%;
+          min-height: var(--touch-target-min);
           padding: 0.6rem 2.5rem 0.6rem 0.75rem;
           border: 1px solid var(--color-border);
           border-radius: var(--radius-md);
           background: var(--color-surface);
           color: var(--color-text);
-          font-size: 0.9rem;
+          font-size: 16px;
           transition: all 0.2s;
         }
 

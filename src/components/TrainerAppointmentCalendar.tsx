@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Calendar,
+  Trash2,
 } from "lucide-react";
 import {
   addDaysToDateString,
@@ -171,6 +172,18 @@ const TrainerAppointmentCalendar = () => {
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
+              onClick={(e) => {
+                const el = e.currentTarget as HTMLInputElement & {
+                  showPicker?: () => void;
+                };
+                if (typeof el.showPicker === "function") {
+                  try {
+                    el.showPicker();
+                  } catch {
+                    /* algunos navegadores lanzan si no hay gesto de usuario activo */
+                  }
+                }
+              }}
               aria-label="Elegir fecha"
               title="Elegir fecha"
             />
@@ -261,8 +274,9 @@ const TrainerAppointmentCalendar = () => {
                             className="action-btn"
                             onClick={() => openReschedule(app)}
                             title="Reprogramar cita"
+                            aria-label="Reprogramar cita"
                           >
-                            <CalendarClock size={18} />
+                            <CalendarClock size={20} />
                           </Button>
                           <Button
                             variant="ghost"
@@ -271,8 +285,10 @@ const TrainerAppointmentCalendar = () => {
                             onClick={() =>
                               handleStatusChange(app.id, "COMPLETED")
                             }
+                            title="Marcar como completada"
+                            aria-label="Marcar como completada"
                           >
-                            <CheckCircle size={18} />
+                            <CheckCircle size={20} />
                           </Button>
                           <Button
                             variant="ghost"
@@ -281,8 +297,10 @@ const TrainerAppointmentCalendar = () => {
                             onClick={() =>
                               handleStatusChange(app.id, "CANCELLED")
                             }
+                            title="Cancelar cita"
+                            aria-label="Cancelar cita"
                           >
-                            <XCircle size={18} />
+                            <XCircle size={20} />
                           </Button>
                         </>
                       )}
@@ -331,7 +349,7 @@ const TrainerAppointmentCalendar = () => {
                     title="Eliminar franja"
                     aria-label="Eliminar franja"
                   >
-                    ×
+                    <Trash2 size={16} />
                   </button>
                 </div>
               ))}
@@ -524,8 +542,23 @@ const TrainerAppointmentCalendar = () => {
                     display: flex;
                     gap: 0.5rem;
                 }
+                .action-btn {
+                    min-width: var(--touch-target-min, 44px);
+                    min-height: var(--touch-target-min, 44px);
+                    padding: 0;
+                    border-radius: var(--radius-full);
+                }
                 .action-btn.success { color: var(--color-success); }
                 .action-btn.danger { color: var(--color-danger); }
+                @media (max-width: 480px) {
+                    .app-actions {
+                        gap: 0.35rem;
+                    }
+                    .action-btn {
+                        min-width: var(--touch-target-comfortable, 48px);
+                        min-height: var(--touch-target-comfortable, 48px);
+                    }
+                }
                 
                 .availability-section {
                     max-width: 600px;
@@ -554,9 +587,23 @@ const TrainerAppointmentCalendar = () => {
                     background: none;
                     border: none;
                     color: var(--color-danger);
-                    font-size: 1.2rem;
                     cursor: pointer;
                     margin-left: auto;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    min-width: var(--touch-target-min);
+                    min-height: var(--touch-target-min);
+                    padding: 0.5rem;
+                    border-radius: var(--radius-sm);
+                    transition: background-color 0.15s ease, color 0.15s ease;
+                }
+                .delete-btn:hover {
+                    background: rgba(220, 38, 38, 0.1);
+                }
+                .delete-btn svg {
+                    width: 20px;
+                    height: 20px;
                 }
                 .avail-actions {
                     display: flex;

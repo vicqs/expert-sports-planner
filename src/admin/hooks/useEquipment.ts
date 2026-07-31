@@ -31,11 +31,7 @@ export const useEquipment = () => {
   };
 
   const deleteEquipment = (id) => {
-    if (window.confirm("¿Estás seguro de eliminar este equipo?")) {
-      setEquipment((prev) => prev.filter((item) => item.id !== id));
-      return true;
-    }
-    return false;
+    setEquipment((prev) => prev.filter((item) => item.id !== id));
   };
 
   const getEquipmentStats = () => {

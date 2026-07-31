@@ -189,7 +189,36 @@ body.has-bottom-nav {
     display: none;
   }
 
-  body.has-bottom-nav {
+  /* Rol Entrenador: la barra de tabs de escritorio (CoachDashboard.tsx)
+     no entra hasta ~1100px, así que el BottomNav se extiende hasta ahí
+     en vez de desaparecer a los 768px como en el resto de la app.
+     IMPORTANTE: "block" (no "flex") — .bottom-nav nunca tuvo display:flex
+     propio (solo su hijo .bottom-nav-container lo tiene); ponerlo en flex
+     convertía a .bottom-nav-container en flex-item que se encoge a su
+     contenido (ignorando max-width) en vez de llenar el ancho disponible. */
+  .bottom-nav.bottom-nav-extended {
+    display: block;
+  }
+
+  /* El cap de 600px (pensado para mobile, donde ocupa casi todo el ancho)
+     se ve "apretado"/descentrado en el rango 768-1100px porque sobra mucho
+     espacio a los lados. Se amplía el ancho máximo para que los 4 items se
+     distribuyan proporcionalmente al ancho disponible en ese rango. */
+  .bottom-nav.bottom-nav-extended .bottom-nav-container {
+    max-width: 960px;
+  }
+
+  body.has-bottom-nav:not(.has-bottom-nav-extended) {
+    padding-bottom: 0;
+  }
+}
+
+@media (min-width: 1100px) {
+  .bottom-nav.bottom-nav-extended {
+    display: none;
+  }
+
+  body.has-bottom-nav-extended {
     padding-bottom: 0;
   }
 }

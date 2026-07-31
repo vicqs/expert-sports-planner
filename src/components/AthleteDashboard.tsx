@@ -192,10 +192,12 @@ const AthleteDashboard = ({
             return (
               <button
                 key={tab.id}
-                className={`desktop-tab-item ${isActive ? "active" : ""}`}
+                className={`desktop-tab-item tap-ripple ${isActive ? "active" : ""}`}
                 onClick={() => onTabChange?.(tab.id)}
               >
-                <Icon size={18} />
+                <span className="desktop-tab-icon">
+                  <Icon size={18} />
+                </span>
                 {tab.label}
               </button>
             );
@@ -395,14 +397,33 @@ const AthleteDashboard = ({
                 cursor: pointer;
                 transition: all 0.2s ease;
                 white-space: nowrap;
+                position: relative;
+                overflow: hidden;
+            }
+            .desktop-tab-icon {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: transform 0.2s ease;
+            }
+            @media (hover: hover) {
+                .desktop-tab-item:not(.active):hover .desktop-tab-icon {
+                    transform: scale(1.15);
+                }
             }
             .desktop-tab-item:hover {
                 color: var(--color-text);
+            }
+            .desktop-tab-item:active {
+                transform: scale(0.94);
             }
             .desktop-tab-item.active {
                 background: var(--color-primary);
                 color: white;
                 box-shadow: var(--shadow-sm);
+            }
+            .desktop-tab-item.active .desktop-tab-icon {
+                transform: scale(1.08);
             }
         }
         .user-welcome {

@@ -1,17 +1,24 @@
 import { useState } from "react";
+import {
+  LayoutDashboard,
+  Users,
+  Dumbbell,
+  Package,
+  BarChart3,
+  Settings,
+} from "lucide-react";
 import "@/admin/styles/sidebar.css";
 
 const AdminSidebar = ({ activeTab, onTabChange }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const menuItems = [
-    { id: "overview", label: "Panel General", icon: "📊" },
-    { id: "users", label: "Usuarios", icon: "👥" },
-    { id: "trainers", label: "Entrenadores", icon: "💪" },
-    { id: "exercises", label: "Ejercicios", icon: "🏋️" },
-    { id: "equipment", label: "Equipamiento", icon: "⚙️" },
-    { id: "analytics", label: "Análisis", icon: "📈" },
-    { id: "settings", label: "Configuración", icon: "⚙️" },
+    { id: "overview", label: "Panel General", icon: LayoutDashboard },
+    { id: "users", label: "Usuarios", icon: Users },
+    { id: "exercises", label: "Ejercicios", icon: Dumbbell },
+    { id: "equipment", label: "Equipamiento", icon: Package },
+    { id: "analytics", label: "Análisis", icon: BarChart3 },
+    { id: "settings", label: "Configuración", icon: Settings },
   ];
 
   const handleItemClick = (tabId) => {
@@ -27,7 +34,7 @@ const AdminSidebar = ({ activeTab, onTabChange }) => {
     <>
       {/* Hamburger Button - Solo visible en móvil/tablet */}
       <button
-        className="sidebar-toggle"
+        className="sidebar-toggle tap-ripple"
         onClick={toggleSidebar}
         aria-label="Toggle menu"
       >
@@ -48,7 +55,7 @@ const AdminSidebar = ({ activeTab, onTabChange }) => {
         <div className="sidebar-header">
           <h2>Admin Panel</h2>
           <button
-            className="sidebar-close"
+            className="sidebar-close tap-ripple"
             onClick={() => setIsOpen(false)}
             aria-label="Close menu"
           >
@@ -57,16 +64,21 @@ const AdminSidebar = ({ activeTab, onTabChange }) => {
         </div>
 
         <nav className="sidebar-nav">
-          {menuItems.map((item) => (
-            <button
-              key={item.id}
-              className={`sidebar-item ${activeTab === item.id ? "active" : ""}`}
-              onClick={() => handleItemClick(item.id)}
-            >
-              <span className="sidebar-icon">{item.icon}</span>
-              <span className="sidebar-label">{item.label}</span>
-            </button>
-          ))}
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                className={`sidebar-item tap-ripple ${activeTab === item.id ? "active" : ""}`}
+                onClick={() => handleItemClick(item.id)}
+              >
+                <span className="sidebar-icon">
+                  <Icon size={18} />
+                </span>
+                <span className="sidebar-label">{item.label}</span>
+              </button>
+            );
+          })}
         </nav>
 
         <div className="sidebar-footer">

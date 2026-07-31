@@ -1,0 +1,322 @@
+/* ==========================================================================
+   Admin Responsive — archivo único consolidado.
+   Reemplaza a responsive-utils.css + breakpoint-fixes.css + mobile-devices.css,
+   que tenían breakpoints duplicados y hasta contradictorios entre sí (ej. el
+   rango 481-500px definía 2 columnas en uno y 1 columna en otro). Se unifica
+   aquí una sola escala de breakpoints:
+     - <= 480px  : móvil (1 columna, tipografía/paddings compactos)
+     - 481-1024px: tablet (2 columnas)
+     - >= 1025px : desktop (layout normal, ver dashboard.css para el sidebar)
+   ========================================================================== */
+
+/* ----- Base: nunca permitir overflow horizontal ----- */
+.admin-dashboard,
+.admin-dashboard * {
+  box-sizing: border-box;
+}
+
+.admin-content,
+.admin-exercises,
+.admin-equipment,
+.admin-users,
+.admin-analytics,
+.admin-overview {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.card,
+.stat-card,
+.equipment-card,
+.category-card,
+.analytics-card {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* ----- Touch targets ----- */
+.admin-dashboard button,
+.admin-dashboard .btn,
+.admin-dashboard .button {
+  min-height: 44px;
+  flex-shrink: 0;
+}
+
+/* ----- Scrollbars ----- */
+.admin-dashboard *::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.admin-dashboard *::-webkit-scrollbar-track {
+  background: var(--color-bg-subtle);
+  border-radius: 4px;
+}
+
+.admin-dashboard *::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+.admin-dashboard *::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-hover);
+}
+
+/* Navegación de tabs con scroll horizontal + indicador visual (móvil) */
+.admin-nav {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+  position: relative;
+}
+
+.admin-nav::-webkit-scrollbar {
+  height: 3px;
+}
+
+.admin-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-nav::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 2px;
+}
+
+@media (max-width: 768px) {
+  .admin-nav::after {
+    content: "";
+    position: sticky;
+    right: 0;
+    top: 0;
+    bottom: 2px;
+    width: 40px;
+    background: linear-gradient(to left, var(--color-bg), transparent);
+    pointer-events: none;
+    display: block;
+    float: right;
+  }
+}
+
+/* ----- Tablet (481px – 1024px): 2 columnas ----- */
+@media (min-width: 481px) and (max-width: 1024px) {
+  .stats-grid,
+  .equipment-grid,
+  .exercises-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .admin-header,
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .filters,
+  .header-actions {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .category-filter,
+  .search-bar,
+  .search-bar input {
+    width: 100%;
+    min-width: unset;
+  }
+
+  .btn,
+  button {
+    justify-content: center;
+    text-align: center;
+  }
+}
+
+/* ----- Móvil (<= 480px): 1 columna, compacto ----- */
+@media (max-width: 480px) {
+  .admin-dashboard {
+    font-size: 0.9375rem;
+    padding: 0.5rem;
+  }
+
+  .exercises-grid,
+  .equipment-grid,
+  .stats-grid,
+  .analytics-grid,
+  .quick-stats-row {
+    grid-template-columns: 1fr;
+    gap: 0.875rem;
+  }
+
+  .admin-header,
+  .section-header,
+  .filters,
+  .header-actions {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .category-filter,
+  .search-bar,
+  .search-bar input {
+    width: 100%;
+    min-width: unset;
+  }
+
+  .section-header h2,
+  .admin-overview h2,
+  .admin-users h2 {
+    font-size: 1.25rem;
+    line-height: 1.3;
+  }
+
+  .admin-dashboard .card,
+  .stat-card,
+  .analytics-card,
+  .equipment-card,
+  .category-card {
+    margin-bottom: 0.875rem;
+    padding: 0.875rem;
+  }
+
+  .nav-btn {
+    padding: 0.5rem 0.625rem;
+    font-size: 0.75rem;
+    gap: 0.375rem;
+  }
+
+  .nav-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  input,
+  select,
+  textarea {
+    min-height: 44px;
+    font-size: 16px; /* evitar zoom automático en iOS */
+  }
+
+  .exercise-list,
+  .users-table-container {
+    margin-bottom: 1rem;
+  }
+}
+
+/* Pantallas muy pequeñas (iPhone SE y similares) */
+@media (max-width: 375px) {
+  .admin-dashboard {
+    padding: 0.375rem;
+  }
+
+  .nav-btn {
+    padding: 0.5rem;
+    font-size: 0.625rem;
+  }
+}
+
+/* ----- Desktop ancho ----- */
+@media (min-width: 1400px) {
+  .admin-dashboard {
+    max-width: 1600px;
+  }
+}
+
+/* ----- Landscape móvil ----- */
+@media (max-height: 600px) and (orientation: landscape) {
+  .admin-header {
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .admin-nav {
+    margin-bottom: 0.75rem;
+  }
+
+  .modal-content {
+    max-height: 95vh;
+  }
+
+  .exercise-list {
+    max-height: 250px;
+  }
+}
+
+/* ----- Accesibilidad ----- */
+@media (prefers-reduced-motion: reduce) {
+  .admin-dashboard *,
+  .admin-dashboard *::before,
+  .admin-dashboard *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.admin-dashboard button:focus-visible,
+.admin-dashboard a:focus-visible,
+.admin-dashboard input:focus-visible,
+.admin-dashboard select:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Touch feedback en dispositivos táctiles */
+@media (hover: none) and (pointer: coarse) {
+  .admin-dashboard button,
+  .admin-dashboard .btn-icon,
+  .admin-dashboard .btn-icon-mini,
+  .nav-btn {
+    -webkit-tap-highlight-color: rgba(59, 130, 246, 0.1);
+  }
+
+  .btn-icon,
+  .btn-icon-mini {
+    padding: 0.5rem;
+    min-width: 48px;
+    min-height: 48px;
+  }
+
+  .equipment-actions,
+  .exercise-item-actions,
+  .action-buttons {
+    gap: 0.75rem;
+  }
+}
+
+/* ----- Safe area (notch) ----- */
+@supports (padding: env(safe-area-inset-top)) {
+  .admin-dashboard {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  @media (max-width: 480px) {
+    .admin-dashboard {
+      padding-left: max(0.75rem, env(safe-area-inset-left));
+      padding-right: max(0.75rem, env(safe-area-inset-right));
+    }
+  }
+}
+
+/* ----- Impresión ----- */
+@media print {
+  .admin-header button,
+  .admin-nav,
+  .header-actions,
+  .equipment-actions,
+  .exercise-item-actions,
+  .action-buttons {
+    display: none !important;
+  }
+
+  .admin-dashboard {
+    padding: 0;
+    max-width: 100%;
+  }
+
+  .modal-overlay {
+    display: none !important;
+  }
+}

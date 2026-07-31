@@ -149,10 +149,11 @@ const Overview = ({ stats }) => {
             <Users size={24} />
           </div>
           <div className="stat-content">
-            <h3>{stats.users.total}</h3>
+            <h3>{stats.users.total.toLocaleString("es-ES")}</h3>
             <p>Usuarios Totales</p>
             <small>
-              {stats.users.trainers} Trainers • {stats.users.athletes} Atletas
+              {stats.users.trainers} Entrenadores • {stats.users.athletes}{" "}
+              Atletas
             </small>
           </div>
         </Card>

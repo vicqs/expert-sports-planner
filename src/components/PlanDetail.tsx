@@ -17,6 +17,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useMockDatabase } from "../context/MockDatabase";
 import ExerciseSessionView from "./training/ExerciseSessionView";
+import { formatShortDate } from "../utils/dateNav";
 
 // `generatePlan()` (src/utils/generator.ts) y `PlanEditor.tsx` producen días
 // con forma `{ dayName, isGym, session }` (donde `session` es null en días de
@@ -102,6 +103,42 @@ const PlanDetail = ({ plan, client, onBack }) => {
   };
 
   const todayDay = plan[todayCursor.weekIndex]?.days?.[todayCursor.dayIndex];
+
+  // Fecha calendario real que corresponde al día actualmente mostrado en la
+  // pestaña "Hoy", derivada de `client.startDate` + el offset de semana/día
+  // del cursor. Permite mostrar (y editar) un selector de fecha nativo igual
+  // al usado en "Reservar Gimnasio", en vez de solo el nombre del día.
+  const daysPerWeek = plan[0]?.days?.length || 7;
+  const todayCursorDateString = useMemo(() => {
+    if (!client.startDate) return null;
+    const start = new Date(client.startDate);
+    const offset = todayCursor.weekIndex * daysPerWeek + todayCursor.dayIndex;
+    const d = new Date(start);
+    d.setDate(d.getDate() + offset);
+    return d.toISOString().split("T")[0];
+  }, [client.startDate, todayCursor, daysPerWeek]);
+
+  // Convierte una fecha elegida en el selector nativo al par
+  // { weekIndex, dayIndex } correspondiente dentro del plan, para saltar
+  // directamente a ese día (clamp a los límites del plan).
+  const handlePickDate = (dateStr: string) => {
+    if (!client.startDate) return;
+    const start = new Date(client.startDate);
+    const picked = new Date(`${dateStr}T00:00:00`);
+    const diffDays = Math.floor(
+      (picked.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    const clampedOffset = Math.max(0, diffDays);
+    const weekIndex = Math.min(
+      Math.floor(clampedOffset / daysPerWeek),
+      plan.length - 1,
+    );
+    const dayIndex = Math.min(
+      clampedOffset % daysPerWeek,
+      (plan[weekIndex]?.days?.length || 1) - 1,
+    );
+    setTodayCursor({ weekIndex, dayIndex });
+  };
 
   // Helper to get days for the selected week
   const currentWeekDays = plan[selectedWeek]?.days || [];
@@ -311,7 +348,36 @@ const PlanDetail = ({ plan, client, onBack }) => {
               >
                 <ChevronLeft size={20} />
               </button>
-              <span className="today-day-name">{todayDay?.dayName || "—"}</span>
+              <div className="today-nav-center">
+                <span className="today-day-name">
+                  {todayDay?.dayName || "—"}
+                </span>
+                {todayCursorDateString && (
+                  <div className="today-date-picker">
+                    <Calendar size={14} />
+                    <span>{formatShortDate(todayCursorDateString)}</span>
+                    <input
+                      type="date"
+                      value={todayCursorDateString}
+                      onChange={(e) => handlePickDate(e.target.value)}
+                      onClick={(e) => {
+                        const el = e.currentTarget as HTMLInputElement & {
+                          showPicker?: () => void;
+                        };
+                        if (typeof el.showPicker === "function") {
+                          try {
+                            el.showPicker();
+                          } catch {
+                            /* algunos navegadores lanzan si no hay gesto de usuario activo */
+                          }
+                        }
+                      }}
+                      aria-label="Elegir fecha"
+                      title="Elegir fecha"
+                    />
+                  </div>
+                )}
+              </div>
               <button
                 className="today-nav-btn"
                 onClick={() => goToDay(1)}
@@ -1154,6 +1220,42 @@ const PlanDetail = ({ plan, client, onBack }) => {
             font-weight: 700;
             min-width: 140px;
             text-align: center;
+        }
+        .today-nav-center {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.35rem;
+            min-width: 160px;
+        }
+        .today-nav-center .today-day-name {
+            min-width: 0;
+        }
+        .today-date-picker {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.3rem 0.7rem;
+            border-radius: var(--radius-full);
+            border: 1px solid var(--color-border);
+            background: var(--color-surface-subtle);
+            color: var(--color-text-muted);
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .today-date-picker:hover {
+            border-color: var(--color-primary);
+            color: var(--color-text);
+        }
+        .today-date-picker input[type="date"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
         }
         .today-card {
             padding: 1.5rem;

@@ -6,6 +6,7 @@ import {
   logoutUser,
   registerUser,
   updateSubscription,
+  updateUserProfile,
   canAccessFeature,
   checkLimits,
   getTrialDaysRemaining,
@@ -36,6 +37,10 @@ interface AuthState {
   quickAdminLogin: () => Promise<AuthResult>;
   logout: () => void;
   upgradePlan: (newPlan: SubscriptionPlan) => Promise<AuthResult>;
+  updateProfile: (updates: {
+    email?: string | null;
+    phone?: string | null;
+  }) => Promise<AuthResult>;
   syncFromStorage: () => void;
 }
 
@@ -127,6 +132,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const updatedUser = updateSubscription(currentUser.id, newPlan);
+      set({ currentUser: updatedUser });
+      return { success: true, user: updatedUser };
+    } catch (err) {
+      const message = (err as Error).message;
+      set({ error: message });
+      return { success: false, error: message };
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  updateProfile: async (updates) => {
+    const { currentUser } = get();
+    if (!currentUser) {
+      const message = "No hay usuario autenticado";
+      set({ error: message });
+      return { success: false, error: message };
+    }
+
+    set({ loading: true, error: null });
+    try {
+      const updatedUser = updateUserProfile(currentUser.id, updates);
       set({ currentUser: updatedUser });
       return { success: true, user: updatedUser };
     } catch (err) {
