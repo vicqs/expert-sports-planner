@@ -10,7 +10,37 @@ import {
 } from "lucide-react";
 import { ALL_GYM_EXERCISES } from "../utils/constants";
 import { useTrainerLibrary } from "../hooks";
+import { getExerciseMetadata } from "@/utils/exerciseMetadata";
 import "@/styles/trainer-library.css";
+
+/** Small preview shown under the exercise autocomplete, so the trainer can confirm
+ * they picked the right movement (gif + músculos objetivo) before saving the plan. */
+const ExercisePreview = ({ name }) => {
+  const meta = name ? getExerciseMetadata(name) : null;
+  if (!meta || (!meta.gifUrl && !meta.targetMuscles?.length)) return null;
+
+  return (
+    <div className="exercise-preview">
+      {meta.gifUrl && (
+        <img
+          src={meta.gifUrl}
+          alt={name}
+          className="exercise-preview-gif"
+          loading="lazy"
+        />
+      )}
+      {meta.targetMuscles?.length ? (
+        <div className="exercise-preview-tags">
+          {meta.targetMuscles.map((m) => (
+            <span key={m} className="preview-tag">
+              {m}
+            </span>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+};
 
 const GymSessionEditor = ({
   session,
@@ -215,6 +245,7 @@ const GymSessionEditor = ({
                     onClick={() => moveExercise(i, -1)}
                     disabled={i === 0}
                     title="Mover arriba"
+                    aria-label="Mover ejercicio arriba"
                   >
                     <ChevronUp size={16} />
                   </button>
@@ -223,6 +254,7 @@ const GymSessionEditor = ({
                     onClick={() => moveExercise(i, 1)}
                     disabled={i === (localSession.exercises || []).length - 1}
                     title="Mover abajo"
+                    aria-label="Mover ejercicio abajo"
                   >
                     <ChevronDown size={16} />
                   </button>
@@ -277,6 +309,7 @@ const GymSessionEditor = ({
                         ))}
                     </datalist>
                   </div>
+                  <ExercisePreview name={ex.name} />
                 </div>
 
                 <div className="row-group">
@@ -536,9 +569,13 @@ const GymSessionEditor = ({
           color: var(--color-text-muted);
           cursor: pointer;
           padding: 0.25rem;
+          min-width: 36px;
+          min-height: 36px;
           border-radius: var(--radius-sm);
           transition: all 0.2s;
           display: flex;
+          align-items: center;
+          justify-content: center;
         }
         .btn-move:hover:not(:disabled) {
           color: var(--color-primary);
@@ -554,8 +591,13 @@ const GymSessionEditor = ({
           color: var(--color-text-muted);
           cursor: pointer;
           padding: 0.25rem;
+          min-width: 36px;
+          min-height: 36px;
           border-radius: var(--radius-sm);
           transition: all 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
         .btn-remove:hover { 
             color: var(--color-error);
@@ -629,6 +671,8 @@ const GymSessionEditor = ({
           color: var(--color-text-muted);
           cursor: pointer;
           padding: 0.25rem;
+          min-width: 36px;
+          min-height: 36px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -639,6 +683,37 @@ const GymSessionEditor = ({
         .clear-search-btn:hover {
           background: var(--color-bg-subtle);
           color: var(--color-text);
+        }
+
+        .exercise-preview {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+          margin: -0.25rem 0 0.75rem;
+          padding: 0.75rem;
+          border: 1px solid var(--color-border);
+          border-radius: var(--radius-md);
+          background: var(--color-bg-subtle);
+        }
+        .exercise-preview-gif {
+          width: 100%;
+          max-height: 160px;
+          object-fit: contain;
+          border-radius: var(--radius-sm);
+          background: var(--color-surface);
+        }
+        .exercise-preview-tags {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.375rem;
+        }
+        .preview-tag {
+          font-size: 0.7rem;
+          font-weight: 600;
+          padding: 0.2rem 0.5rem;
+          border-radius: var(--radius-full);
+          background: var(--color-primary-bg);
+          color: var(--color-primary);
         }
         
         /* RESPONSIVE DESIGN */

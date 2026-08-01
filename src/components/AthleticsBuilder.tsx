@@ -828,8 +828,8 @@ const AthleticsBuilder = ({ session, unit = "km", onChange }) => {
             background: var(--color-primary);
             color: white;
             border: none;
-            width: 36px;
-            height: 36px;
+            width: var(--touch-target-min, 44px);
+            height: var(--touch-target-min, 44px);
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -893,12 +893,13 @@ const AthleticsBuilder = ({ session, unit = "km", onChange }) => {
             background: var(--color-bg-subtle);
             border: 1px solid var(--color-border);
             border-radius: 4px;
-            padding: 2px 6px;
+            padding: 6px 10px;
             font-family: var(--font-mono);
             font-size: 0.75rem;
             cursor: pointer;
             color: var(--color-text-muted);
-            min-width: 24px;
+            min-width: 36px;
+            min-height: 36px;
         }
         .symbol-bar button:hover {
             background: var(--color-surface);
@@ -1188,13 +1189,13 @@ const AthleticsBuilder = ({ session, unit = "km", onChange }) => {
           }
           
           .btn-add {
-            width: 32px;
-            height: 32px;
+            width: var(--touch-target-min, 44px);
+            height: var(--touch-target-min, 44px);
           }
           
           .btn-add svg {
-            width: 16px;
-            height: 16px;
+            width: 18px;
+            height: 18px;
           }
           
           .segments-list {

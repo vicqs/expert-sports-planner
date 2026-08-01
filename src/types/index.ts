@@ -45,6 +45,20 @@ export interface NotificationPrefs {
   appointmentReminders: boolean;
 }
 
+// Metadata enriquecida de un ejercicio (inspirado en el shape de ExerciseDB).
+// Es un dato ADICIONAL/opcional: nunca reemplaza el nombre plano (string) que
+// sigue siendo la fuente de verdad para GYM_EXERCISES/ALL_GYM_EXERCISES.
+export interface ExerciseMetadata {
+  exerciseId?: string;
+  name?: string;
+  gifUrl?: string;
+  targetMuscles?: string[];
+  bodyParts?: string[];
+  equipments?: string[];
+  secondaryMuscles?: string[];
+  instructions?: string[];
+}
+
 export interface User {
   id: string;
   email: string | null;

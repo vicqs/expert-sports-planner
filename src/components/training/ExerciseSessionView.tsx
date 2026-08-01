@@ -7,8 +7,11 @@ import {
   Check,
   MessageSquarePlus,
   X,
+  Info,
+  ChevronDown,
 } from "lucide-react";
 import { useToast } from "../ui";
+import { getExerciseMetadata } from "@/utils/exerciseMetadata";
 
 /**
  * ExerciseSessionView — the "core" screen the athlete looks at mid-workout.
@@ -156,6 +159,18 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
   const totalSets = Number(exercise.sets) || 0;
   const doneCount = completedSets.size;
   const allDone = totalSets > 0 && doneCount >= totalSets;
+  const [infoOpen, setInfoOpen] = useState(false);
+  const info = React.useMemo(
+    () => getExerciseMetadata(exercise.name),
+    [exercise.name],
+  );
+  const hasInfo = Boolean(
+    info &&
+    (info.gifUrl ||
+      info.instructions?.length ||
+      info.targetMuscles?.length ||
+      info.equipments?.length),
+  );
 
   return (
     <motion.div
@@ -177,7 +192,64 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
         </button>
       </div>
 
-      <h3 className="exercise-name">{exercise.name}</h3>
+      {hasInfo ? (
+        <button
+          type="button"
+          className="exercise-name-btn"
+          onClick={() => setInfoOpen((v) => !v)}
+          aria-expanded={infoOpen}
+        >
+          <h3 className="exercise-name">{exercise.name}</h3>
+          <span className="exercise-info-hint">
+            <Info size={14} />
+            <ChevronDown size={16} className={infoOpen ? "rotated" : ""} />
+          </span>
+        </button>
+      ) : (
+        <h3 className="exercise-name">{exercise.name}</h3>
+      )}
+
+      <AnimatePresence initial={false}>
+        {hasInfo && infoOpen && (
+          <motion.div
+            className="exercise-info-panel"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+          >
+            {info?.gifUrl && (
+              <img
+                src={info.gifUrl}
+                alt={exercise.name}
+                className="exercise-info-gif"
+                loading="lazy"
+              />
+            )}
+            {(info?.targetMuscles?.length || info?.equipments?.length) && (
+              <div className="exercise-info-tags">
+                {info?.targetMuscles?.map((m) => (
+                  <span key={m} className="info-tag primary">
+                    {m}
+                  </span>
+                ))}
+                {info?.equipments?.map((eq) => (
+                  <span key={eq} className="info-tag">
+                    {eq}
+                  </span>
+                ))}
+              </div>
+            )}
+            {info?.instructions?.length ? (
+              <ol className="exercise-info-steps">
+                {info.instructions.map((step, idx) => (
+                  <li key={idx}>{step}</li>
+                ))}
+              </ol>
+            ) : null}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="sets-list">
         {Array.from({ length: totalSets }).map((_, i) => (
@@ -426,7 +498,81 @@ const ExerciseSessionView: React.FC<ExerciseSessionViewProps> = ({
           font-size: var(--text-lg);
           font-weight: 700;
           color: var(--color-text-primary);
-          margin: 0 0 var(--space-3) 0;
+          margin: 0;
+        }
+
+        /* ---- Expandable exercise info (gif / músculos / instrucciones) ---- */
+        .exercise-name-btn {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: var(--space-2);
+          width: 100%;
+          min-height: var(--touch-target-comfortable);
+          padding: var(--space-1) 0;
+          background: none;
+          border: none;
+          text-align: left;
+          margin-bottom: var(--space-2);
+        }
+        .exercise-name-btn:active { transform: scale(0.99); }
+        .exercise-info-hint {
+          display: inline-flex;
+          align-items: center;
+          gap: var(--space-1);
+          flex-shrink: 0;
+          width: var(--touch-target-min);
+          height: var(--touch-target-min);
+          justify-content: center;
+          border-radius: var(--radius-full);
+          background: var(--color-primary-bg);
+          color: var(--color-primary);
+        }
+        .exercise-info-hint svg.rotated { transform: rotate(180deg); }
+        .exercise-info-hint svg { transition: transform 0.2s ease; }
+
+        .exercise-info-panel {
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-3);
+          margin-bottom: var(--space-3);
+        }
+        .exercise-info-gif {
+          width: 100%;
+          max-height: 220px;
+          object-fit: contain;
+          border-radius: var(--radius-md);
+          background: var(--color-bg-subtle);
+        }
+        .exercise-info-tags {
+          display: flex;
+          flex-wrap: wrap;
+          gap: var(--space-2);
+        }
+        .info-tag {
+          font-size: var(--text-xs);
+          font-weight: 600;
+          padding: var(--space-1) var(--space-2);
+          border-radius: var(--radius-full);
+          background: var(--color-bg-subtle);
+          color: var(--color-text-secondary);
+          border: 1px solid var(--color-border-subtle);
+        }
+        .info-tag.primary {
+          background: var(--color-primary-bg);
+          color: var(--color-primary);
+          border-color: transparent;
+        }
+        .exercise-info-steps {
+          margin: 0;
+          padding-left: 1.25rem;
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-2);
+          font-size: var(--text-sm);
+          color: var(--color-text-secondary);
+          line-height: 1.5;
         }
 
         /* ---- Set rows ---- */

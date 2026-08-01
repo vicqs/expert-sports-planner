@@ -484,6 +484,78 @@ export const ALL_GYM_EXERCISES = [
   ...GYM_EXERCISES.CORE,
 ].sort();
 
+// Metadata enriquecida (opcional) para ejercicios del SISTEMA, keyeada por el
+// nombre exacto tal como aparece en GYM_EXERCISES. No es obligatorio que un
+// ejercicio tenga entrada aquí — si no la tiene, la UI simplemente lo muestra
+// como nombre plano (comportamiento original, sin romper nada existente).
+// Se agregan solo algunos ejemplos reales por categoría; el resto se puede
+// enriquecer desde el panel Admin > Ejercicios (mismo shape, persistido en
+// crm_custom_exercise_meta) sin tocar este archivo.
+export const EXERCISE_METADATA: Record<
+  string,
+  {
+    exerciseId?: string;
+    gifUrl?: string;
+    targetMuscles?: string[];
+    bodyParts?: string[];
+    equipments?: string[];
+    secondaryMuscles?: string[];
+    instructions?: string[];
+  }
+> = {
+  "BANCO PLANO CON BARRA": {
+    exerciseId: "EIeI8Vf",
+    gifUrl: "https://static.exercisedb.dev/media/EIeI8Vf.gif",
+    targetMuscles: ["pectorals"],
+    bodyParts: ["chest"],
+    equipments: ["barbell"],
+    secondaryMuscles: ["triceps", "shoulders"],
+    instructions: [
+      "Paso 1: Acuéstate boca arriba en el banco con los pies apoyados en el suelo.",
+      "Paso 2: Sujeta la barra con agarre pronado, un poco más ancho que los hombros.",
+      "Paso 3: Levanta la barra del rack y colócala sobre el pecho con los brazos extendidos.",
+      "Paso 4: Baja la barra lentamente hasta que toque el pecho.",
+      "Paso 5: Haz una breve pausa al tocar el pecho.",
+      "Paso 6: Empuja la barra de vuelta a la posición inicial.",
+      "Paso 7: Repite el número de repeticiones deseado.",
+    ],
+  },
+  "SENTADILLA COMPLETA (MNC)": {
+    targetMuscles: ["quadriceps"],
+    bodyParts: ["upper legs"],
+    equipments: ["barbell"],
+    secondaryMuscles: ["glutes", "hamstrings", "calves"],
+    instructions: [
+      "Paso 1: Coloca la barra sobre los trapecios, pies al ancho de hombros.",
+      "Paso 2: Baja las caderas flexionando rodillas y cadera manteniendo la espalda neutra.",
+      "Paso 3: Desciende hasta que los muslos queden paralelos al suelo o más abajo.",
+      "Paso 4: Empuja el suelo con los pies para volver a la posición inicial.",
+    ],
+  },
+  DOMINADAS: {
+    targetMuscles: ["lats"],
+    bodyParts: ["back"],
+    equipments: ["body weight"],
+    secondaryMuscles: ["biceps", "forearms"],
+    instructions: [
+      "Paso 1: Cuelga de la barra con agarre pronado, manos al ancho de hombros.",
+      "Paso 2: Tira de tu cuerpo hacia arriba hasta que la barbilla supere la barra.",
+      "Paso 3: Baja controladamente hasta la extensión completa de brazos.",
+    ],
+  },
+  "PLANCHA FRONTAL": {
+    targetMuscles: ["abs"],
+    bodyParts: ["waist"],
+    equipments: ["body weight"],
+    secondaryMuscles: ["shoulders", "glutes"],
+    instructions: [
+      "Paso 1: Apóyate sobre antebrazos y puntas de pies, cuerpo en línea recta.",
+      "Paso 2: Contrae el abdomen y los glúteos, evitando que la cadera caiga.",
+      "Paso 3: Mantén la posición el tiempo indicado respirando de forma constante.",
+    ],
+  },
+};
+
 export const GYM_PROGRESSION = {
   // Placeholder if needed, or remove import in GymSessionEditor if not used
   DEFAULT: "Linear",

@@ -216,8 +216,8 @@
   border: none;
   cursor: pointer;
   padding: 0.5rem;
-  min-width: var(--touch-target-min, 40px);
-  min-height: var(--touch-target-min, 40px);
+  min-width: var(--touch-target-min, 44px);
+  min-height: var(--touch-target-min, 44px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -250,8 +250,8 @@
   border: none;
   cursor: pointer;
   padding: 0.5rem;
-  min-width: 36px;
-  min-height: 36px;
+  min-width: var(--touch-target-min, 44px);
+  min-height: var(--touch-target-min, 44px);
   display: flex;
   align-items: center;
   justify-content: center;

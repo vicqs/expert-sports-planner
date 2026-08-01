@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { GYM_EXERCISES } from "@/utils/constants";
+import type { ExerciseMetadata } from "@/types";
 
 /**
  * Hook para gestionar ejercicios personalizados y modificaciones del sistema
@@ -7,6 +8,7 @@ import { GYM_EXERCISES } from "@/utils/constants";
  * Estructura:
  * - customExercises: { "LOWER": ["Ejercicio1"], ... }
  * - hiddenExercises: { "LOWER": ["EjercicioOculto"], ... }
+ * - customExerciseMeta: { "Ejercicio1": { gifUrl, targetMuscles, ... } } (opcional, por nombre)
  */
 export const useCustomExercises = () => {
   const [customExercises, setCustomExercises] = useState(() => {
@@ -16,6 +18,13 @@ export const useCustomExercises = () => {
 
   const [hiddenExercises, setHiddenExercises] = useState(() => {
     const stored = localStorage.getItem("crm_hidden_exercises");
+    return stored ? JSON.parse(stored) : {};
+  });
+
+  const [customExerciseMeta, setCustomExerciseMeta] = useState<
+    Record<string, ExerciseMetadata>
+  >(() => {
+    const stored = localStorage.getItem("crm_custom_exercise_meta");
     return stored ? JSON.parse(stored) : {};
   });
 
@@ -34,14 +43,24 @@ export const useCustomExercises = () => {
     );
   }, [hiddenExercises]);
 
-  const addExercise = ({ category, name }) => {
+  useEffect(() => {
+    localStorage.setItem(
+      "crm_custom_exercise_meta",
+      JSON.stringify(customExerciseMeta),
+    );
+  }, [customExerciseMeta]);
+
+  const addExercise = ({ category, name, metadata = null }) => {
     setCustomExercises((prev) => ({
       ...prev,
       [category]: [...(prev[category] || []), name],
     }));
+    if (metadata && Object.keys(metadata).length > 0) {
+      setCustomExerciseMeta((prev) => ({ ...prev, [name]: metadata }));
+    }
   };
 
-  const updateExercise = (oldExercise, { category, name }) => {
+  const updateExercise = (oldExercise, { category, name, metadata = null }) => {
     const { category: oldCategory, name: oldName } = oldExercise;
 
     // Verificar si es un ejercicio del sistema
@@ -73,6 +92,17 @@ export const useCustomExercises = () => {
 
       return updated;
     });
+
+    setCustomExerciseMeta((prev) => {
+      const updated = { ...prev };
+      if (oldName !== name) delete updated[oldName];
+      if (metadata && Object.keys(metadata).length > 0) {
+        updated[name] = metadata;
+      } else {
+        delete updated[name];
+      }
+      return updated;
+    });
   };
 
   const deleteExercise = (category, exerciseName) => {
@@ -100,11 +130,19 @@ export const useCustomExercises = () => {
         return updated;
       });
     }
+
+    setCustomExerciseMeta((prev) => {
+      if (!prev[exerciseName]) return prev;
+      const updated = { ...prev };
+      delete updated[exerciseName];
+      return updated;
+    });
   };
 
   return {
     customExercises,
     hiddenExercises,
+    customExerciseMeta,
     addExercise,
     updateExercise,
     deleteExercise,

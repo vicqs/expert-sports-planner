@@ -392,7 +392,9 @@ const TrainerSearch = ({ onCancel }) => {
           border: none;
           cursor: pointer;
           color: var(--color-text-muted);
-          padding: 0.25rem;
+          padding: 0.5rem;
+          min-width: var(--touch-target-min, 44px);
+          min-height: var(--touch-target-min, 44px);
           display: flex;
           align-items: center;
           justify-content: center;

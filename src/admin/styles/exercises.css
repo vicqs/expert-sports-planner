@@ -77,7 +77,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.25rem;
+  padding: 0.5rem;
+  min-width: var(--touch-target-min, 44px);
+  min-height: var(--touch-target-min, 44px);
   border-radius: 4px;
   color: var(--color-text-muted);
   flex-shrink: 0;
@@ -226,14 +228,18 @@
 }
 
 .exercise-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
+  display: block;
   padding: 0.75rem;
   border-radius: 8px;
   transition: all 0.2s;
   margin-bottom: 0.5rem;
   position: relative;
+}
+
+.exercise-item-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .exercise-item:hover {
@@ -258,9 +264,61 @@
   );
 }
 
-.exercise-item svg:first-child {
+.exercise-item-row > svg:first-child {
   color: var(--color-text-muted);
   flex-shrink: 0;
+}
+
+.exercise-thumb {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--color-surface-hover);
+}
+
+.exercise-item-detail {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--color-border);
+}
+
+.exercise-meta-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.meta-tag {
+  font-size: 0.7rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 10px;
+  background: var(--color-surface-hover);
+  color: var(--color-text-muted);
+  text-transform: capitalize;
+}
+
+.meta-tag.primary {
+  background: color-mix(in srgb, var(--color-primary) 18%, transparent);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.exercise-instructions {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.rotated {
+  transform: rotate(180deg);
+  transition: transform 0.2s;
 }
 
 .exercise-name {

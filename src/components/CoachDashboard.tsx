@@ -2138,8 +2138,8 @@ const CoachDashboard = ({
           position: absolute;
           top: var(--space-2);
           right: var(--space-2);
-          width: 28px;
-          height: 28px;
+          width: var(--touch-target-min, 44px);
+          height: var(--touch-target-min, 44px);
           border-radius: var(--radius-full, 999px);
           border: none;
           background: transparent;

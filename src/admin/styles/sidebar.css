@@ -8,8 +8,8 @@
   top: 1rem;
   left: 1rem;
   z-index: 1001;
-  width: 40px;
-  height: 40px;
+  width: var(--touch-target-min, 44px);
+  height: var(--touch-target-min, 44px);
   padding: 0;
   background: var(--color-bg);
   border: 1px solid var(--color-border);
@@ -124,8 +124,8 @@
 }
 
 .sidebar-close {
-  width: 32px;
-  height: 32px;
+  width: var(--touch-target-min, 44px);
+  height: var(--touch-target-min, 44px);
   padding: 0;
   background: transparent;
   border: none;
@@ -289,11 +289,6 @@
   .admin-sidebar {
     width: 95%;
     max-width: 95vw;
-  }
-
-  .sidebar-toggle {
-    width: 36px;
-    height: 36px;
   }
 
   .hamburger-icon {

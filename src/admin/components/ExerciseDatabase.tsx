@@ -1,16 +1,37 @@
 import React, { useState } from "react";
 import { Card, Button, ConfirmDialog } from "@/components/ui";
-import { Activity, PlusCircle, Edit, Trash2, Search, X } from "lucide-react";
-import { GYM_EXERCISES } from "@/utils/constants";
+import {
+  Activity,
+  PlusCircle,
+  Edit,
+  Trash2,
+  Search,
+  X,
+  ChevronDown,
+} from "lucide-react";
+import { GYM_EXERCISES, EXERCISE_METADATA } from "@/utils/constants";
 import { useCustomExercises } from "@/admin/hooks";
 import ExerciseModal from "@/admin/components/modals/ExerciseModal";
 import { useToast } from "@/components/ui";
 import "@/admin/styles/exercises.css";
 
+const csvToArray = (value: string) =>
+  value
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+const linesToArray = (value: string) =>
+  value
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
 const ExerciseDatabase = () => {
   const {
     customExercises,
     hiddenExercises,
+    customExerciseMeta,
     addExercise,
     updateExercise,
     deleteExercise,
@@ -20,6 +41,7 @@ const ExerciseDatabase = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingExercise, setEditingExercise] = useState<any>(null);
+  const [expandedExercise, setExpandedExercise] = useState<string | null>(null);
   const [exerciseToDelete, setExerciseToDelete] = useState<{
     category: string;
     name: string;
@@ -27,7 +49,17 @@ const ExerciseDatabase = () => {
   const [formData, setFormData] = useState({
     name: "",
     category: "LOWER",
+    gifUrl: "",
+    bodyParts: "",
+    targetMuscles: "",
+    secondaryMuscles: "",
+    equipments: "",
+    instructions: "",
   });
+
+  // Metadata enriquecida: ejercicios del sistema + personalizados, keyeada por nombre
+  const getMetadata = (name: string) =>
+    customExerciseMeta[name] || EXERCISE_METADATA[name] || null;
 
   // Merge GYM_EXERCISES con customExercises y filtrar los ocultos
   const allExercises = {};
@@ -74,16 +106,29 @@ const ExerciseDatabase = () => {
     exerciseName: string | null = null,
   ) => {
     if (category && exerciseName) {
+      const meta = getMetadata(exerciseName);
       setEditingExercise({ category, name: exerciseName });
       setFormData({
         name: exerciseName,
         category: category,
+        gifUrl: meta?.gifUrl || "",
+        bodyParts: (meta?.bodyParts || []).join(", "),
+        targetMuscles: (meta?.targetMuscles || []).join(", "),
+        secondaryMuscles: (meta?.secondaryMuscles || []).join(", "),
+        equipments: (meta?.equipments || []).join(", "),
+        instructions: (meta?.instructions || []).join("\n"),
       });
     } else {
       setEditingExercise(null);
       setFormData({
         name: "",
         category: "LOWER",
+        gifUrl: "",
+        bodyParts: "",
+        targetMuscles: "",
+        secondaryMuscles: "",
+        equipments: "",
+        instructions: "",
       });
     }
     setShowModal(true);
@@ -95,6 +140,12 @@ const ExerciseDatabase = () => {
     setFormData({
       name: "",
       category: "LOWER",
+      gifUrl: "",
+      bodyParts: "",
+      targetMuscles: "",
+      secondaryMuscles: "",
+      equipments: "",
+      instructions: "",
     });
   };
 
@@ -108,15 +159,36 @@ const ExerciseDatabase = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const { category, name } = formData;
+    const {
+      category,
+      name,
+      gifUrl,
+      bodyParts,
+      targetMuscles,
+      secondaryMuscles,
+      equipments,
+      instructions,
+    } = formData;
+    const metadata = {
+      ...(gifUrl.trim() && { gifUrl: gifUrl.trim() }),
+      ...(bodyParts.trim() && { bodyParts: csvToArray(bodyParts) }),
+      ...(targetMuscles.trim() && { targetMuscles: csvToArray(targetMuscles) }),
+      ...(secondaryMuscles.trim() && {
+        secondaryMuscles: csvToArray(secondaryMuscles),
+      }),
+      ...(equipments.trim() && { equipments: csvToArray(equipments) }),
+      ...(instructions.trim() && {
+        instructions: linesToArray(instructions),
+      }),
+    };
 
     if (editingExercise) {
       // Editar ejercicio existente
-      updateExercise(editingExercise, { category, name });
+      updateExercise(editingExercise, { category, name, metadata });
       addToast("Ejercicio actualizado correctamente", "success");
     } else {
       // Agregar nuevo ejercicio
-      addExercise({ category, name });
+      addExercise({ category, name, metadata });
       addToast("Ejercicio agregado correctamente", "success");
     }
     closeModal();
@@ -204,34 +276,103 @@ const ExerciseDatabase = () => {
             <div className="exercise-list">
               {visibleExercises[category].map((exercise, idx) => {
                 const isCustom = customExercises[category]?.includes(exercise);
+                const meta = getMetadata(exercise);
+                const isExpanded = expandedExercise === exercise;
                 return (
                   <div
                     key={idx}
-                    className={`exercise-item ${isCustom ? "custom" : ""}`}
+                    className={`exercise-item ${isCustom ? "custom" : ""} ${meta ? "has-meta" : ""}`}
                   >
-                    <Activity size={16} />
-                    <span className="exercise-name">{exercise}</span>
-                    {isCustom && (
-                      <span className="custom-badge">Personalizado</span>
-                    )}
-                    <div className="exercise-item-actions">
-                      <button
-                        className="btn-icon-mini tap-ripple"
-                        onClick={() => openModal(category, exercise)}
-                        title="Editar"
-                        aria-label="Editar ejercicio"
-                      >
-                        <Edit size={20} />
-                      </button>
-                      <button
-                        className="btn-icon-mini danger tap-ripple"
-                        onClick={() => handleDelete(category, exercise)}
-                        title="Eliminar"
-                        aria-label="Eliminar ejercicio"
-                      >
-                        <Trash2 size={20} />
-                      </button>
+                    <div className="exercise-item-row">
+                      {meta?.gifUrl ? (
+                        <img
+                          src={meta.gifUrl}
+                          alt={exercise}
+                          className="exercise-thumb"
+                        />
+                      ) : (
+                        <Activity size={16} />
+                      )}
+                      <span className="exercise-name">{exercise}</span>
+                      {isCustom && (
+                        <span className="custom-badge">Personalizado</span>
+                      )}
+                      {meta && (
+                        <button
+                          type="button"
+                          className="btn-icon-mini tap-ripple"
+                          onClick={() =>
+                            setExpandedExercise(isExpanded ? null : exercise)
+                          }
+                          title="Ver detalle"
+                          aria-label="Ver detalle del ejercicio"
+                        >
+                          <ChevronDown
+                            size={18}
+                            className={isExpanded ? "rotated" : ""}
+                          />
+                        </button>
+                      )}
+                      <div className="exercise-item-actions">
+                        <button
+                          className="btn-icon-mini tap-ripple"
+                          onClick={() => openModal(category, exercise)}
+                          title="Editar"
+                          aria-label="Editar ejercicio"
+                        >
+                          <Edit size={20} />
+                        </button>
+                        <button
+                          className="btn-icon-mini danger tap-ripple"
+                          onClick={() => handleDelete(category, exercise)}
+                          title="Eliminar"
+                          aria-label="Eliminar ejercicio"
+                        >
+                          <Trash2 size={20} />
+                        </button>
+                      </div>
                     </div>
+                    {isExpanded && meta && (
+                      <div className="exercise-item-detail">
+                        {(meta.targetMuscles?.length ||
+                          meta.secondaryMuscles?.length ||
+                          meta.bodyParts?.length ||
+                          meta.equipments?.length) && (
+                          <div className="exercise-meta-tags">
+                            {meta.bodyParts?.map((v) => (
+                              <span key={`bp-${v}`} className="meta-tag">
+                                {v}
+                              </span>
+                            ))}
+                            {meta.targetMuscles?.map((v) => (
+                              <span
+                                key={`tm-${v}`}
+                                className="meta-tag primary"
+                              >
+                                {v}
+                              </span>
+                            ))}
+                            {meta.secondaryMuscles?.map((v) => (
+                              <span key={`sm-${v}`} className="meta-tag">
+                                {v}
+                              </span>
+                            ))}
+                            {meta.equipments?.map((v) => (
+                              <span key={`eq-${v}`} className="meta-tag">
+                                {v}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {meta.instructions?.length > 0 && (
+                          <ol className="exercise-instructions">
+                            {meta.instructions.map((step, i) => (
+                              <li key={i}>{step}</li>
+                            ))}
+                          </ol>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
