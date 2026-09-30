@@ -1,585 +1,264 @@
-# Guía de Contribución
+# Guía de Contribución — Expert Sports Planner
 
-¡Gracias por tu interés en contribuir a Expert Sports Planner! Esta guía te ayudará a comenzar.
+Este documento estandariza el desarrollo, el versionado y la revisión de código del proyecto. Es de cumplimiento obligatorio para todo cambio que llegue a `main`.
 
----
+## Índice
 
-## 📋 Tabla de Contenidos
-
-1. [Code of Conduct](#code-of-conduct)
-2. [Cómo Contribuir](#cómo-contribuir)
-3. [Configuración del Entorno](#configuración-del-entorno)
-4. [Estándares de Código](#estándares-de-código)
-5. [Proceso de Pull Request](#proceso-de-pull-request)
-6. [Reportar Bugs](#reportar-bugs)
-7. [Sugerir Features](#sugerir-features)
-
----
-
-## 🤝 Code of Conduct
-
-### Nuestro Compromiso
-
-Nos comprometemos a hacer de este proyecto una experiencia libre de acoso para todos, independientemente de:
-
-- Experiencia técnica
-- Identidad de género
-- Orientación sexual
-- Discapacidad
-- Apariencia física
-- Etnia
-- Edad
-- Religión
-
-### Comportamiento Esperado
-
-✅ **SI:**
-
-- Usar lenguaje acogedor e inclusivo
-- Respetar puntos de vista diferentes
-- Aceptar críticas constructivas
-- Enfocarse en lo mejor para la comunidad
-- Mostrar empatía hacia otros miembros
-
-❌ **NO:**
-
-- Usar lenguaje o imágenes sexualizadas
-- Comentarios despectivos o ataques personales
-- Acoso público o privado
-- Publicar información privada sin permiso
-- Conducta no profesional
+1. [Requisitos del entorno](#1-requisitos-del-entorno)
+2. [Convenciones de ramas](#2-convenciones-de-ramas)
+3. [Convenciones de commits](#3-convenciones-de-commits)
+4. [Flujo de trabajo (GitHub Flow)](#4-flujo-de-trabajo-github-flow)
+5. [Estándares de código](#5-estándares-de-código)
+6. [Proceso de revisión de Pull Requests](#6-proceso-de-revisión-de-pull-requests)
+7. [Releases y hotfixes](#7-releases-y-hotfixes)
+8. [Seguridad](#8-seguridad)
 
 ---
 
-## 🚀 Cómo Contribuir
+## 1. Requisitos del entorno
 
-### Tipos de Contribuciones
+- Node.js **24.x** (campo `engines` de `package.json`) y npm.
+- Copiar `.env.example` a `.env.local` y completar los valores (nunca versionarlo).
+- Instalar dependencias con `npm install`.
 
-1. **🐛 Reportar Bugs**
-   - Usando el issue tracker
-   - Con reproducción clara del problema
+Scripts disponibles:
 
-2. **💡 Sugerir Features**
-   - Propuestas bien documentadas
-   - Casos de uso claros
-
-3. **📝 Mejorar Documentación**
-   - Corregir typos
-   - Añadir ejemplos
-   - Traducir contenido
-
-4. **💻 Código**
-   - Nuevas features
-   - Corrección de bugs
-   - Refactorización
-   - Tests
-
-5. **🎨 Diseño**
-   - UI/UX improvements
-   - Iconos y assets
-   - Temas y estilos
+| Script                                    | Uso                             |
+| ----------------------------------------- | ------------------------------- |
+| `npm run dev`                             | Servidor de desarrollo (Vite)   |
+| `npm run lint`                            | ESLint sobre todo el proyecto   |
+| `npm run format` / `npm run format:check` | Prettier (escribir / verificar) |
+| `npm run test` / `npm run test:watch`     | Vitest                          |
+| `npm run build`                           | Build de producción             |
 
 ---
 
-## ⚙️ Configuración del Entorno
+## 2. Convenciones de ramas
 
-### Prerequisites
+`main` es la rama estable y desplegable (Vercel). **Está prohibido hacer push directo a `main`**; todo cambio entra mediante Pull Request.
 
-- Node.js >= 18.0.0
-- npm >= 9.0.0 o pnpm >= 8.0.0
-- Git
+Formato: `<tipo>/<descripcion-corta-en-kebab-case>`, opcionalmente con el identificador del issue: `<tipo>/<issue>-<descripcion>`.
 
-### Instalación
+| Prefijo     | Uso                                        | Ejemplo                           |
+| ----------- | ------------------------------------------ | --------------------------------- |
+| `feature/`  | Nueva funcionalidad                        | `feature/avatar-selector`         |
+| `bugfix/`   | Corrección de un defecto no urgente        | `bugfix/123-toast-overlap-mobile` |
+| `hotfix/`   | Corrección urgente en producción           | `hotfix/login-hash-validation`    |
+| `refactor/` | Reestructuración sin cambio funcional      | `refactor/split-athlete-tabs`     |
+| `chore/`    | Mantenimiento, dependencias, configuración | `chore/update-vite`               |
+| `docs/`     | Solo documentación                         | `docs/business-logic`             |
+| `test/`     | Añadir o corregir pruebas                  | `test/auth-password-change`       |
+| `release/`  | Preparación de una versión (opcional)      | `release/1.2.0`                   |
 
-```bash
-# 1. Fork el repositorio en GitHub
+Reglas:
 
-# 2. Clonar tu fork
-git clone https://github.com/TU_USUARIO/expert-sports-planner.git
-cd expert-sports-planner
+- Solo minúsculas, dígitos y guiones; sin espacios, tildes ni guiones bajos.
+- Máximo 50 caracteres; la descripción debe indicar el qué, no el quién.
+- Una rama = un propósito. Ramas de larga duración (> 1 semana) deben sincronizarse con `main` a diario.
+- Eliminar la rama tras el merge.
 
-# 3. Añadir upstream remote
-git remote add upstream https://github.com/ORIGINAL/expert-sports-planner.git
+---
 
-# 4. Instalar dependencias
-npm install
+## 3. Convenciones de commits
 
-# 5. Copiar archivo de variables de entorno (si existe)
-cp .env.example .env
+Se utiliza [Conventional Commits 1.0](https://www.conventionalcommits.org/):
 
-# 6. Iniciar servidor de desarrollo
-npm run dev
+```
+<tipo>(<ámbito opcional>): <descripción>
+
+[cuerpo opcional]
+
+[pie opcional: BREAKING CHANGE / Closes #id]
 ```
 
-### Verificar Instalación
+| Tipo       | Uso                                               |
+| ---------- | ------------------------------------------------- |
+| `feat`     | Nueva funcionalidad (incrementa MINOR)            |
+| `fix`      | Corrección de errores (incrementa PATCH)          |
+| `docs`     | Documentación                                     |
+| `style`    | Formato sin cambio de lógica (Prettier, espacios) |
+| `refactor` | Cambio de código sin nuevas features ni fixes     |
+| `perf`     | Mejora de rendimiento                             |
+| `test`     | Pruebas                                           |
+| `build`    | Sistema de build o dependencias (Vite, npm)       |
+| `ci`       | Integración continua / despliegue                 |
+| `chore`    | Tareas de mantenimiento varias                    |
+| `revert`   | Reversión de un commit previo                     |
 
-```bash
-# Ejecutar linter
-npm run lint
+Ámbitos sugeridos: `auth`, `admin`, `athlete`, `coach`, `plan`, `appointments`, `gym`, `ui`, `store`, `styles`, `deps`.
 
-# Ejecutar tests (cuando estén implementados)
-npm test
+Reglas:
 
-# Build para producción
-npm run build
+- Descripción en **imperativo**, en minúscula, sin punto final, máximo 72 caracteres.
+- Idioma: español o inglés, pero consistente dentro del mismo PR.
+- Cambios incompatibles: añadir `!` tras el tipo (`feat(auth)!: ...`) y un pie `BREAKING CHANGE:`.
+- Referenciar issues en el pie: `Closes #42`.
+- Commits atómicos: cada commit debe compilar y pasar lint/tests.
+
+Ejemplos:
+
+```
+feat(athlete): add predefined avatar selector
+fix(auth): reject password change when current password is invalid
+refactor(ui): extract ConfirmDialog from AthleteTabs
+chore(deps): bump vitest to 4.1
+docs: add UI/UX guidelines
+feat(coach)!: require trainer approval before linking athletes
+
+BREAKING CHANGE: athletes can no longer self-link without an accepted request.
 ```
 
 ---
 
-## 📏 Estándares de Código
+## 4. Flujo de trabajo (GitHub Flow)
 
-### Estilo de Código
+Se adopta **GitHub Flow** (simple, con despliegue continuo desde `main`) en lugar de Git Flow, dado el tamaño del equipo y el despliegue continuo en Vercel.
 
-Usamos **ESLint** y **Prettier** para mantener consistencia.
-
-```bash
-# Verificar estilo
-npm run lint
-
-# Auto-fix problemas
-npm run lint:fix
-
-# Formatear con Prettier
-npm run format
+```mermaid
+gitGraph
+    commit id: "main"
+    branch feature/avatar-selector
+    commit id: "feat: ..."
+    commit id: "test: ..."
+    checkout main
+    merge feature/avatar-selector id: "PR + squash"
+    branch hotfix/login
+    commit id: "fix: ..."
+    checkout main
+    merge hotfix/login id: "PR urgente"
 ```
 
-### Convenciones de Nombres
+Pasos:
 
-#### Componentes
-
-```jsx
-// PascalCase para componentes
-const UserProfile = () => {};
-const PlanEditor = () => {};
-```
-
-#### Funciones y Variables
-
-```javascript
-// camelCase para funciones y variables
-const getUserById = (id) => {};
-const isActive = true;
-```
-
-#### Constantes
-
-```javascript
-// UPPER_SNAKE_CASE para constantes
-const API_BASE_URL = "https://api.example.com";
-const MAX_RETRIES = 3;
-```
-
-#### Archivos
-
-```
-ComponentName.jsx  // Componentes
-utilityName.js     // Utilities
-feature-name.css   // Estilos
-```
-
-### Estructura de Componentes
-
-```jsx
-import React, { useState, useEffect } from "react";
-import PropTypes from "prop-types";
-
-// Importar dependencias externas primero
-import { motion } from "framer-motion";
-
-// Luego dependencias internas
-import { Button, Card } from "./ui";
-import { useAuth } from "../hooks/useAuth";
-
-// Por último, estilos
-import "./ComponentName.css";
-
-/**
- * Descripción del componente
- * @param {Object} props - Props del componente
- */
-const ComponentName = ({ prop1, prop2, ...rest }) => {
-  // 1. Hooks
-  const [state, setState] = useState(initialValue);
-  const customHook = useCustomHook();
-
-  // 2. Efectos
-  useEffect(() => {
-    // Effect logic
-  }, [dependencies]);
-
-  // 3. Handlers
-  const handleClick = () => {
-    // Handler logic
-  };
-
-  // 4. Render helpers
-  const renderItem = (item) => {
-    return <div>{item.name}</div>;
-  };
-
-  // 5. Early returns
-  if (!prop1) return null;
-
-  // 6. Main render
-  return <div className="component-name">{/* JSX */}</div>;
-};
-
-// PropTypes
-ComponentName.propTypes = {
-  prop1: PropTypes.string.isRequired,
-  prop2: PropTypes.number,
-};
-
-// Default props
-ComponentName.defaultProps = {
-  prop2: 0,
-};
-
-export default ComponentName;
-```
-
-### Estructura de Commits
-
-Usamos **Conventional Commits**:
-
-```
-<type>(<scope>): <subject>
-
-<body>
-
-<footer>
-```
-
-**Types:**
-
-- `feat`: Nueva feature
-- `fix`: Bug fix
-- `docs`: Cambios en documentación
-- `style`: Formato, sin cambios en lógica
-- `refactor`: Refactorización de código
-- `test`: Añadir o modificar tests
-- `chore`: Tareas de mantenimiento
-
-**Ejemplos:**
-
-```bash
-feat(plan-editor): add drag and drop for exercises
-
-fix(auth): correct token expiration validation
-
-docs(readme): update installation instructions
-
-refactor(utils): extract storage logic to separate file
-
-test(generator): add unit tests for plan generation
-
-chore(deps): update dependencies to latest versions
-```
+1. Sincronizar: `git checkout main && git pull`.
+2. Crear rama desde `main` con la convención de la sección 2.
+3. Desarrollar con commits pequeños y convencionales.
+4. Antes de subir, ejecutar localmente:
+   ```bash
+   npm run format
+   npm run lint
+   npm run test
+   npm run build
+   ```
+5. Subir la rama y abrir un Pull Request hacia `main` (usar _Draft_ si aún no está listo).
+6. Atender la revisión; mantener la rama actualizada con `main` (`git rebase main` o merge).
+7. Merge con **Squash and merge** (el título del squash debe seguir Conventional Commits).
+8. Verificar el despliegue de preview/producción y eliminar la rama.
 
 ---
 
-## 🔄 Proceso de Pull Request
+## 5. Estándares de código
 
-### 1. Crear Branch
+### 5.1 Herramientas configuradas
 
-```bash
-# Actualizar main
-git checkout main
-git pull upstream main
+| Herramienta                  | Configuración                         | Notas                                                                                                              |
+| ---------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| **ESLint 9** (flat config)   | `eslint.config.js`                    | `@eslint/js`, `typescript-eslint`, `eslint-plugin-react`, `react-hooks`, `react-refresh`, `eslint-config-prettier` |
+| **Prettier 3**               | `.prettierrc`                         | `semi: true`, comillas dobles, `trailingComma: "all"`, `printWidth: 80`, `tabWidth: 2`                             |
+| **TypeScript 5.7**           | `tsconfig.json`                       | Código nuevo en `.ts`/`.tsx`                                                                                       |
+| **Vitest + Testing Library** | `vite.config.js`, `src/setupTests.ts` | Pruebas unitarias y de componentes                                                                                 |
 
-# Crear feature branch
-git checkout -b feat/amazing-feature
-# o
-git checkout -b fix/bug-description
-```
+Un PR no puede mergearse si `lint`, `format:check`, `test` o `build` fallan.
 
-### 2. Hacer Cambios
+### 5.2 Reglas de React y TypeScript
 
-```bash
-# Hacer commits atómicos
-git add .
-git commit -m "feat(component): add new feature"
+- **Solo componentes funcionales** con Hooks; no crear componentes de clase.
+- Respetar las reglas de Hooks (`react-hooks/rules-of-hooks` y `exhaustive-deps`); no desactivarlas sin un comentario que lo justifique.
+- Componentes en `PascalCase` (`AthleteDashboard.tsx`); hooks en `camelCase` con prefijo `use` (`useModal.ts`); utilidades en `camelCase`; constantes en `UPPER_SNAKE_CASE`.
+- Un componente exportado por archivo; los exports por defecto solo para componentes.
+- Tipar props y datos con interfaces de `src/types`; **evitar `any` en código nuevo** (la regla está relajada solo por la migración incremental del código legado).
+- Prefijar con `_` los parámetros o variables intencionalmente sin uso.
+- Extraer lógica reutilizable a hooks (`src/hooks`) y estado global a stores de Zustand (`src/store`); no duplicar estado derivado.
+- Acceso a datos únicamente a través de `src/services` y `src/utils`; los componentes no deben manipular `localStorage` directamente.
+- Memoizar (`useMemo`, `useCallback`, `React.memo`) solo con motivo medible.
+- Listas con `key` estable (nunca el índice si el orden puede cambiar).
 
-# Múltiples commits si es necesario
-git commit -m "refactor(component): extract helper function"
-git commit -m "test(component): add unit tests"
-```
+### 5.3 UI y estilos
 
-### 3. Mantener Actualizado
+- Consumir los componentes de `src/components/ui` (`Button`, `Modal`, `ConfirmDialog`, `useToast`, etc.) antes de crear nuevos.
+- Usar variables CSS / clases Tailwind; no hardcodear colores ni espaciados. Ver [UI_UX_GUIDELINES.md](./UI_UX_GUIDELINES.md).
+- Prohibido `alert()` y `window.confirm()`; usar `Toast` y `ConfirmDialog`.
+- Acciones destructivas: `ConfirmDialog` con `variant="danger"`.
+- Cumplir accesibilidad: `aria-label` en controles sin texto, foco visible, objetivos táctiles ≥ 44 px.
 
-```bash
-# Fetch upstream changes
-git fetch upstream
+### 5.4 Reglas de negocio
 
-# Rebase sobre main
-git rebase upstream/main
-```
+Los cambios en roles, vinculación, permisos de perfil o retención de datos deben respetar [BUSINESS_LOGIC.md](./BUSINESS_LOGIC.md) y actualizarlo si modifican una regla.
 
-### 4. Push y Crear PR
+### 5.5 Pruebas
 
-```bash
-# Push a tu fork
-git push origin feat/amazing-feature
+- Toda funcionalidad nueva o bug corregido debe incluir pruebas cuando sea viable (ubicadas junto al código: `*.test.ts(x)`).
+- Las utilidades de seguridad/autenticación (`src/utils/auth.ts`) requieren cobertura.
+- Las pruebas no deben depender del orden de ejecución ni de datos reales.
 
-# Crear PR en GitHub con:
-# - Título descriptivo
-# - Descripción detallada
-# - Screenshots (si aplica)
-# - Tests realizados
-# - Checklist completado
-```
+---
 
-### Template de PR
+## 6. Proceso de revisión de Pull Requests
+
+### 6.1 Requisitos para abrir el PR
+
+- Título en formato Conventional Commits (será el mensaje del squash).
+- Descripción con: **contexto**, **cambios realizados**, **cómo probar**, capturas/GIF para cambios visuales (claro y oscuro, móvil y escritorio) y `Closes #issue`.
+- PR pequeño y enfocado (ideal < 400 líneas modificadas); dividir si es mayor.
+- Autorrevisión previa del diff.
+- Checklist completado:
 
 ```markdown
-## Descripción
-
-Descripción clara de los cambios realizados.
-
-## Tipo de Cambio
-
-- [ ] Bug fix
-- [ ] Nueva feature
-- [ ] Breaking change
-- [ ] Documentación
-
-## ¿Cómo se ha testeado?
-
-Describe las pruebas realizadas.
-
-## Screenshots (si aplica)
-
-Adjunta imágenes de los cambios UI.
-
 ## Checklist
 
-- [ ] Mi código sigue los estándares del proyecto
-- [ ] He realizado self-review
-- [ ] He comentado código complejo
-- [ ] He actualizado documentación
-- [ ] Mis cambios no generan warnings
-- [ ] He añadido tests
-- [ ] Tests pasan localmente
-- [ ] He actualizado CHANGELOG.md
+- [ ] `npm run lint` sin errores
+- [ ] `npm run format:check` sin diferencias
+- [ ] `npm run test` en verde
+- [ ] `npm run build` exitoso
+- [ ] Pruebas añadidas o actualizadas
+- [ ] Documentación actualizada (docs/) si aplica
+- [ ] Sin secretos, credenciales ni `console.log` residuales
+- [ ] Verificado en modo claro/oscuro y en móvil (si es UI)
 ```
 
-### 5. Code Review
+### 6.2 Reglas de revisión
 
-- Responde a comentarios constructivamente
-- Realiza cambios solicitados
-- Marca conversaciones como resueltas
-- Be patient y professional
+- **Mínimo 1 aprobación** (2 para cambios en autenticación, permisos, persistencia o datos personales).
+- El autor no aprueba su propio PR.
+- Los revisores responden en un máximo de 2 días hábiles.
+- Los checks automáticos (lint, formato, tests, build) deben estar en verde.
+- Todas las conversaciones deben quedar resueltas antes del merge.
 
-### 6. Merge
+### 6.3 Qué debe verificar el revisor
 
-Una vez aprobado:
+| Área              | Criterio                                                                  |
+| ----------------- | ------------------------------------------------------------------------- |
+| Correctitud       | Cumple el requisito y los casos límite                                    |
+| Reglas de negocio | Respeta roles y permisos (`TRAINER`/`ATHLETE`/`ADMIN`)                    |
+| Seguridad         | Sin secretos, sin exposición de `passwordHash`, entrada validada, sin XSS |
+| Código            | Hooks y componentes funcionales, tipado, sin duplicación                  |
+| UI/UX             | Usa componentes base, accesible, responsive, tema claro/oscuro            |
+| Pruebas           | Cobertura adecuada y significativa                                        |
+| Rendimiento       | Sin renders o cálculos innecesarios evidentes                             |
+| Documentación     | Actualizada cuando cambia comportamiento                                  |
 
-- Squash commits si es necesario
-- Merge via GitHub
-- Eliminar branch después del merge
+Convención de comentarios: prefijos `blocker:` (obligatorio corregir), `suggestion:` (opcional), `question:`, `nit:` (estilo menor).
 
-```bash
-# Limpiar branches locales
-git branch -d feat/amazing-feature
+### 6.4 Merge
 
-# Limpiar branches remotos
-git push origin --delete feat/amazing-feature
-```
+- Método: **Squash and merge** a `main`.
+- Lo ejecuta el autor tras la aprobación y los checks en verde.
+- Eliminar la rama al finalizar.
 
 ---
 
-## 🐛 Reportar Bugs
+## 7. Releases y hotfixes
 
-### Antes de Reportar
-
-1. **Busca** en issues existentes
-2. **Actualiza** a la última versión
-3. **Reproduce** el bug consistentemente
-
-### Template de Bug Report
-
-```markdown
-## Descripción del Bug
-
-Descripción clara y concisa del bug.
-
-## Pasos para Reproducir
-
-1. Ir a '...'
-2. Click en '...'
-3. Scroll hasta '...'
-4. Ver error
-
-## Comportamiento Esperado
-
-Qué debería suceder.
-
-## Comportamiento Actual
-
-Qué está sucediendo.
-
-## Screenshots
-
-Si aplica, añade screenshots.
-
-## Entorno
-
-- OS: [e.g., Windows 11]
-- Browser: [e.g., Chrome 125]
-- Node Version: [e.g., 18.17.0]
-- Version: [e.g., 2.0.0]
-
-## Contexto Adicional
-
-Cualquier información relevante.
-
-## Logs
-```
-
-Pegar logs relevantes aquí
-
-```
-
-```
+- Versionado [SemVer](https://semver.org/lang/es/) (`MAJOR.MINOR.PATCH`) deducido de los commits: `fix` → PATCH, `feat` → MINOR, `BREAKING CHANGE` → MAJOR.
+- Cada release se etiqueta en `main`: `git tag v1.2.0 && git push origin v1.2.0`.
+- Hotfix: rama `hotfix/...` desde `main`, PR expedito (1 aprobación y checks en verde) y tag de PATCH inmediato.
+- Mantener un registro de cambios a partir de los commits convencionales.
 
 ---
 
-## 💡 Sugerir Features
+## 8. Seguridad
 
-### Template de Feature Request
-
-```markdown
-## Feature Solicitada
-
-Descripción clara de la feature.
-
-## Problema que Resuelve
-
-¿Qué problema resuelve? ¿Por qué es útil?
-
-## Solución Propuesta
-
-Cómo debería funcionar.
-
-## Alternativas Consideradas
-
-Otras soluciones que consideraste.
-
-## Mockups/Ejemplos
-
-Cualquier diseño o ejemplo de referencia.
-
-## Prioridad
-
-- [ ] Critical
-- [ ] High
-- [ ] Medium
-- [ ] Low
-```
-
----
-
-## 🧪 Testing
-
-### Escribir Tests
-
-```jsx
-// ComponentName.test.jsx
-import { render, screen, fireEvent } from "@testing-library/react";
-import ComponentName from "./ComponentName";
-
-describe("ComponentName", () => {
-  it("renders correctly", () => {
-    render(<ComponentName prop1="test" />);
-    expect(screen.getByText("test")).toBeInTheDocument();
-  });
-
-  it("handles click event", () => {
-    const handleClick = jest.fn();
-    render(<ComponentName onClick={handleClick} />);
-
-    fireEvent.click(screen.getByRole("button"));
-    expect(handleClick).toHaveBeenCalledTimes(1);
-  });
-});
-```
-
-### Ejecutar Tests
-
-```bash
-# Todos los tests
-npm test
-
-# Tests en watch mode
-npm test -- --watch
-
-# Coverage
-npm test -- --coverage
-```
-
----
-
-## 📚 Recursos Útiles
-
-### Documentación
-
-- [README.md](../README.md)
-- [ARCHITECTURE.md](./ARCHITECTURE.md)
-- [CODE_SMELLS.md](./CODE_SMELLS.md)
-- [BEST_PRACTICES.md](./BEST_PRACTICES.md)
-
-### Tutoriales
-
-- [React Docs](https://react.dev/)
-- [Git Flow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow)
-- [Conventional Commits](https://www.conventionalcommits.org/)
-
-### Herramientas
-
-- [GitHub Desktop](https://desktop.github.com/)
-- [VS Code](https://code.visualstudio.com/)
-- [React DevTools](https://react.dev/learn/react-developer-tools)
-
----
-
-## 🙋 Preguntas Frecuentes
-
-### ¿Cuánto tiempo toma aprobar un PR?
-
-Generalmente 2-5 días hábiles. Ten paciencia.
-
-### ¿Puedo trabajar en múltiples issues?
-
-Sí, pero crea branches separados para cada uno.
-
-### ¿Necesito escribir tests?
-
-Para nuevas features, sí. Para pequeños bug fixes, es opcional pero recomendado.
-
-### ¿Puedo contribuir si soy principiante?
-
-¡Absolutamente! Busca issues con label `good-first-issue`.
-
----
-
-## 📞 Contacto
-
-- GitHub Issues: [github.com/usuario/repo/issues](https://github.com)
-- Discussions: [github.com/usuario/repo/discussions](https://github.com)
-- Email: proyecto@example.com
-
----
-
-## 🎉 Reconocimientos
-
-Todos los contribuidores serán reconocidos en:
-
-- [CONTRIBUTORS.md](./CONTRIBUTORS.md)
-- Release notes
-- README.md
-
-¡Gracias por contribuir!
-
----
-
-**Última actualización:** 24 de febrero de 2026
+- Nunca subir `.env*`, tokens, claves SSH ni contraseñas. Las variables `VITE_*` se incrustan en el bundle del cliente: **no colocar secretos reales en ellas** (por eso la contraseña de admin se maneja como hash).
+- No guardar credenciales en archivos de notas dentro del repositorio, incluso si están ignorados por Git.
+- Si se expone un secreto: revocarlo de inmediato, reemplazarlo y notificar al equipo.
+- Reportar vulnerabilidades de forma privada al mantenedor, no mediante issues públicos.

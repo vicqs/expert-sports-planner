@@ -1,483 +1,187 @@
-# Arquitectura del Sistema
+# Arquitectura
 
-## 📐 Visión General
+Visión general de la estructura técnica de **Expert Sports Planner**. Este documento no duplica el detalle de otros temas: cada sección enlaza al documento que lo desarrolla.
 
-Expert Sports Planner es una Progressive Web App (PWA) construida con React + Vite que permite a entrenadores crear planes de entrenamiento personalizados para atletas.
+## Índice
 
-```
-┌─────────────────────────────────────────────────┐
-│              EXPERT SPORTS PLANNER              │
-│                                                 │
-│  ┌──────────────┐         ┌──────────────┐    │
-│  │   Athlete    │         │    Coach     │    │
-│  │  Dashboard   │         │  Dashboard   │    │
-│  └──────┬───────┘         └──────┬───────┘    │
-│         │                        │             │
-│         └────────┬───────────────┘             │
-│                  │                             │
-│         ┌────────▼───────────┐                │
-│         │  MockDatabase      │                │
-│         │  (Context + LS)    │                │
-│         └────────────────────┘                │
-│                                                 │
-│  ┌─────────────────────────────────────────┐  │
-│  │         LocalStorage Persistence         │  │
-│  └─────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────┘
-```
+1. [Resumen](#1-resumen)
+2. [Diagrama de alto nivel](#2-diagrama-de-alto-nivel)
+3. [Estructura de carpetas](#3-estructura-de-carpetas)
+4. [Capas](#4-capas)
+5. [Flujo de datos principal](#5-flujo-de-datos-principal)
+6. [Patrones utilizados](#6-patrones-utilizados)
+7. [Rendimiento](#7-rendimiento)
+8. [Estado de PWA](#8-estado-de-pwa)
+9. [Hoja de ruta](#9-hoja-de-ruta)
 
 ---
 
-## 🏗️ Estructura del Proyecto
+## 1. Resumen
 
-```
-expert-sports-planner/
-├── public/
-│   └── manifest.json          # PWA manifest
-├── src/
-│   ├── components/            # Componentes React
-│   │   ├── ui/               # Componentes de UI reutilizables
-│   │   │   ├── Button.jsx
-│   │   │   ├── Card.jsx
-│   │   │   ├── Toast.jsx
-│   │   │   └── ...
-│   │   ├── AthleteDashboard.jsx
-│   │   ├── CoachDashboard.jsx
-│   │   ├── PlanEditor.jsx
-│   │   └── ...
-│   ├── context/              # Context API
-│   │   └── MockDatabase.jsx  # Estado global + persistencia
-│   ├── utils/                # Utilidades
-│   │   ├── auth.js          # Autenticación (mock)
-│   │   ├── constants.js     # Constantes del dominio
-│   │   ├── generator.js     # Generador de planes
-│   │   └── storage.js       # Abstracción de localStorage
-│   ├── styles/               # Estilos globales
-│   │   ├── animations.css
-│   │   ├── main.css
-│   │   └── variables.css
-│   ├── App.jsx               # Componente raíz
-│   └── main.jsx              # Entry point
-├── docs/                     # Documentación
-├── .gitignore
-├── package.json
-├── vite.config.js
-└── index.html
-```
+| Aspecto      | Decisión                                                                           |
+| ------------ | ---------------------------------------------------------------------------------- |
+| Tipo         | SPA en el navegador, sin backend                                                   |
+| UI           | React 18 + TypeScript 5.7 (`strict: true`)                                         |
+| Build        | Vite 4 (alias `@` → `src`)                                                         |
+| Estilos      | Tailwind 3 (preflight desactivado) + CSS propio + variables CSS                    |
+| Animaciones  | framer-motion; iconos con lucide-react                                             |
+| Estado       | Zustand (`useAuthStore`, `usePreviewStore`) + Context + `useState` local           |
+| Persistencia | `localStorage` únicamente                                                          |
+| Navegación   | Sin router: `AppContent` elige la vista según el rol (`TRAINER`/`ATHLETE`/`ADMIN`) |
+| Pruebas      | Vitest + jsdom + Testing Library (ver [TESTING.md](./TESTING.md))                  |
+| Despliegue   | Vercel (`installCommand: npm ci`)                                                  |
 
 ---
 
-## 🧩 Capas de la Aplicación
+## 2. Diagrama de alto nivel
 
-### 1. **Presentation Layer (UI)**
+```mermaid
+flowchart TD
+    subgraph UI["Interfaz (src/components, src/admin)"]
+        A[AthleteDashboard]
+        C[CoachDashboard]
+        AD[AdminDashboard - lazy]
+    end
 
-**Responsabilidad:** Renderizar UI y capturar interacciones del usuario
+    subgraph Estado["Estado"]
+        AC[AuthContext - fachada]
+        ZS[useAuthStore / usePreviewStore - Zustand]
+        MD[MockDatabaseProvider]
+        TP[ToastProvider]
+    end
 
-**Componentes principales:**
+    subgraph Logica["Lógica (src/utils)"]
+        AU[auth.ts]
+        GE[generator.ts]
+        CO[constants.ts]
+        ST[storage.ts]
+    end
 
-- `Layout` - Shell de la aplicación
-- `RoleSelector` - Selector de rol (Atleta/Entrenador)
-- `AthleteDashboard` - Panel del atleta
-- `CoachDashboard` - Panel del entrenador
-- `PlanEditor` - Editor de planes de entrenamiento
-- `PlanDetail` - Vista detallada de un plan
+    SV[services/dataServices.ts - sin uso]
+    LS[(localStorage)]
 
-**Principios:**
+    A & C & AD --> AC
+    A & C --> MD
+    AC --> ZS
+    ZS --> AU
+    MD --> ST
+    C --> GE
+    AU --> LS
+    ST --> LS
+    SV -. futuro .-> API[API REST]
+```
 
-- ✅ Componentes presentacionales puros cuando es posible
-- ✅ Lógica mínima de negocio
-- ✅ Props explícitas y tipadas
-- ✅ Composición sobre herencia
+Árbol de proveedores en `App.tsx`: `AuthProvider > MockDatabaseProvider > ToastProvider > AppContent`.
 
 ---
 
-### 2. **State Management Layer**
-
-**Responsabilidad:** Gestionar estado global y sincronización
-
-**Implementación:** Context API + localStorage
-
-**Archivo:** `src/context/MockDatabase.jsx`
-
-**Estado gestionado:**
-
-```javascript
-{
-  clients: [],              // Atletas y sus planes
-  gymAvailability: [],      // Disponibilidad del gimnasio
-  gymBookings: [],          // Reservas de gimnasio
-  appointments: [],         // Citas con el entrenador
-  appointmentAvailability: [] // Disponibilidad de citas
-}
-```
-
-**Operaciones:**
-
-- CRUD de clientes
-- Gestión de planes
-- Sistema de reservas
-- Sistema de citas
-
----
-
-### 3. **Persistence Layer**
-
-**Responsabilidad:** Persistir datos en localStorage
-
-**Archivo:** `src/utils/storage.js`
-
-**API:**
-
-```javascript
-getFromStorage(key, defaultValue);
-setToStorage(key, value);
-removeFromStorage(key);
-clearAllStorage();
-```
-
-**Storage Keys:**
-
-```javascript
-STORAGE_KEYS = {
-  CLIENTS: "expert_planner_clients",
-  GYM_AVAILABILITY: "expert_planner_gym_availability",
-  GYM_BOOKINGS: "expert_planner_gym_bookings",
-  APPOINTMENTS: "expert_planner_appointments",
-  APPOINTMENT_AVAILABILITY: "expert_planner_appointment_availability",
-  ATHLETE_ID: "expert_planner_athlete_id",
-};
-```
-
----
-
-### 4. **Business Logic Layer**
-
-**Responsabilidad:** Lógica de negocio y generación de planes
-
-**Archivos:**
-
-- `src/utils/generator.js` - Generación de planes
-- `src/utils/constants.js` - Constantes del dominio
-
-**Funciones principales:**
-
-```javascript
-generatePlan(userData); // Genera plan basado en perfil
-formatPlanToText(planData, userData); // Formatea a texto
-generateAthleticsSession(); // Genera sesión de atletismo
-generateGymSession(); // Genera sesión de gimnasio
-```
-
----
-
-## 🔄 Flujo de Datos
-
-### Flujo: Creación de Plan
-
-```
-┌──────────────┐
-│   Athlete    │ 1. Llena formulario de intake
-│  Dashboard   │
-└──────┬───────┘
-       │
-       │ 2. addClientRequest(data)
-       ▼
-┌──────────────┐
-│ MockDatabase │ 3. Guarda en state + localStorage
-│   Context    │
-└──────┬───────┘
-       │
-       │ 4. Poll: Espera status COMPLETED
-       ▼
-┌──────────────┐
-│    Coach     │ 5. Ve cliente pendiente
-│  Dashboard   │
-└──────┬───────┘
-       │
-       │ 6. handleGenerate(client)
-       ▼
-┌──────────────┐
-│  generator.  │ 7. generatePlan(userData)
-│     js       │
-└──────┬───────┘
-       │
-       │ 8. Retorna planObject
-       ▼
-┌──────────────┐
-│ PlanEditor   │ 9. Edita y personaliza
-└──────┬───────┘
-       │
-       │ 10. onSave(planText, planObject)
-       ▼
-┌──────────────┐
-│ MockDatabase │ 11. updateClientPlan()
-└──────┬───────┘
-       │
-       │ 12. Status = COMPLETED
-       ▼
-┌──────────────┐
-│   Athlete    │ 13. Ve plan completo
-│  Dashboard   │
-└──────────────┘
-```
-
----
-
-## 🎨 Patrones de Diseño Utilizados
-
-### 1. **Context Provider Pattern**
-
-```jsx
-<MockDatabaseProvider>
-  <ToastProvider>
-    <App />
-  </ToastProvider>
-</MockDatabaseProvider>
-```
-
-**Ventajas:**
-
-- ✅ Estado global sin prop drilling
-- ✅ Fácil acceso desde cualquier componente
-- ✅ Separación de concerns
-
----
-
-### 2. **Custom Hooks Pattern**
-
-```jsx
-const useAthleteId = () => {
-  // Encapsula lógica de sesión del atleta
-};
-
-const useToast = () => {
-  // Encapsula lógica de notificaciones
-};
-```
-
-**Ventajas:**
-
-- ✅ Reutilización de lógica
-- ✅ Separación de lógica de UI
-- ✅ Testeable
-
----
-
-### 3. **Compound Components Pattern**
-
-```jsx
-<Card>
-  <Card.Header />
-  <Card.Body />
-  <Card.Footer />
-</Card>
-```
-
-**Ventajas:**
-
-- ✅ Flexibilidad
-- ✅ Composición clara
-- ✅ API intuitiva
-
----
-
-### 4. **Repository Pattern** (Parcial)
-
-```javascript
-// storage.js actúa como repositorio
-getFromStorage(key, defaultValue);
-setToStorage(key, value);
-```
-
-**Ventajas:**
-
-- ✅ Abstracción de persistencia
-- ✅ Fácil migración a API
-- ✅ Testeable
-
----
-
-## 🔐 Autenticación y Autorización
-
-**Estado actual:** Mock implementation
-
-```javascript
-// src/utils/auth.js
-useAthleteId(); // Genera y persiste ID único
-```
-
-**Flujo:**
-
-1. Usuario selecciona rol (Atleta/Entrenador)
-2. Se genera ID único persistente
-3. ID se usa para asociar datos
-
-**⚠️ Limitaciones actuales:**
-
-- No hay autenticación real
-- No hay sesiones con expiración
-- No hay permisos granulares
-
-**🔮 Migración futura:**
-
-- Integrar con Firebase Auth / Auth0
-- Implementar JWT
-- Roles y permisos RBAC
-
----
-
-## 📦 Gestión de Estado
-
-### Estado Local vs Global
-
-**Estado Local (useState, useReducer):**
-
-- UI state (modals, tabs, expanded sections)
-- Form state
-- Componente-specific state
-
-**Estado Global (Context):**
-
-- Datos de clientes
-- Planes de entrenamiento
-- Reservas y citas
-- Disponibilidad
-
-### Sincronización con LocalStorage
-
-```jsx
-useEffect(() => {
-  setToStorage(STORAGE_KEYS.CLIENTS, clients);
-}, [clients]);
-```
-
-**Ventajas:**
-
-- ✅ Persistencia automática
-- ✅ Sin backend necesario
-- ✅ Offline-first
-
-**Limitaciones:**
-
-- ⚠️ Límite de 5-10MB
-- ⚠️ Sin sincronización entre dispositivos
-- ⚠️ Vulnerable a limpieza de caché
-
----
-
-## 🚀 Optimizaciones Implementadas
-
-### 1. **Code Splitting**
-
-```javascript
-// Uso de dynamic imports
-const LazyComponent = lazy(() => import("./Component"));
-```
-
-### 2. **Memoization**
-
-```jsx
-const MemoizedComponent = React.memo(Component);
-```
-
-### 3. **Virtualización** (Pendiente)
-
-Para listas largas de ejercicios/planes
-
----
-
-## 🧪 Testing Strategy (Recomendado)
+## 3. Estructura de carpetas
 
 ```
 src/
-├── __tests__/
-│   ├── unit/
-│   │   ├── utils/
-│   │   │   ├── generator.test.js
-│   │   │   └── storage.test.js
-│   │   └── hooks/
-│   │       └── useAthleteId.test.js
-│   ├── integration/
-│   │   └── MockDatabase.test.jsx
-│   └── e2e/
-│       └── athlete-flow.spec.js
+├── App.tsx                 Proveedores y selección de vista por rol
+├── main.tsx                Punto de entrada
+├── setupTests.ts           Configuración de Vitest (jest-dom)
+├── admin/                  Panel de administración
+│   ├── components/         Sidebar, Overview, Analytics, UserManagement,
+│   │                       ExerciseDatabase, EquipmentManager, SystemSettings, modals/
+│   ├── hooks/              useAdminStats, useCustomExercises, useEquipment
+│   ├── pages/              AdminDashboard.tsx
+│   └── styles/             CSS por sección
+├── components/             Vistas y componentes de dominio
+│   ├── athlete/            AthleteTabs
+│   ├── modals/             Selectores de ejercicios y equipamiento
+│   ├── training/           ExerciseSessionView
+│   └── ui/                 Button, Card, Modal, Toast, BottomNav, Skeleton, ...
+├── context/                AuthContext, MockDatabase
+├── hooks/                  useAsync, useDebounce, useForm, useLocalStorage,
+│                           useMediaQuery, useModal, useTheme, useTrainerLibrary
+├── services/               dataServices.ts (ApiClient y servicios, sin consumir)
+├── store/                  useAuthStore, usePreviewStore
+├── styles/                 main, variables, animations, trainer-library
+├── types/                  index.ts (tipos de dominio)
+└── utils/                  auth, constants, generator, storage, dateNav,
+                            exerciseMetadata, mockProfiles
 ```
 
-**Herramientas recomendadas:**
+---
 
-- Vitest (unit tests)
-- React Testing Library (component tests)
-- Playwright/Cypress (E2E)
+## 4. Capas
+
+| Capa               | Ubicación                                       | Responsabilidad                                                 | Documento                                    |
+| ------------------ | ----------------------------------------------- | --------------------------------------------------------------- | -------------------------------------------- |
+| Presentación       | `components/`, `admin/`                         | Vistas, formularios, modales                                    | [UI_UX_GUIDELINES.md](./UI_UX_GUIDELINES.md) |
+| Estado             | `store/`, `context/`                            | Sesión, datos de dominio, toasts                                | [STATE_MANAGEMENT.md](./STATE_MANAGEMENT.md) |
+| Lógica de negocio  | `utils/generator.ts`, `constants.ts`, `auth.ts` | Generación de planes, reglas, autenticación local               | [BUSINESS_LOGIC.md](./BUSINESS_LOGIC.md)     |
+| Persistencia       | `utils/storage.ts` (`STORAGE_KEYS`)             | Lectura/escritura en `localStorage`                             | [STATE_MANAGEMENT.md](./STATE_MANAGEMENT.md) |
+| Servicios (futuro) | `services/dataServices.ts`                      | `ApiClient` (`fetch`) y servicios de clientes, gimnasio y citas | [API_SERVICES.md](./API_SERVICES.md)         |
+
+Seguridad (hash, sesión, roles): [SECURITY.md](./SECURITY.md). Calidad de código: [CODE_QUALITY.md](./CODE_QUALITY.md).
 
 ---
 
-## 🔮 Roadmap de Arquitectura
+## 5. Flujo de datos principal
 
-### Fase 1: Consolidación (Actual)
+Ciclo de vida de un plan de entrenamiento:
 
-- ✅ Estructura básica
-- ✅ Persistencia local
-- ✅ Componentes principales
+```mermaid
+sequenceDiagram
+    participant At as Atleta
+    participant DB as MockDatabase
+    participant Co as Entrenador
+    At->>DB: addClientRequest(datos, trainerId)
+    DB-->>Co: solicitud PENDING
+    Co->>Co: generator.ts genera el plan
+    Co->>DB: updateClientPlan(clientId, texto, objeto)
+    DB-->>At: plan disponible
+    At->>DB: toggleSessionCompletion(clientId, semana, día)
+    At->>DB: updateSessionNote(clientId, semana, día, nota)
+```
 
-### Fase 2: Mejoras de Calidad
-
-- 🔄 Migrar a TypeScript
-- 🔄 Implementar testing
-- 🔄 Optimizar performance
-- 🔄 Refactorizar code smells
-
-### Fase 3: Backend Integration
-
-- ⏳ API REST/GraphQL
-- ⏳ Base de datos real
-- ⏳ Autenticación robusta
-- ⏳ Sincronización multi-dispositivo
-
-### Fase 4: Escalabilidad
-
-- ⏳ Microservicios
-- ⏳ Caching estratégico
-- ⏳ CDN para assets
-- ⏳ Analytics y monitoring
+Cada cambio de estado en `MockDatabase` se guarda en `localStorage` mediante efectos que usan `setToStorage` con `STORAGE_KEYS`.
 
 ---
 
-## 📚 Tecnologías y Dependencias
+## 6. Patrones utilizados
 
-### Core
-
-- **React 18** - UI library
-- **Vite 4** - Build tool
-- **React Router** - Routing (pendiente)
-
-### UI/UX
-
-- **Framer Motion** - Animaciones
-- **Lucide React** - Iconos
-- **CSS Variables** - Theming
-
-### State & Data
-
-- **Context API** - State management
-- **LocalStorage** - Persistencia
-
-### Development
-
-- **ESLint** - Linting
-- **Prettier** - Code formatting
+- **Fachada de contexto**: `AuthContext` expone el estado de `useAuthStore` con la API de contexto para no acoplar los componentes a Zustand.
+- **Proveedores anidados**: datos de dominio (`MockDatabaseProvider`) y notificaciones (`ToastProvider`) separados de la sesión.
+- **Renderizado por rol**: `AppContent` decide el dashboard según `currentUser.role`; no hay rutas URL.
+- **Hooks reutilizables**: `useLocalStorage`, `useDebounce`, `useMediaQuery`, `useModal`, `useForm`, `useAsync` (este último sin adoptar).
+- **Componentes UI compartidos**: carpeta `components/ui` con barrel `index.ts`.
+- **Módulo admin autocontenido**: `admin/` con sus propios componentes, hooks y estilos.
 
 ---
 
-## 🤝 Contribución a la Arquitectura
+## 7. Rendimiento
 
-Antes de proponer cambios arquitectónicos:
+Medidas presentes en el código:
 
-1. Revisar este documento
-2. Considerar impacto en escalabilidad
-3. Documentar decisiones (ADR - Architecture Decision Records)
-4. Discutir en equipo
+- Carga diferida (`React.lazy`) de `AdminDashboard`.
+- Debounce de 1500 ms con `useDebounce` en el autoguardado de `PlanEditor`.
+
+No se han verificado ni medido otras optimizaciones (por ejemplo `memo` o `useMemo` generalizados); no se documentan como existentes.
 
 ---
 
-**Última actualización:** 24 de febrero de 2026  
-**Versión:** 2.0
+## 8. Estado de PWA
+
+La aplicación **no es todavía una PWA instalable**:
+
+- Existe `public/manifest.json` (`theme_color: #8B5CF6`), enlazado desde `index.html`.
+- `icons` está vacío y no hay iconos PNG.
+- No hay service worker ni caché offline.
+- `apple-touch-icon` está comentado en `index.html` y el favicon es `/vite.svg`.
+
+---
+
+## 9. Hoja de ruta
+
+| Área          | Estado                                                                                        |
+| ------------- | --------------------------------------------------------------------------------------------- |
+| TypeScript    | Completado (`strict: true`; `noImplicitAny: false` y `allowJs: true` pendientes de endurecer) |
+| Pruebas       | Solo `utils/auth.test.ts`; ampliar (ver [TESTING.md](./TESTING.md))                           |
+| Backend y API | Pendiente; ver [API_MIGRATION.md](./API_MIGRATION.md)                                         |
+| Seguridad     | Autenticación en servidor; ver [SECURITY.md](./SECURITY.md)                                   |
+| PWA           | Iconos, service worker y soporte offline                                                      |
+| Enrutamiento  | Opcional: añadir router si se requieren URL enlazables                                        |

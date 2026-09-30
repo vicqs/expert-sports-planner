@@ -4,6 +4,19 @@
 
 Este documento describe cómo migrar **Expert Sports Planner** de usar `MockDatabase` con `localStorage` a una API REST real.
 
+### Estado actual y brechas a cubrir
+
+| Tema                          | Estado actual                                                                            | Implicación para la API                                                                            |
+| ----------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Roles                         | `TRAINER`, `ATHLETE`, `ADMIN` (mayúsculas)                                               | Los ejemplos de este documento usan `coach`/`athlete`; mapear `coach` → `TRAINER` y añadir `ADMIN` |
+| Capa de servicios             | `services/dataServices.ts` existe, con `USE_MOCK = true`, y **ningún componente la usa** | Los componentes hablan con `MockDatabase`; hay que reconectarlos (ver «Cambios en el Frontend»)    |
+| Autenticación                 | Hash SHA-256 en cliente, usuarios en `localStorage`                                      | Mover a servidor (bcrypt/argon2, JWT o cookie `HttpOnly`)                                          |
+| Vinculación entrenador–atleta | Solicitudes (`athleteRequests`) y `trainerId` en el usuario                              | Requiere tablas y endpoints propios (ver «Ampliaciones del modelo»)                                |
+| Datos de perfil               | Avatar, contacto de emergencia, lesiones, notas médicas, preferencias de notificación    | Columnas/tablas adicionales                                                                        |
+| Suscripciones                 | Planes `FREE`/`BASIC`/`PRO`/`GYM`, trial y límites                                       | Modelo de suscripción en servidor                                                                  |
+
+Documentos relacionados: [BUSINESS_LOGIC.md](./BUSINESS_LOGIC.md), [API_SERVICES.md](./API_SERVICES.md), [STATE_MANAGEMENT.md](./STATE_MANAGEMENT.md), [SECURITY.md](./SECURITY.md).
+
 ---
 
 ## Arquitectura Objetivo
@@ -69,7 +82,7 @@ CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    role VARCHAR(20) NOT NULL CHECK (role IN ('athlete', 'coach')),
+    role VARCHAR(20) NOT NULL CHECK (role IN ('ATHLETE', 'TRAINER', 'ADMIN')),
     name VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -147,6 +160,19 @@ CREATE INDEX idx_gym_bookings_date ON gym_bookings(date);
 CREATE INDEX idx_appointments_athlete_id ON appointments(athlete_id);
 CREATE INDEX idx_appointments_date ON appointments(date);
 ```
+
+---
+
+### Ampliaciones del modelo (no cubiertas por el esquema anterior)
+
+Derivadas de `src/types/index.ts` y de la lógica actual ([BUSINESS_LOGIC.md](./BUSINESS_LOGIC.md)):
+
+- `users`: `avatar_id`, `trainer_id` (FK a `users`), `is_super` (administrador protegido), `subscription_plan`, `subscription_status`, `trial_ends_at`, `emergency_contact` (JSONB), `injuries` (JSONB, editable solo por el entrenador), `basic_info` (JSONB), `notification_prefs` (JSONB).
+- `athlete_requests`: solicitudes de un atleta a un entrenador (`athlete_id`, `trainer_id`, `status`, fechas).
+- Biblioteca del entrenador: tablas `exercises` y `equipment` (por entrenador, con metadatos) que hoy se guardan desde los hooks `useCustomExercises`/`useEquipment`/`useTrainerLibrary`.
+- `gym_availability`, `appointment_availability`: añadir `trainer_id` si hay más de un entrenador (hoy la disponibilidad es global).
+
+Validar cada campo contra los tipos reales antes de escribir las migraciones.
 
 ---
 
@@ -677,115 +703,68 @@ module.exports = router;
 
 ## Cambios en el Frontend
 
-### 1. Configuración de Variables de Entorno
+> Los ejemplos de esta sección están alineados con el código actual (TypeScript, Zustand). Ver [API_SERVICES.md](./API_SERVICES.md) y [STATE_MANAGEMENT.md](./STATE_MANAGEMENT.md).
+
+### 1. Configuración de variables de entorno
+
+Solo se consume `VITE_API_BASE_URL` (ver [src/services/dataServices.ts](../src/services/dataServices.ts)). **No existe `VITE_USE_MOCK`**: `USE_MOCK` está fijado en `true` en `API_CONFIG`.
 
 ```bash
 # .env.development
 VITE_API_BASE_URL=http://localhost:3000/api
-VITE_USE_MOCK=true
 
-# .env.production
+# .env.production (configurar en Vercel → Environment Variables)
 VITE_API_BASE_URL=https://api.expert-planner.com/v1
-VITE_USE_MOCK=false
 ```
 
-### 2. Actualizar dataServices.js
+> Toda variable `VITE_*` se incluye en el bundle público: no colocar secretos (hoy `VITE_ADMIN_PASSWORD_HASH` es una excepción temporal de la fase mock; ver [SECURITY.md](./SECURITY.md)).
 
-```javascript
-// src/services/dataServices.js
+### 2. Activar la capa de servicios
 
+En `dataServices.ts`, sustituir el valor fijo por una condición basada en entorno o eliminarlo cuando la API esté lista:
+
+```typescript
 const API_CONFIG = {
   BASE_URL: import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api",
-  TIMEOUT: 30000,
-  USE_MOCK: import.meta.env.VITE_USE_MOCK === "true", // Desde .env
+  USE_MOCK: import.meta.env.DEV && !import.meta.env.VITE_API_BASE_URL,
 };
 ```
 
-### 3. Añadir Login/Register UI
+Además, los componentes **hoy no consumen** `ClientService`, `GymService` ni `AppointmentService`: acceden a `MockDatabase` (`useMockDatabase()`). La migración consiste en:
 
-```jsx
-// src/components/Login.jsx
-import { useState } from "react";
-import { useSession } from "../utils/auth";
+1. Hacer que `MockDatabase` (o los stores que lo reemplacen) deleguen en los servicios.
+2. Convertir sus operaciones síncronas en asíncronas (estados `loading`/`error`).
+3. Retirar la persistencia y la siembra de datos demo (`localStorage`) del proveedor.
 
-export default function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const { loginWithCredentials } = useSession();
+### 3. Autenticación
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+La UI de login/registro ya existe (`AuthPage`). Lo que cambia es la fuente de verdad: `useAuthStore` llama hoy a `loginUser`/`registerUser` de `utils/auth.ts` (hash SHA-256 en cliente). Debe llamar a los endpoints `/auth/*`:
 
-    try {
-      const response = await fetch(`${API_CONFIG.BASE_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!response.ok) throw new Error("Login failed");
-
-      const { user, token } = await response.json();
-
-      // Guardar sesión con token
-      loginWithCredentials(user.role, { token, ...user });
-    } catch (error) {
-      console.error(error);
-      alert("Error al iniciar sesión");
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit}>
-      <input
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="Email"
-      />
-      <input
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        placeholder="Password"
-      />
-      <button type="submit">Iniciar Sesión</button>
-    </form>
-  );
-}
-```
-
-### 4. Actualizar useSession para API
-
-```javascript
-// src/utils/auth.js
-
-export const loginWithCredentials = async (email, password) => {
-  const response = await fetch(`${API_CONFIG.BASE_URL}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
-
-  if (!response.ok) {
-    throw new Error("Login failed");
+```typescript
+// src/store/useAuthStore.ts (esquema)
+login: async (email, password) => {
+  set({ loading: true, error: null });
+  try {
+    const { user } = await ApiClient.post("/auth/login", { email, password });
+    set({ currentUser: user, loading: false });
+    return { success: true, user };
+  } catch (err) {
+    const message = (err as Error).message;
+    set({ error: message, loading: false });
+    return { success: false, error: message };
   }
-
-  const { user, token } = await response.json();
-
-  const session = {
-    role: user.role,
-    userId: user.id,
-    token,
-    email: user.email,
-    name: user.name,
-    loginAt: new Date().toISOString(),
-  };
-
-  saveSession(session);
-  return session;
-};
+},
 ```
+
+Puntos clave:
+
+- Mantener el contrato `{ success, user?, error? }` para no modificar los componentes.
+- Preferir un token en cookie `HttpOnly; Secure; SameSite` (el backend la fija) frente a guardarlo en `localStorage`.
+- Si se usa Bearer, `ApiClient` ya lee `session.token`; adaptarlo a donde se almacene realmente.
+- Interceptar `401` en `ApiClient` para ejecutar `logout()` (ver [SECURITY.md](./SECURITY.md) §4).
+- Reemplazar `syncFromStorage` y el listener del evento `storage` (`AuthContext`) por una consulta `GET /auth/me` al iniciar la app.
+- Eliminar `initializeSuperAdmin`, `quickAdminLogin` y el login por nombre sin contraseña.
+- Las funciones trainer-only (`updateAthleteBasicInfo`, `setAthleteInjuries`) pasan a endpoints protegidos por rol en el servidor.
 
 ---
 
@@ -815,10 +794,12 @@ export const loginWithCredentials = async (email, password) => {
 
 ### Frontend
 
-- [ ] Actualizar variables de entorno
-- [ ] Cambiar `USE_MOCK` a `false`
-- [ ] Crear componentes de Login/Register
-- [ ] Actualizar `useSession` para manejar tokens
+- [ ] Configurar `VITE_API_BASE_URL`
+- [ ] Desactivar `USE_MOCK` en `API_CONFIG`
+- [ ] Reconectar `MockDatabase` (o sus stores sustitutos) a los servicios
+- [ ] Adaptar `useAuthStore` a los endpoints `/auth/*` (mantener `{ success, error }`)
+- [ ] Manejar `401` globalmente (logout y aviso de sesión expirada)
+- [ ] Eliminar `initializeSuperAdmin`, `quickAdminLogin`, login por nombre y `VITE_ADMIN_PASSWORD_HASH`
 - [ ] Probar todos los flujos de usuario
 - [ ] Añadir manejo de errores de red
 - [ ] Implementar refresh token
@@ -957,10 +938,10 @@ app.use(helmet());
 
 ## Próximos Pasos
 
-1. **Semana 1-2**: Desarrollar backend API
-2. **Semana 3**: Integrar frontend con API
-3. **Semana 4**: Testing y corrección de bugs
-4. **Semana 5**: Deploy y monitoreo
+1. Backend API (autenticación, usuarios, clientes/planes, vinculación, gimnasio, citas)
+2. Integración del frontend con la API
+3. Pruebas (ver [TESTING.md](./TESTING.md)) y corrección de errores
+4. Despliegue y monitoreo
 
 ---
 
