@@ -40,12 +40,12 @@ npm run dev                  # http://localhost:5173
 
 Se definen en `.env.local` (no versionado) a partir de [.env.example](.env.example). Las variables del cliente requieren el prefijo `VITE_`. En producción se configuran en la plataforma de despliegue (Vercel → Settings → Environment Variables).
 
-| Variable                   | Descripción                                         |
-| -------------------------- | --------------------------------------------------- |
-| `VITE_ADMIN_EMAIL`         | Email del super administrador                       |
-| `VITE_ADMIN_PASSWORD_HASH` | Hash SHA-256 de su contraseña (nunca texto plano)   |
-| `VITE_ADMIN_NAME`          | Nombre mostrado del super administrador             |
-| `VITE_API_BASE_URL`        | URL base de la API (capa de servicios, aún sin uso) |
+| Variable                   | Descripción                                                                            |
+| -------------------------- | -------------------------------------------------------------------------------------- |
+| `VITE_ADMIN_EMAIL`         | Email del super administrador                                                          |
+| `VITE_ADMIN_PASSWORD_HASH` | Hash SHA-256 de su contraseña (nunca texto plano); se migra a PBKDF2 al iniciar sesión |
+| `VITE_ADMIN_NAME`          | Nombre mostrado del super administrador                                                |
+| `VITE_API_BASE_URL`        | URL base de la API (capa de servicios, aún sin uso)                                    |
 
 Las variables `VITE_*` quedan expuestas en el bundle público; ver [docs/SECURITY.md](docs/SECURITY.md).
 

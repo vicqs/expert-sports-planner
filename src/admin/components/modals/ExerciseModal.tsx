@@ -1,8 +1,28 @@
-import React from "react";
+/**
+ * ExerciseModal - formulario modal para crear/editar ejercicios.
+ *
+ * Responsabilidad: solo presentación. Los campos de lista (bodyParts,
+ * targetMuscles, secondaryMuscles, equipments) son texto separado por comas y
+ * `instructions` una línea por paso; ExerciseDatabase los convierte a arreglos
+ * y useCustomExercises valida (incluida la URL https del GIF).
+ * Lo usa: ExerciseDatabase. Estilos: admin/styles/modals.css.
+ */
+import React, { useEffect } from "react";
 import { Button } from "@/components/ui";
 import { X } from "lucide-react";
 import "@/admin/styles/modals.css";
 
+/**
+ * Modal de alta/edición de ejercicio.
+ *
+ * @param props.isOpen Si es false no renderiza nada.
+ * @param props.onClose Cierra el modal (botón, overlay o tecla Escape).
+ * @param props.onSubmit Recibe el evento submit ya con preventDefault.
+ * @param props.formData Campos: category, name y opcionales gifUrl, bodyParts,
+ *   targetMuscles, secondaryMuscles, equipments, instructions (strings).
+ * @param props.onChange Handler change compartido por todos los campos.
+ * @param props.isEditing Cambia títulos/etiquetas entre editar y agregar.
+ */
 const ExerciseModal = ({
   isOpen,
   onClose,
@@ -11,6 +31,16 @@ const ExerciseModal = ({
   onChange,
   isEditing,
 }) => {
+  // Escape cierra el modal (solo mientras está abierto)
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleSubmit = (e) => {
@@ -20,10 +50,23 @@ const ExerciseModal = ({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal-content"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="exercise-modal-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
-          <h3>{isEditing ? "Editar Ejercicio" : "Agregar Nuevo Ejercicio"}</h3>
-          <button className="modal-close tap-ripple" onClick={onClose}>
+          <h3 id="exercise-modal-title">
+            {isEditing ? "Editar Ejercicio" : "Agregar Nuevo Ejercicio"}
+          </h3>
+          <button
+            type="button"
+            className="modal-close tap-ripple"
+            onClick={onClose}
+            aria-label="Cerrar"
+          >
             <X size={20} />
           </button>
         </div>
@@ -43,8 +86,9 @@ const ExerciseModal = ({
               <option value="UPPER_PULL">Tren Superior (Tracción)</option>
               <option value="CORE">Core/Abdomen</option>
               <option value="CARDIO">Cardio</option>
-              <option value="FLEXIBILITY">Flexibilidad</option>
-              <option value="PLYOMETRIC">Pliométrico</option>
+              <option value="FULL_BODY">Cuerpo completo</option>
+              <option value="PLIOMETRICO">Pliométrico</option>
+              <option value="MOVILIDAD">Movilidad y estiramientos</option>
             </select>
           </div>
 
@@ -73,6 +117,31 @@ const ExerciseModal = ({
               onChange={onChange}
               placeholder="https://..."
             />
+            <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+              <button
+                type="button"
+                className="admin-btn tap-ripple"
+                onClick={() => {
+                  const el = document.getElementById(
+                    "exercise-gifUrl",
+                  ) as HTMLInputElement | null;
+                  el?.focus();
+                  el?.select();
+                }}
+              >
+                Seleccionar URL
+              </button>
+              <button
+                type="button"
+                className="admin-btn tap-ripple"
+                disabled={!formData.gifUrl}
+                onClick={() =>
+                  navigator.clipboard?.writeText(formData.gifUrl || "")
+                }
+              >
+                Copiar URL
+              </button>
+            </div>
           </div>
 
           <div className="form-group">

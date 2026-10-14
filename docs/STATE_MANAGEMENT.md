@@ -88,7 +88,7 @@ El modelo `User` ([types/index.ts](../src/types/index.ts)) contiene, entre otros
 | `updateProfile`, `changeUserPassword`, `upgradePlan` | Persisten vía `auth.ts` y reemplazan `currentUser` con el usuario actualizado                |
 | `deleteMyAccount`                                    | Elimina el usuario y deja `currentUser = null`                                               |
 | `syncFromStorage`                                    | Relee `localStorage`; se dispara con el evento `storage` (sincroniza otras pestañas)         |
-| `quickAdminLogin`                                    | Solo si `import.meta.env.DEV`                                                                |
+| `quickAdminLogin`                                    | Solo si `import.meta.env.DEV` y hostname `localhost`/`127.0.0.1`/`[::1]`                     |
 
 Las acciones devuelven `{ success, error? }` en lugar de lanzar, y fijan `loading`/`error` en el store.
 

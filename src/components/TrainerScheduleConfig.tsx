@@ -15,14 +15,13 @@ import {
   addDaysToDateString,
   formatDayName,
   formatShortDate,
+  todayDateString,
 } from "../utils/dateNav";
 
 const TrainerScheduleConfig = () => {
   const { updateGymSchedule, getGymSchedule } = useMockDatabase();
   const { addToast } = useToast();
-  const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0],
-  );
+  const [selectedDate, setSelectedDate] = useState(todayDateString());
   const [slots, setSlots] = useState<any[]>([]);
   const [copyTargetDate, setCopyTargetDate] = useState("");
 

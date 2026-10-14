@@ -108,7 +108,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   quickAdminLogin: async () => {
-    if (!import.meta.env.DEV) {
+    const isLocalHost =
+      typeof window !== "undefined" &&
+      ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
+    if (!import.meta.env.DEV || !isLocalHost) {
       const message = "quickAdminLogin no está disponible en producción";
       set({ error: message });
       return { success: false, error: message };

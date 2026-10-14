@@ -1,20 +1,22 @@
 import { EXERCISE_METADATA } from "@/utils/constants";
+import { CATALOG_METADATA } from "@/utils/exerciseCatalogData";
 import type { ExerciseMetadata } from "@/types";
 
 /**
- * Shared read-only accessor for exercise metadata (gif, músculos, equipamiento, instrucciones).
- * Merges the built-in EXERCISE_METADATA catalog with any admin-defined custom metadata
- * stored in localStorage (same key used by admin/hooks/useCustomExercises.ts), so
- * Trainer/Athlete views can show the same rich info without importing the full admin hook.
+ * Shared read-only accessor for exercise metadata (imagen, músculos, equipamiento,
+ * instrucciones). Prioridad: metadatos personalizados del admin (localStorage,
+ * clave crm_custom_exercise_meta) > metadatos curados (EXERCISE_METADATA) >
+ * catálogo importado (CATALOG_METADATA, ~860 ejercicios).
  */
 export const getExerciseMetadata = (name: string): ExerciseMetadata | null => {
+  const builtIn = EXERCISE_METADATA[name] || CATALOG_METADATA[name] || null;
   try {
     const stored = localStorage.getItem("crm_custom_exercise_meta");
     const customMeta: Record<string, ExerciseMetadata> = stored
       ? JSON.parse(stored)
       : {};
-    return customMeta[name] || EXERCISE_METADATA[name] || null;
+    return customMeta[name] || builtIn;
   } catch {
-    return EXERCISE_METADATA[name] || null;
+    return builtIn;
   }
 };

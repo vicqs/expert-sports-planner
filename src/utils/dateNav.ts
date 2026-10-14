@@ -7,10 +7,14 @@
  * de <input type="date">).
  */
 
+/** Fecha local como "YYYY-MM-DD" (toISOString usaría el día UTC). */
+export const toLocalDateString = (d: Date = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
 export const addDaysToDateString = (dateStr: string, days: number) => {
   const d = new Date(`${dateStr}T00:00:00`);
   d.setDate(d.getDate() + days);
-  return d.toISOString().split("T")[0];
+  return toLocalDateString(d);
 };
 
 export const formatDayName = (dateStr: string) => {
@@ -26,4 +30,4 @@ export const formatShortDate = (dateStr: string) =>
     month: "short",
   });
 
-export const todayDateString = () => new Date().toISOString().split("T")[0];
+export const todayDateString = () => toLocalDateString();

@@ -8,6 +8,7 @@ import {
   setAthleteInjuries,
 } from "../utils/auth";
 import { generatePlan } from "../utils/generator";
+import { toLocalDateString, todayDateString } from "../utils/dateNav";
 import {
   Play,
   Check,
@@ -15,6 +16,7 @@ import {
   User,
   UserCheck,
   UserX,
+  Ruler,
   X,
   Settings,
   Inbox,
@@ -29,15 +31,37 @@ import {
   ShieldAlert,
   Plus,
   Trash2,
+  History,
 } from "lucide-react";
 import PlanEditor from "./PlanEditor";
+import AthleteHistory from "./AthleteHistory";
 import TrainerScheduleConfig from "./TrainerScheduleConfig";
 import TrainerAppointmentCalendar from "./TrainerAppointmentCalendar";
 import TrainerExerciseLibrary from "./TrainerExerciseLibrary";
 import TrainerEquipmentLibrary from "./TrainerEquipmentLibrary";
+import MeasurementsView from "./measurements/MeasurementsView";
+import {
+  setMeasurementUnits,
+  useMeasurementUnits,
+} from "../utils/measurements";
 import { Card, Button, useToast, ConfirmDialog, Modal } from "./ui";
 import { useLocalStorage } from "../hooks/useLocalStorage";
+import { MOCK_TRAINER_ID } from "../utils/mockProfiles";
 import "@/styles/trainer-library.css";
+
+// true si el entrenador no tiene ejercicios propios guardados (el entrenador
+// demo siempre parte con una biblioteca inicial).
+const isTrainerLibraryEmpty = (trainerId: string | null) => {
+  if (!trainerId || trainerId === MOCK_TRAINER_ID) return false;
+  try {
+    const raw = localStorage.getItem(`trainer_exercises_${trainerId}`);
+    const parsed = raw ? JSON.parse(raw) : {};
+    if (!parsed || typeof parsed !== "object") return true;
+    return Object.values(parsed).flat().length === 0;
+  } catch {
+    return true;
+  }
+};
 
 const CoachDashboard = ({
   onExit: _onExit,
@@ -51,6 +75,7 @@ const CoachDashboard = ({
   onImmersiveChange?: (immersive: boolean) => void;
 }) => {
   const {
+    clients: allClients,
     getPendingClients,
     getCompletedClients,
     getActivePlans,
@@ -76,6 +101,7 @@ const CoachDashboard = ({
     "trainer_plan_distance_unit",
     "km",
   );
+  const measurementUnits = useMeasurementUnits();
   const [planWeightUnit, setPlanWeightUnit] = useLocalStorage(
     "trainer_plan_weight_unit",
     "lb",
@@ -101,6 +127,8 @@ const CoachDashboard = ({
   // ningún estado de React propio de este componente.
   const [refreshTick, setRefreshTick] = useState(0);
   const [editingAthleteId, setEditingAthleteId] = useState<string | null>(null);
+  const [measuringAthlete, setMeasuringAthlete] = useState<any>(null);
+  const [historyAthlete, setHistoryAthlete] = useState<any>(null);
   const [basicInfoDraft, setBasicInfoDraft] = useState<{
     birthDate: string;
     weightKg: string;
@@ -281,9 +309,19 @@ const CoachDashboard = ({
       );
       return;
     }
-    const plan = generatePlan(client);
-    setCurrentPlanObject(plan);
-    setSelectedClient(client);
+    try {
+      const plan = generatePlan(client);
+      setCurrentPlanObject(plan);
+      setSelectedClient(client);
+      if (isTrainerLibraryEmpty(trainerId)) {
+        addToast(
+          "Tu biblioteca de ejercicios está vacía: el plan usa ejercicios generales. Agrega los tuyos en Configuración.",
+          "info",
+        );
+      }
+    } catch (err: any) {
+      addToast(err?.message || "No se pudo generar el plan", "error");
+    }
   };
 
   const handleSavePlan = (finalText, planObject) => {
@@ -314,34 +352,54 @@ const CoachDashboard = ({
       return;
     }
     setProcessingRequestId(requestId);
-    await acceptTrainerRequest(requestId);
-    addToast("Solicitud aceptada correctamente", "success");
-    setProcessingRequestId(null);
+    try {
+      await acceptTrainerRequest(requestId);
+      addToast("Solicitud aceptada correctamente", "success");
+    } catch (err: any) {
+      addToast(err?.message || "No se pudo aceptar la solicitud", "error");
+    } finally {
+      setProcessingRequestId(null);
+    }
   };
 
   const handleRejectRequest = async (requestId) => {
     setProcessingRequestId(requestId);
-    await rejectTrainerRequest(requestId);
-    addToast("Solicitud rechazada", "info");
-    setProcessingRequestId(null);
+    try {
+      await rejectTrainerRequest(requestId);
+      addToast("Solicitud rechazada", "info");
+    } catch (err: any) {
+      addToast(err?.message || "No se pudo rechazar la solicitud", "error");
+    } finally {
+      setProcessingRequestId(null);
+    }
   };
 
   const handleRemoveAthlete = async (athleteId) => {
     setRemovingAthleteId(athleteId);
-    await removeAthlete(trainerId, athleteId);
-    addToast("Atleta removido", "info");
-    setRemovingAthleteId(null);
+    try {
+      await removeAthlete(trainerId, athleteId);
+      addToast("Atleta removido", "info");
+    } catch (err: any) {
+      addToast(err?.message || "No se pudo remover al atleta", "error");
+    } finally {
+      setRemovingAthleteId(null);
+    }
   };
 
   const handleExtendPlan = async () => {
     if (!clientToExtend) return;
     setExtendingPlanId(clientToExtend.id);
-    await extendPlan(clientToExtend.id, extendWeeks);
-    addToast(
-      `Plan de ${clientToExtend.name} extendido ${extendWeeks} semana${extendWeeks > 1 ? "s" : ""} más`,
-      "success",
-    );
-    setExtendingPlanId(null);
+    try {
+      await extendPlan(clientToExtend.id, extendWeeks);
+      addToast(
+        `Plan de ${clientToExtend.name} extendido ${extendWeeks} semana${extendWeeks > 1 ? "s" : ""} más`,
+        "success",
+      );
+    } catch (err: any) {
+      addToast(err?.message || "No se pudo extender el plan", "error");
+    } finally {
+      setExtendingPlanId(null);
+    }
   };
 
   // Descarta el aviso de "cambio de plan" para este plan/endDate puntual
@@ -353,22 +411,36 @@ const CoachDashboard = ({
     );
   };
 
-  // Crea una cita placeholder de "Ajuste de Plan" para el atleta (3 días a
-  // partir de hoy, 10:00) y lleva al entrenador a la pestaña "Citas" para
+  // Crea una cita placeholder de "Ajuste de Plan" para el atleta (primer
+  // horario libre desde 3 días después de hoy) y lleva al entrenador a la pestaña "Citas" para
   // que la reprograme a la fecha/hora real que acuerde con el atleta.
   const schedulePlanChangeAppointment = (client) => {
-    const suggestedDate = new Date();
-    suggestedDate.setDate(suggestedDate.getDate() + 3);
-    addAppointment({
-      trainerId,
-      athleteId: client.id,
-      athleteName: client.name,
-      date: suggestedDate.toISOString().split("T")[0],
-      time: "10:00",
-      type: "adjust",
-      typeName: "Ajuste de Plan",
-      notes: "Cita de cambio de plan (plan anterior llegó a su fin).",
-    });
+    // Busca el primer horario libre (10:00 a 19:00, cada 30 min) en los
+    // siguientes 7 días a partir del día 3.
+    let created: any = { success: false };
+    for (let offset = 3; offset < 10 && !created.success; offset++) {
+      const day = new Date();
+      day.setDate(day.getDate() + offset);
+      for (let minutes = 10 * 60; minutes <= 19 * 60; minutes += 30) {
+        const time = `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+        created = addAppointment({
+          trainerId,
+          athleteId: client.id,
+          athleteName: client.name,
+          date: toLocalDateString(day),
+          time,
+          duration: 45,
+          type: "adjust",
+          typeName: "Ajuste de Plan",
+          notes: "Cita de cambio de plan (plan anterior llegó a su fin).",
+        });
+        if (created.success) break;
+      }
+    }
+    if (!created.success) {
+      addToast(created.error || "No se pudo crear la cita", "error");
+      return;
+    }
     dismissPlanDecision(client);
     addToast(
       `Cita de cambio de plan creada para ${client.name}. Reprográmala a la fecha real en "Citas".`,
@@ -702,6 +774,35 @@ const CoachDashboard = ({
                         <Button
                           variant="ghost"
                           size="sm"
+                          leftIcon={<Ruler size={16} />}
+                          onClick={() =>
+                            setMeasuringAthlete({
+                              id: request.athleteId,
+                              name: request.athleteName,
+                              birthDate:
+                                liveAthlete?.basicInfo?.birthDate || "",
+                            })
+                          }
+                        >
+                          Mediciones
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          leftIcon={<History size={16} />}
+                          onClick={() =>
+                            setHistoryAthlete({
+                              id: request.athleteId,
+                              name: request.athleteName,
+                              email: liveAthlete?.email || request.athleteEmail,
+                            })
+                          }
+                        >
+                          Historial
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           leftIcon={<UserX size={16} />}
                           loading={removingAthleteId === request.athleteId}
                           onClick={() =>
@@ -880,7 +981,7 @@ const CoachDashboard = ({
                               companyName: e.target.value,
                             }))
                           }
-                          placeholder="Ej. Elite Fitness Center"
+                          placeholder="Ej. KineSalud"
                         />
                         {companyErrors.companyName && (
                           <span className="athlete-edit-field-error">
@@ -1002,6 +1103,57 @@ const CoachDashboard = ({
                         onClick={() => setPlanWeightUnit("kg")}
                       >
                         KG
+                      </button>
+                    </div>
+                  </div>
+
+                  <h4>Mediciones corporales</h4>
+                  <p className="units-settings-hint">
+                    Unidad para capturar y mostrar medidas del atleta. Los
+                    pliegues siempre van en mm. Los datos guardados no cambian,
+                    solo su visualización.
+                  </p>
+
+                  <div className="units-settings-row">
+                    <span className="units-settings-label">Longitud</span>
+                    <div
+                      className="unit-switch"
+                      role="group"
+                      aria-label="Unidad de longitud de mediciones"
+                    >
+                      <button
+                        className={`tap-ripple ${measurementUnits.length === "cm" ? "active" : ""}`}
+                        onClick={() => setMeasurementUnits({ length: "cm" })}
+                      >
+                        CM
+                      </button>
+                      <button
+                        className={`tap-ripple ${measurementUnits.length === "in" ? "active" : ""}`}
+                        onClick={() => setMeasurementUnits({ length: "in" })}
+                      >
+                        IN
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="units-settings-row">
+                    <span className="units-settings-label">Peso corporal</span>
+                    <div
+                      className="unit-switch"
+                      role="group"
+                      aria-label="Unidad de peso corporal"
+                    >
+                      <button
+                        className={`tap-ripple ${measurementUnits.weight === "kg" ? "active" : ""}`}
+                        onClick={() => setMeasurementUnits({ weight: "kg" })}
+                      >
+                        KG
+                      </button>
+                      <button
+                        className={`tap-ripple ${measurementUnits.weight === "lb" ? "active" : ""}`}
+                        onClick={() => setMeasurementUnits({ weight: "lb" })}
+                      >
+                        LB
                       </button>
                     </div>
                   </div>
@@ -1319,6 +1471,35 @@ const CoachDashboard = ({
       />
 
       <Modal
+        isOpen={!!historyAthlete}
+        onClose={() => setHistoryAthlete(null)}
+        title={`Historial — ${historyAthlete?.name || ""}`}
+        size="lg"
+      >
+        {historyAthlete && (
+          <AthleteHistory
+            athlete={historyAthlete}
+            clients={allClients}
+            trainerId={trainerId}
+          />
+        )}
+      </Modal>
+
+      <Modal
+        isOpen={!!measuringAthlete}
+        onClose={() => setMeasuringAthlete(null)}
+        title={`Mediciones — ${measuringAthlete?.name || ""}`}
+        size="xl"
+      >
+        {measuringAthlete && (
+          <MeasurementsView
+            athleteId={measuringAthlete.id}
+            birthDate={measuringAthlete.birthDate}
+          />
+        )}
+      </Modal>
+
+      <Modal
         isOpen={!!editingAthleteId}
         onClose={() => setEditingAthleteId(null)}
         title="Datos Básicos y Lesiones"
@@ -1331,7 +1512,7 @@ const CoachDashboard = ({
             <input
               type="date"
               value={basicInfoDraft.birthDate}
-              max={new Date().toISOString().split("T")[0]}
+              max={todayDateString()}
               onChange={(e) =>
                 setBasicInfoDraft((d) => ({ ...d, birthDate: e.target.value }))
               }
@@ -1468,7 +1649,7 @@ const CoachDashboard = ({
                 if (!editingAthleteId || hasAthleteEditErrors) return;
                 setSavingAthleteData(true);
                 try {
-                  updateAthleteBasicInfo(editingAthleteId, {
+                  updateAthleteBasicInfo(trainerId, editingAthleteId, {
                     birthDate: basicInfoDraft.birthDate || null,
                     weightKg: basicInfoDraft.weightKg
                       ? Number(basicInfoDraft.weightKg)
@@ -1479,6 +1660,7 @@ const CoachDashboard = ({
                     sport: basicInfoDraft.sport || null,
                   });
                   setAthleteInjuries(
+                    trainerId,
                     editingAthleteId,
                     injuriesDraft.filter((i) => i.description.trim()),
                   );

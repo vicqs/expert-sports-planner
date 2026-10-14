@@ -17,6 +17,7 @@ import {
   addDaysToDateString,
   formatDayName,
   formatShortDate,
+  todayDateString,
 } from "../utils/dateNav";
 
 const TrainerAppointmentCalendar = () => {
@@ -31,9 +32,7 @@ const TrainerAppointmentCalendar = () => {
   const { getTrainerId } = useAuth();
   const { addToast } = useToast();
   const trainerId = getTrainerId();
-  const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0],
-  );
+  const [selectedDate, setSelectedDate] = useState(todayDateString());
   const [view, setView] = useState("appointments"); // 'appointments' | 'availability'
   const [availSlots, setAvailSlots] = useState<any[]>([]);
   const [reschedulingId, setReschedulingId] = useState<string | null>(null);
@@ -52,10 +51,10 @@ const TrainerAppointmentCalendar = () => {
   // Load availability when date changes or view changes
   React.useEffect(() => {
     if (view === "availability") {
-      const slots = getAppointmentAvailability(selectedDate);
+      const slots = getAppointmentAvailability(selectedDate, trainerId);
       setAvailSlots(slots.length > 0 ? slots : []);
     }
-  }, [selectedDate, view, getAppointmentAvailability]);
+  }, [selectedDate, view, getAppointmentAvailability, trainerId]);
 
   const goToDay = (direction) => {
     setSelectedDate((prev) => addDaysToDateString(prev, direction));
@@ -63,7 +62,7 @@ const TrainerAppointmentCalendar = () => {
 
   // In a real app, we'd fetch for a range or the selected date
   // For this mock, we'll filter all appointments by date
-  const appointments = getTrainerAppointments(selectedDate);
+  const appointments = getTrainerAppointments(selectedDate, trainerId);
 
   const handleStatusChange = (id, status) => {
     updateAppointmentStatus(id, status);
@@ -86,7 +85,15 @@ const TrainerAppointmentCalendar = () => {
       addToast("Selecciona fecha y hora para reprogramar.", "warning");
       return;
     }
-    rescheduleAppointment(reschedulingId, rescheduleDate, rescheduleTime);
+    const res = rescheduleAppointment(
+      reschedulingId,
+      rescheduleDate,
+      rescheduleTime,
+    );
+    if (!res?.success) {
+      addToast(res?.error || "No se pudo reprogramar", "error");
+      return;
+    }
     addToast("Cita reprogramada correctamente", "success");
     cancelReschedule();
   };
@@ -124,7 +131,7 @@ const TrainerAppointmentCalendar = () => {
   };
 
   const handleSaveAvailability = () => {
-    updateAppointmentAvailability(selectedDate, availSlots);
+    updateAppointmentAvailability(selectedDate, availSlots, trainerId);
     addToast("Disponibilidad guardada correctamente", "success");
   };
 

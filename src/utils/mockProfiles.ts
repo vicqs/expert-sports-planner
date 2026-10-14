@@ -9,20 +9,33 @@ import {
   PLAN_LIMITS,
 } from "./auth";
 import { generatePlan } from "./generator";
+import { GYM_EXERCISES } from "./constants";
+import { getAthleticsParts } from "./athleteHistory";
 
 export const MOCK_TRAINER_ID = "mock-trainer-0001";
 export const MOCK_ATHLETE_1_ID = "mock-athlete-0001";
 export const MOCK_ATHLETE_2_ID = "mock-athlete-0002";
 
+// Biblioteca de ejercicios inicial del entrenador demo. Los planes de demostración
+// (generatePlan) usan los primeros ejercicios de cada categoría, así que la
+// biblioteca los incluye para que planes y biblioteca sean coherentes.
+export const MOCK_TRAINER_EXERCISES: Record<string, string[]> = (() => {
+  const lib: Record<string, string[]> = {};
+  ["LOWER", "UPPER_PUSH", "UPPER_PULL", "CORE"].forEach((cat) => {
+    lib[cat] = [...(GYM_EXERCISES[cat] || []).slice(0, 8)].sort();
+  });
+  return lib;
+})();
+
 // ----- Usuario Entrenador (mock) -----
 export const mockTrainerUser = {
   id: "mock-trainer-user-0001",
   email: "entrenador.demo@example.com",
-  name: "Carlos Mendoza (Demo)",
+  name: "Ariel Barrantes",
   role: ROLES.TRAINER,
   trainerId: MOCK_TRAINER_ID,
-  companyId: "empresa-elite-fitness",
-  companyName: "Elite Fitness Center",
+  companyId: "empresa-kinesalud",
+  companyName: "KineSalud",
   subscription: {
     plan: SUBSCRIPTION_PLANS.PRO,
     status: SUBSCRIPTION_STATUS.ACTIVE,
@@ -37,8 +50,8 @@ export const mockTrainerUser = {
 // ----- Usuarios Atletas (mock) -----
 export const mockAthlete1User = {
   id: MOCK_ATHLETE_1_ID,
-  email: "laura.demo@example.com",
-  name: "Laura Gómez (Demo)",
+  email: "victor.demo@example.com",
+  name: "Victor Quiros",
   role: ROLES.ATHLETE,
   trainerId: null,
   subscription: {
@@ -54,8 +67,8 @@ export const mockAthlete1User = {
 
 export const mockAthlete2User = {
   id: MOCK_ATHLETE_2_ID,
-  email: "diego.demo@example.com",
-  name: "Diego Ramírez (Demo)",
+  email: "melissa.demo@example.com",
+  name: "Melissa Bonilla",
   role: ROLES.ATHLETE,
   trainerId: null,
   subscription: {
@@ -80,13 +93,13 @@ export const MOCK_PROFILES = [
   {
     key: "athlete1",
     label: "Atleta 1",
-    description: "Laura Gómez - Resistencia",
+    description: "Victor Quiros - Resistencia",
     user: mockAthlete1User,
   },
   {
     key: "athlete2",
     label: "Atleta 2",
-    description: "Diego Ramírez - Velocidad",
+    description: "Melissa Bonilla - Velocidad",
     user: mockAthlete2User,
   },
 ];
@@ -115,6 +128,41 @@ const seedPastCompletion = (planObject: any[], startDate: Date) => {
   }));
 };
 
+// Carga y series realizadas en los días ya completados, para que el historial
+// del atleta (rol Entrenador) tenga progresión real entre planes: el plan
+// anterior parte de una carga base y el actual suma `bonus` a esa carga.
+const seedLoads = (planObject: any[], bonus: number) =>
+  planObject.map((week) => ({
+    ...week,
+    days: week.days.map((day: any, dayIdx: number) => {
+      if (!day.completed || !day.session) return day;
+      if (!day.session.exercises) {
+        // Atletismo: todas las partes, salvo el enfriamiento en algunos días.
+        const keys = getAthleticsParts(day.session)
+          .map((p) => p.key)
+          .filter((k) => !(k === "cooldown" && dayIdx % 3 === 2));
+        return {
+          ...day,
+          session: { ...day.session, completedParts: keys },
+        };
+      }
+      return {
+        ...day,
+        session: {
+          ...day.session,
+          exercises: day.session.exercises.map((ex: any, i: number) => ({
+            ...ex,
+            weight: String(20 + i * 5 + bonus),
+            completedSets: Array.from(
+              { length: Number(ex.sets) || 0 },
+              (_, k) => k,
+            ),
+          })),
+        },
+      };
+    }),
+  }));
+
 const buildMockClient = (athleteUser, overrides) => {
   const now = new Date();
   const start = new Date(now);
@@ -137,7 +185,7 @@ const buildMockClient = (athleteUser, overrides) => {
     objective: overrides.objective,
     planDuration: 4,
     plan: null,
-    planObject: seedPastCompletion(planObject, start),
+    planObject: seedLoads(seedPastCompletion(planObject, start), 5),
     planCreatedAt: start.toISOString(),
     startDate: start.toISOString(),
     endDate: end.toISOString(),
@@ -186,7 +234,7 @@ const buildCompletedMockClient = (athleteUser, overrides) => {
     objective: overrides.objective,
     planDuration: 4,
     plan: null,
-    planObject,
+    planObject: seedLoads(seedPastCompletion(planObject, start), 0),
     planCreatedAt: start.toISOString(),
     startDate: start.toISOString(),
     endDate: end.toISOString(),
@@ -243,7 +291,7 @@ export const mockAthleteRequests = [
 const isoDateOffset = (days) => {
   const d = new Date();
   d.setDate(d.getDate() + days);
-  return d.toISOString().split("T")[0];
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
 // ----- Reservas de Gimnasio (mock) -----
@@ -324,6 +372,29 @@ mockGymBookings
     const slot = day?.slots.find((s) => s.id === booking.slotId);
     if (slot) slot.reserved += 1;
   });
+
+// ----- Horarios de citas del entrenador (mock) -----
+// Bloques disponibles de lunes a viernes durante las próximas dos semanas, sin
+// `trainerId` (formato "general") para que los vean tanto el entrenador como
+// los atletas al agendar.
+export const mockAppointmentAvailability = Array.from(
+  { length: 15 },
+  (_, offset) => offset,
+)
+  .map((offset) => ({ offset, date: isoDateOffset(offset) }))
+  .filter(({ date }) => {
+    const [y, m, d] = date.split("-").map(Number);
+    const dow = new Date(y, m - 1, d).getDay();
+    return dow !== 0 && dow !== 6;
+  })
+  .map(({ date }) => ({
+    date,
+    slots: [
+      { id: `${date}-appt-am1`, start: "09:00", end: "10:00" },
+      { id: `${date}-appt-am2`, start: "10:00", end: "11:00" },
+      { id: `${date}-appt-pm`, start: "15:00", end: "17:00" },
+    ],
+  }));
 
 // ----- Citas con el entrenador (mock) -----
 // Mezcla de citas pasadas (COMPLETED), próximas (SCHEDULED) y una cancelada,

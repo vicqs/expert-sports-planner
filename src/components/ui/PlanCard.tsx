@@ -15,7 +15,9 @@ const PlanCard = ({ plan, onClick }: { plan: any; onClick: () => void }) => {
       <div className="plan-card-header">
         <div className="plan-info">
           <h3>{plan.name || "Plan Personalizado"}</h3>
-          <p className="coach-name">Por: Coach Expert</p>
+          <p className="coach-name">
+            {plan.coachName ? `Por: ${plan.coachName}` : "Plan personalizado"}
+          </p>
         </div>
         <div className="plan-status">
           {isActive && <span className="badge badge-primary">Activo</span>}
@@ -53,7 +55,13 @@ const PlanCard = ({ plan, onClick }: { plan: any; onClick: () => void }) => {
 
       <div className="plan-card-footer">
         <span className="next-session">
-          Próxima: <strong>Mañana</strong>
+          {plan.nextSession ? (
+            <>
+              Próxima: <strong>{plan.nextSession}</strong>
+            </>
+          ) : (
+            <>Sin sesiones pendientes</>
+          )}
         </span>
         <Button
           variant="ghost"

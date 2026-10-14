@@ -1,5 +1,10 @@
 import React, { createContext, useContext, useEffect } from "react";
-import { initializeSuperAdmin, ROLES, updateUserProfile } from "../utils/auth";
+import {
+  initializeSuperAdmin,
+  expireTrials,
+  ROLES,
+  updateUserProfile,
+} from "../utils/auth";
 import { usePreviewStore } from "../store/usePreviewStore";
 import {
   useAuthStore,
@@ -51,6 +56,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   // Sincronizar con localStorage
+  useEffect(() => {
+    const check = () => {
+      if (expireTrials()) syncFromStorage();
+    };
+    check();
+    const id = window.setInterval(check, 5 * 60 * 1000);
+    return () => window.clearInterval(id);
+  }, [syncFromStorage]);
+
   useEffect(() => {
     const handleStorageChange = () => {
       syncFromStorage();

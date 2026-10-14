@@ -77,13 +77,17 @@ No se "bloquea una ruta": el dashboard de otro rol **nunca se monta**. Un `ATHLE
 
 ### 2.4 Protecciones a nivel de función
 
-| Función (`utils/auth.ts`) | Protección                                                                      |
-| ------------------------- | ------------------------------------------------------------------------------- |
-| `deleteUser`              | Lanza error si el usuario es `isSuper`                                          |
-| `changePassword`          | Exige la contraseña actual                                                      |
-| `exportUserData`          | Excluye el hash de contraseña                                                   |
-| `quickAdminLogin` (store) | Rechazado si `!import.meta.env.DEV`                                             |
-| `initializeSuperAdmin`    | Requiere `VITE_ADMIN_EMAIL` y `VITE_ADMIN_PASSWORD_HASH`; lanza error si faltan |
+| Función (`utils/auth.ts`)                                                          | Protección                                                                           |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `deleteUser`                                                                       | Lanza error si el usuario es `isSuper`                                               |
+| `changePassword`                                                                   | Exige la contraseña actual (`verifyPassword`, tiempo constante)                      |
+| `adminChangePlan`, `adminExtendTrial`, `adminDeleteUser`, `adminChangeOwnPassword` | `assertAdmin`: el actor debe existir, ser ADMIN y coincidir con la sesión activa     |
+| `registerUser`, `completeUserProfile`, `updateUserProfile`                         | Validan el formato del email (`isValidEmail`)                                        |
+| Contraseñas                                                                        | PBKDF2-SHA256 (210k iteraciones, sal aleatoria); mínimo 6 caracteres (10 para admin) |
+| `initializeSuperAdmin`                                                             | `envPasswordHash` evita que `.env` pise una contraseña cambiada desde el panel       |
+| `exportUserData`                                                                   | Excluye el hash de contraseña                                                        |
+| `quickAdminLogin` (store)                                                          | Rechazado si `!import.meta.env.DEV` o si el hostname no es local                     |
+| `initializeSuperAdmin`                                                             | Requiere `VITE_ADMIN_EMAIL` y `VITE_ADMIN_PASSWORD_HASH`; lanza error si faltan      |
 
 **Límite:** funciones trainer-only como `setAthleteInjuries` o `updateAthleteBasicInfo` **no verifican el rol del llamador**; dependen de que solo `CoachDashboard` las invoque.
 
@@ -205,19 +209,19 @@ sequenceDiagram
 
 ## 5. Riesgos conocidos y hoja de ruta
 
-| #   | Riesgo                                          | Severidad | Detalle                                                                                              | Mitigación                                                    |
-| --- | ----------------------------------------------- | --------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| 1   | Autorización solo en cliente                    | Crítica   | Editar `currentUser.role` en `localStorage` permite ver otro dashboard                               | Autorización en servidor; nunca confiar en el rol del cliente |
-| 2   | Sesión sin expiración                           | Alta      | Persiste indefinidamente                                                                             | Tokens con TTL y logout por `401`                             |
-| 3   | Hash SHA-256 sin sal                            | Alta      | `hashPassword` (Web Crypto) es vulnerable a rainbow tables; el código lo indica ("no es producción") | bcrypt/argon2 en servidor                                     |
-| 4   | Hashes y usuarios en `localStorage`             | Alta      | Visibles y exfiltrables por XSS o acceso al equipo                                                   | Datos de usuarios solo en backend                             |
-| 5   | Login sin contraseña por nombre                 | Media     | `loginUser` permite entrar a usuarios sin `passwordHash` con solo su nombre                          | Eliminar ese camino al salir de demo                          |
-| 6   | Funciones trainer-only sin verificar rol        | Media     | `setAthleteInjuries`, `updateAthleteBasicInfo`                                                       | Validar rol y vínculo entrenador–atleta                       |
-| 7   | Hash de admin en variables `VITE_*`             | Media     | Todo `VITE_*` se incluye en el bundle público                                                        | Mover al backend                                              |
-| 8   | Sin rate limiting ni bloqueo de intentos        | Media     | Fuerza bruta local trivial                                                                           | Límite de intentos en servidor                                |
-| 9   | Eliminar cuenta sin cascada ni re-autenticación | Media     | Datos huérfanos                                                                                      | Borrado en cascada + pedir contraseña                         |
-| 10  | Sin cabeceras de seguridad (CSP, etc.)          | Media     | `vercel.json` solo define `installCommand`                                                           | Añadir CSP, `X-Frame-Options`, `Referrer-Policy`              |
-| 11  | Sin router                                      | Info      | Sin deep links ni guardias de URL                                                                    | Adoptar `react-router` con `ProtectedRoute`/`RoleRoute`       |
+| #   | Riesgo                                          | Severidad | Detalle                                                                                                                                                     | Mitigación                                                    |
+| --- | ----------------------------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| 1   | Autorización solo en cliente                    | Crítica   | Editar `currentUser.role` en `localStorage` permite ver otro dashboard                                                                                      | Autorización en servidor; nunca confiar en el rol del cliente |
+| 2   | Sesión sin expiración                           | Alta      | Persiste indefinidamente                                                                                                                                    | Tokens con TTL y logout por `401`                             |
+| 3   | Hash en cliente (PBKDF2 con sal)                | Media     | Mitigado: PBKDF2-SHA256 210k iteraciones con sal aleatoria y migración de hashes SHA-256 heredados; el hash sigue en `localStorage` y el `.env` usa SHA-256 | bcrypt/argon2 en servidor                                     |
+| 4   | Hashes y usuarios en `localStorage`             | Alta      | Visibles y exfiltrables por XSS o acceso al equipo                                                                                                          | Datos de usuarios solo en backend                             |
+| 5   | Login sin contraseña por nombre                 | Media     | `loginUser` permite entrar a usuarios sin `passwordHash` con solo su nombre                                                                                 | Eliminar ese camino al salir de demo                          |
+| 6   | Funciones trainer-only sin verificar rol        | Media     | `setAthleteInjuries`, `updateAthleteBasicInfo`                                                                                                              | Validar rol y vínculo entrenador–atleta                       |
+| 7   | Hash de admin en variables `VITE_*`             | Media     | Todo `VITE_*` se incluye en el bundle público                                                                                                               | Mover al backend                                              |
+| 8   | Sin rate limiting ni bloqueo de intentos        | Media     | Fuerza bruta local trivial                                                                                                                                  | Límite de intentos en servidor                                |
+| 9   | Eliminar cuenta sin cascada ni re-autenticación | Media     | Datos huérfanos                                                                                                                                             | Borrado en cascada + pedir contraseña                         |
+| 10  | Sin cabeceras de seguridad (CSP, etc.)          | Media     | `vercel.json` solo define `installCommand`                                                                                                                  | Añadir CSP, `X-Frame-Options`, `Referrer-Policy`              |
+| 11  | Sin router                                      | Info      | Sin deep links ni guardias de URL                                                                                                                           | Adoptar `react-router` con `ProtectedRoute`/`RoleRoute`       |
 
 ### 5.1 Patrón sugerido al adoptar un router
 

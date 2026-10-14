@@ -1,5 +1,12 @@
-// Admin Module - Barrel Export
-// Este archivo centraliza todas las exportaciones del módulo admin
+/**
+ * Módulo Admin - barrel de exportación.
+ *
+ * Propósito: punto de entrada único del panel de administración (CRM).
+ * Responsabilidad: re-exportar página, componentes, modales y hooks.
+ * Lo usa: App.tsx (carga diferida de AdminDashboard) y cualquier consumidor
+ * externo que necesite piezas del módulo.
+ * No toca datos por sí mismo (solo re-exporta).
+ */
 
 // Exports de páginas principales
 export { default as AdminDashboard } from "./pages/AdminDashboard";

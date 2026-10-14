@@ -22,22 +22,28 @@ El sistema incluye un super usuario administrador creado automáticamente al ini
 
 El administrador tiene acceso a:
 
-1. **Resumen General**
-   - Total de usuarios registrados
-   - Cantidad de entrenadores
-   - Cantidad de atletas
-   - Total de clientes
-   - Total de planes creados
-   - Trials activos
+1. **Panel General**
+   - Métricas globales (usuarios, planes, trials, equipamiento, ejercicios, reservas y citas)
+   - Alertas: trials por vencer y vencidos (con extensión rápida), equipamiento, actividad reciente
 
 2. **Gestión de Usuarios**
-   - Lista completa de usuarios
-   - Ver detalles de cada usuario
-   - Ver rol, plan y estado de suscripción
-   - Fecha de registro
+   - Búsqueda, filtros por rol y plan, orden y paginación
+   - Cambio de plan y extensión de trial (individual y en lote)
+   - Exportación a CSV y eliminación en cascada
 
-3. **Configuración del Sistema**
-   - Opciones de configuración (próximamente)
+3. **Ejercicios** y 4. **Equipamiento**
+   - Catálogos maestros (1022 ejercicios en 8 categorías) con metadatos y filtros de datos faltantes
+
+4. **Análisis**
+   - Gráficos, conversión y registros por mes
+
+5. **Configuración del Sistema**
+   - Duración del trial, respaldo y restauración
+   - Cambio de contraseña del admin (mínimo 10 caracteres)
+   - Restablecer datos operativos
+   - Registro de actividad con filtro, exportación CSV y limpieza
+
+Detalle completo en [ROL_ADMINISTRADOR.md](./ROL_ADMINISTRADOR.md).
 
 ### Inicialización
 

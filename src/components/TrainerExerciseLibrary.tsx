@@ -12,6 +12,10 @@ const CATEGORY_LABELS = {
   UPPER_PUSH: "Tren Superior - Empuje",
   UPPER_PULL: "Tren Superior - Jalón",
   CORE: "Core / Abdomen",
+  FULL_BODY: "Cuerpo completo",
+  PLIOMETRICO: "Pliométrico",
+  CARDIO: "Cardio",
+  MOVILIDAD: "Movilidad y estiramientos",
 };
 
 /**

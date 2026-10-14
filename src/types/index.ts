@@ -64,9 +64,13 @@ export interface User {
   email: string | null;
   phone: string | null;
   passwordHash: string | null;
+  /** Solo super admin: último hash de .env aplicado (evita pisar cambios de UI). */
+  envPasswordHash?: string;
   name: string;
   role: Role;
   trainerId: string | null;
+  /** Cuenta suspendida por un admin: no puede iniciar sesión. */
+  suspended?: boolean;
   subscription: Subscription;
   limits: UserLimits;
   createdAt: string;

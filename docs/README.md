@@ -8,7 +8,9 @@
 | -------------------------------------------------------------- | ------------------------------------------------------------------- |
 | [ARCHITECTURE.md](./ARCHITECTURE.md)                           | Estructura del proyecto, capas y flujo de datos                     |
 | [BUSINESS_LOGIC.md](./BUSINESS_LOGIC.md)                       | Roles, vinculación entrenador–atleta, permisos y retención de datos |
-| [FUNCIONALIDADES.md](./FUNCIONALIDADES.md)                     | Listado de funcionalidades por rol                                  |
+| [ROL_ENTRENADOR.md](./ROL_ENTRENADOR.md)                       | Funcionalidades detalladas del entrenador                           |
+| [ROL_ATLETA.md](./ROL_ATLETA.md)                               | Funcionalidades detalladas del atleta                               |
+| [ROL_ADMINISTRADOR.md](./ROL_ADMINISTRADOR.md)                 | Funcionalidades detalladas del administrador                        |
 | [GUIA_APLICACION.md](./GUIA_APLICACION.md)                     | Guía narrativa de uso para entrenador y atleta                      |
 | [ADMIN.md](./ADMIN.md)                                         | Acceso y funciones del super administrador                          |
 | [STATE_MANAGEMENT.md](./STATE_MANAGEMENT.md)                   | Zustand, Context, sesión, UI global y persistencia                  |

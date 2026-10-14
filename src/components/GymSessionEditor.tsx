@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
   Plus,
+  Copy,
   Trash2,
   Dumbbell,
   X,
@@ -11,6 +12,7 @@ import {
 import { ALL_GYM_EXERCISES } from "../utils/constants";
 import { useTrainerLibrary } from "../hooks";
 import { getExerciseMetadata } from "@/utils/exerciseMetadata";
+import { sanitizeExerciseField } from "../utils/exerciseInput";
 import "@/styles/trainer-library.css";
 
 /** Small preview shown under the exercise autocomplete, so the trainer can confirm
@@ -44,7 +46,7 @@ const ExercisePreview = ({ name }) => {
 
 const GymSessionEditor = ({
   session,
-  weekNum: _weekNum,
+  weekNum,
   weightUnit = "lb",
   onChange,
   trainerId = null, // ID del entrenador para filtrar ejercicios
@@ -81,23 +83,47 @@ const GymSessionEditor = ({
     onChange(updated);
   };
 
+  const [focusIdx, setFocusIdx] = useState<number | null>(null);
+  useEffect(() => {
+    if (focusIdx === null) return;
+    const el = document.getElementById(`ex-name-${weekNum}-${focusIdx}`);
+    el?.focus();
+    el?.scrollIntoView({ block: "center", behavior: "smooth" });
+    setFocusIdx(null);
+  }, [focusIdx, weekNum]);
+
+  // El nuevo ejercicio hereda series, reps y descanso del anterior para
+  // no repetir lo mismo en cada tarjeta; el foco pasa al nombre.
   const addExercise = () => {
+    const list = localSession.exercises || [];
+    const prev = list[list.length - 1];
     const newEx = {
       name: "",
       weight: "",
-      unit: weightUnit,
-      series: "4",
-      reps: "12",
-      restVal: "60",
-      restUnit: "s",
+      unit: prev?.unit || weightUnit,
+      series: prev?.series || "4",
+      reps: prev?.reps || "12",
+      restVal: prev?.restVal || "60",
+      restUnit: prev?.restUnit || "s",
+      rest: prev?.rest,
       notes: "",
     };
     const updated = {
       ...localSession,
-      exercises: [...(localSession.exercises || []), newEx],
+      exercises: [...list, newEx],
     };
     setLocalSession(updated);
     onChange(updated);
+    setFocusIdx(list.length);
+  };
+
+  const duplicateExercise = (index) => {
+    const list = [...(localSession.exercises || [])];
+    list.splice(index + 1, 0, JSON.parse(JSON.stringify(list[index])));
+    const updated = { ...localSession, exercises: list };
+    setLocalSession(updated);
+    onChange(updated);
+    setFocusIdx(index + 1);
   };
 
   const removeExercise = (index) => {
@@ -125,7 +151,8 @@ const GymSessionEditor = ({
     onChange(updated);
   };
 
-  const updateExercise = (index, field, value) => {
+  const updateExercise = (index, field, rawValue) => {
+    const value = sanitizeExerciseField(field, rawValue);
     const updatedEx = [...(localSession.exercises || [])];
     updatedEx[index] = { ...updatedEx[index], [field]: value };
 
@@ -200,6 +227,7 @@ const GymSessionEditor = ({
         <input
           type="text"
           className="gym-title-input"
+          maxLength={60}
           value={localSession.title}
           onChange={(e) => updateField("title", e.target.value)}
           placeholder="Título de la sesión (ej. Fuerza Hipertrofia)"
@@ -259,6 +287,14 @@ const GymSessionEditor = ({
                     <ChevronDown size={16} />
                   </button>
                   <button
+                    className="btn-move tap-ripple"
+                    onClick={() => duplicateExercise(i)}
+                    title="Duplicar ejercicio"
+                    aria-label="Duplicar ejercicio"
+                  >
+                    <Copy size={16} />
+                  </button>
+                  <button
                     className="btn-remove tap-ripple"
                     onClick={() => removeExercise(i)}
                     title="Eliminar ejercicio"
@@ -276,6 +312,8 @@ const GymSessionEditor = ({
                     <input
                       type="text"
                       className="autocomplete-input"
+                      id={`ex-name-${weekNum}-${i}`}
+                      maxLength={80}
                       placeholder="Buscar o seleccionar ejercicio..."
                       value={ex.name || ""}
                       onChange={(e) =>
@@ -284,16 +322,33 @@ const GymSessionEditor = ({
                       list={`exercise-list-${i}`}
                       autoComplete="off"
                     />
-                    {ex.name && (
-                      <button
-                        className="clear-search-btn tap-ripple"
-                        onClick={() => updateExercise(i, "name", "")}
-                        type="button"
-                        title="Limpiar"
-                      >
-                        <X size={16} />
-                      </button>
-                    )}
+                    <button
+                      className="clear-search-btn tap-ripple"
+                      onClick={(e) => {
+                        const input =
+                          e.currentTarget.parentElement?.querySelector("input");
+                        if (ex.name) {
+                          updateExercise(i, "name", "");
+                          input?.focus();
+                        } else {
+                          input?.focus();
+                          try {
+                            input?.showPicker?.();
+                          } catch {
+                            /* showPicker no disponible: el foco basta */
+                          }
+                        }
+                      }}
+                      type="button"
+                      title={ex.name ? "Limpiar" : "Ver ejercicios"}
+                      aria-label={
+                        ex.name
+                          ? "Limpiar ejercicio"
+                          : "Ver lista de ejercicios"
+                      }
+                    >
+                      {ex.name ? <X size={16} /> : <ChevronDown size={16} />}
+                    </button>
                     <datalist id={`exercise-list-${i}`}>
                       {availableExercises
                         .filter((e) => {
@@ -316,7 +371,9 @@ const GymSessionEditor = ({
                   <div className="field-group">
                     <label>Series</label>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={2}
                       value={ex.series}
                       onChange={(e) =>
                         updateExercise(i, "series", e.target.value)
@@ -329,6 +386,8 @@ const GymSessionEditor = ({
                     <label>Reps</label>
                     <input
                       type="text"
+                      inputMode="text"
+                      maxLength={12}
                       value={ex.reps}
                       onChange={(e) =>
                         updateExercise(i, "reps", e.target.value)
@@ -343,7 +402,9 @@ const GymSessionEditor = ({
                     <label>Peso ({weightUnit})</label>
                     <div className="input-with-unit">
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
+                        maxLength={7}
                         value={ex.weight}
                         onChange={(e) =>
                           updateExercise(i, "weight", e.target.value)
@@ -367,12 +428,26 @@ const GymSessionEditor = ({
                     <label>Descanso</label>
                     <div className="input-group-joined">
                       <input
-                        type="number"
-                        value={ex.restVal || ex.rest?.replace(/\D/g, "") || ""}
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={4}
+                        value={
+                          ex.restVal ?? (ex.rest?.replace(/\D/g, "") || "")
+                        }
                         onChange={(e) =>
                           updateExercise(i, "restVal", e.target.value)
                         }
                         placeholder="60"
+                        enterKeyHint="next"
+                        onKeyDown={(e) => {
+                          if (
+                            e.key === "Enter" &&
+                            i === (localSession.exercises || []).length - 1
+                          ) {
+                            e.preventDefault();
+                            addExercise();
+                          }
+                        }}
                       />
                       <select
                         value={ex.restUnit || "s"}
@@ -391,11 +466,13 @@ const GymSessionEditor = ({
           );
         })}
 
-        <button className="btn-add-card tap-ripple" onClick={addExercise}>
-          <div className="icon-circle">
-            <Plus size={24} />
-          </div>
-          <span>Agregar Ejercicio</span>
+        <button
+          className="btn-add-card tap-ripple"
+          onClick={addExercise}
+          type="button"
+        >
+          <Plus size={20} />
+          <span>Agregar ejercicio</span>
         </button>
       </div>
 
@@ -646,13 +723,18 @@ const GymSessionEditor = ({
         .autocomplete-input {
           width: 100%;
           min-height: var(--touch-target-min);
-          padding: 0.6rem 2.5rem 0.6rem 0.75rem;
+          padding: 0.6rem 3rem 0.6rem 0.75rem;
           border: 1px solid var(--color-border);
           border-radius: var(--radius-md);
           background: var(--color-surface);
           color: var(--color-text);
           font-size: 16px;
           transition: all 0.2s;
+        }
+
+        .autocomplete-input::-webkit-calendar-picker-indicator {
+          display: none !important;
+          opacity: 0;
         }
 
         .autocomplete-input:focus {
@@ -671,8 +753,8 @@ const GymSessionEditor = ({
           color: var(--color-text-muted);
           cursor: pointer;
           padding: 0.25rem;
-          min-width: 36px;
-          min-height: 36px;
+          min-width: var(--touch-target-min, 44px);
+          min-height: var(--touch-target-min, 44px);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -842,6 +924,52 @@ const GymSessionEditor = ({
             width: 40px;
             height: 40px;
           }
+        }
+
+        /* --- Lista en una columna, campos en una fila, 16px en m\u00f3vil --- */
+        .exercises-grid {
+          grid-template-columns: 1fr;
+          gap: 1rem;
+        }
+        .exercise-card:hover { transform: none; }
+        .btn-add-card {
+          min-height: var(--touch-target-min, 44px);
+          flex-direction: row;
+          gap: 0.5rem;
+          padding: 0.75rem 1rem;
+          border-style: dashed;
+        }
+        .field-group input,
+        .field-group select,
+        .unit-select {
+          font-size: 1rem !important;
+        }
+        .btn-move, .btn-remove {
+          min-width: var(--touch-target-min, 44px);
+          min-height: var(--touch-target-min, 44px);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        @media (min-width: 720px) {
+          .card-body {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.75rem 1rem;
+            align-items: end;
+          }
+          .card-body .field-group.full { grid-column: 1 / -1; }
+          .card-body .row-group { display: contents; }
+        }
+        @media (max-width: 719px) {
+          .row-group {
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+          }
+          .unit-select { width: 64px !important; }
+          .input-group-joined select { width: 52px !important; }
+          .exercise-card { padding: 0; }
+          .gym-title-input { font-size: 1.05rem; }
         }
       `}</style>
     </div>

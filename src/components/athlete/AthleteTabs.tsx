@@ -10,6 +10,7 @@ import {
 } from "../ui";
 import { useAuth } from "../../context/AuthContext";
 import { getAllUsers } from "../../utils/auth";
+import MeasurementsView from "../measurements/MeasurementsView";
 import {
   Search,
   TrendingUp,
@@ -156,6 +157,7 @@ export const ProgresoTab: React.FC<ProgresoTabProps> = ({
   myTrainer,
   myPlans,
 }) => {
+  const { currentUser } = useAuth();
   // Cumplimiento por semana (todas las semanas de todos los planes del
   // atleta, agregadas por `weekNum`) — alimenta el gráfico de barras de
   // abajo. Se calcula en vivo a partir de `planObject`, mismo dato que ya
@@ -321,6 +323,12 @@ export const ProgresoTab: React.FC<ProgresoTabProps> = ({
               </div>
             ))}
           </div>
+        </Card>
+      )}
+
+      {currentUser?.id && (
+        <Card className="measurements-card">
+          <MeasurementsView athleteId={currentUser.id} readOnly />
         </Card>
       )}
 

@@ -10,7 +10,7 @@ Este documento describe cómo migrar **Expert Sports Planner** de usar `MockData
 | ----------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | Roles                         | `TRAINER`, `ATHLETE`, `ADMIN` (mayúsculas)                                               | Los ejemplos de este documento usan `coach`/`athlete`; mapear `coach` → `TRAINER` y añadir `ADMIN` |
 | Capa de servicios             | `services/dataServices.ts` existe, con `USE_MOCK = true`, y **ningún componente la usa** | Los componentes hablan con `MockDatabase`; hay que reconectarlos (ver «Cambios en el Frontend»)    |
-| Autenticación                 | Hash SHA-256 en cliente, usuarios en `localStorage`                                      | Mover a servidor (bcrypt/argon2, JWT o cookie `HttpOnly`)                                          |
+| Autenticación                 | Hash PBKDF2 en cliente (SHA-256 heredado), usuarios en `localStorage`                    | Mover a servidor (bcrypt/argon2, JWT o cookie `HttpOnly`)                                          |
 | Vinculación entrenador–atleta | Solicitudes (`athleteRequests`) y `trainerId` en el usuario                              | Requiere tablas y endpoints propios (ver «Ampliaciones del modelo»)                                |
 | Datos de perfil               | Avatar, contacto de emergencia, lesiones, notas médicas, preferencias de notificación    | Columnas/tablas adicionales                                                                        |
 | Suscripciones                 | Planes `FREE`/`BASIC`/`PRO`/`GYM`, trial y límites                                       | Modelo de suscripción en servidor                                                                  |
@@ -738,7 +738,7 @@ Además, los componentes **hoy no consumen** `ClientService`, `GymService` ni `A
 
 ### 3. Autenticación
 
-La UI de login/registro ya existe (`AuthPage`). Lo que cambia es la fuente de verdad: `useAuthStore` llama hoy a `loginUser`/`registerUser` de `utils/auth.ts` (hash SHA-256 en cliente). Debe llamar a los endpoints `/auth/*`:
+La UI de login/registro ya existe (`AuthPage`). Lo que cambia es la fuente de verdad: `useAuthStore` llama hoy a `loginUser`/`registerUser` de `utils/auth.ts` (hash PBKDF2 con sal en cliente; se aceptan y migran hashes SHA-256 heredados). Debe llamar a los endpoints `/auth/*`:
 
 ```typescript
 // src/store/useAuthStore.ts (esquema)

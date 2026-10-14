@@ -254,6 +254,27 @@ export const formatPlanToText = (
     output += `────────────────────────────────────────────────\n\n`;
   });
 
+  const legendMap = new Map<string, string>();
+  (planData || []).forEach((w) =>
+    (w.days || []).forEach((d) =>
+      (d.session?.legend || []).forEach((l) => {
+        if (!legendMap.has(l.symbol)) {
+          legendMap.set(
+            l.symbol,
+            `${l.name}${l.meaning ? `: ${l.meaning}` : ""}`,
+          );
+        }
+      }),
+    ),
+  );
+  if (legendMap.size > 0) {
+    output += `LEYENDA DE SÍMBOLOS\n`;
+    legendMap.forEach((text, symbol) => {
+      output += `  ${symbol}  ${text}\n`;
+    });
+    output += `\n`;
+  }
+
   output += `══════════════════════════════════════════════\n`;
   output += `   NOTAS Y RECOMENDACIONES\n`;
   output += `══════════════════════════════════════════════\n\n`;

@@ -23,7 +23,7 @@
 | E2E                         | **No configurado**            | No hay Cypress ni Playwright                                                                  |
 | CI/CD                       | **No configurado**            | No existe `.github/`; el despliegue es Vercel (`vercel.json`)                                 |
 
-> El proyecto **no usa Jest**: Vitest expone una API compatible (`describe`, `it`, `expect`, `vi`). Hoy solo existe una suite: [src/utils/auth.test.ts](../src/utils/auth.test.ts) (registro, login y duplicados).
+> El proyecto **no usa Jest**: Vitest expone una API compatible (`describe`, `it`, `expect`, `vi`). Existen dos suites: [src/utils/auth.test.ts](../src/utils/auth.test.ts) (registro, login y duplicados) y [src/utils/auth.admin.test.ts](../src/utils/auth.admin.test.ts) (PBKDF2 y migración de hashes, validación de email, reglas de `assertAdmin`, plan y trial, eliminación de usuarios, cambio de contraseña del admin y bitácora). En total son 47 pruebas, incluida [src/admin/admin.test.ts](../src/admin/admin.test.ts) (suspensión, clave temporal, edición de usuario, `importEquipment` y cierre por inactividad).
 
 ### 1.2 Stack objetivo
 

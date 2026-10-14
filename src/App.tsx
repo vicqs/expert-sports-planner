@@ -6,6 +6,7 @@ import DemoBanner from "./components/DemoBanner";
 import BottomNav from "./components/ui/BottomNav";
 import type { BottomNavTab } from "./components/ui/BottomNav";
 import PulseLoader from "./components/ui/PulseLoader";
+import ErrorBoundary from "./components/ui/ErrorBoundary";
 import { MockDatabaseProvider } from "./context/MockDatabase";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ToastProvider } from "./components/ui/Toast";
@@ -181,7 +182,9 @@ function AppContent() {
         </div>
       )}
       <div className="animate-fade-in">
-        <Suspense fallback={<LoadingScreen />}>{renderContent()}</Suspense>
+        <ErrorBoundary resetKey={`${currentUser?.id}-${activeTab}`}>
+          <Suspense fallback={<LoadingScreen />}>{renderContent()}</Suspense>
+        </ErrorBoundary>
       </div>
       {currentUser && !isAdmin() && !hideBottomNav && (
         <BottomNav

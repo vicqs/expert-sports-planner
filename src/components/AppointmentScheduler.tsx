@@ -2,6 +2,7 @@ import React, { useState, useRef } from "react";
 import { useMockDatabase } from "../context/MockDatabase";
 import { Button, Card, ConfirmDialog, useToast } from "./ui";
 import { useConfirm } from "../hooks";
+import { todayDateString } from "../utils/dateNav";
 import { Calendar, Clock, CheckCircle, CalendarX } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -96,6 +97,10 @@ const AppointmentScheduler = ({ athleteId }) => {
       });
 
       setConfirming(false);
+      if (!result.success) {
+        addToast(result.error || "No se pudo agendar la cita", "error");
+        return;
+      }
       if (result.success) {
         addToast("Cita agendada correctamente", "success");
         setJustConfirmed(true);
@@ -164,7 +169,7 @@ const AppointmentScheduler = ({ athleteId }) => {
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                min={new Date().toISOString().split("T")[0]}
+                min={todayDateString()}
                 className="input-field"
               />
             </div>

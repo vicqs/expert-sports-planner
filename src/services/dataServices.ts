@@ -462,7 +462,7 @@ export class AppointmentService {
     }
 
     if (this.useMock) {
-      return this.mockDb.getTrainerAppointments(date);
+      return this.mockDb.getTrainerAppointments(date, session.userId);
     }
 
     return await apiClient.get(`/appointments?date=${date}`);

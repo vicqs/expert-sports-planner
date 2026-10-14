@@ -1,8 +1,26 @@
-import React from "react";
+/**
+ * EquipmentModal - formulario modal para crear/editar equipamiento.
+ *
+ * Responsabilidad: solo presentación; no valida ni persiste (lo hace
+ * useEquipment desde EquipmentManager). Lo usa: EquipmentManager.
+ * Estilos: admin/styles/modals.css. Cierra con Escape o clic en el overlay.
+ */
+import React, { useEffect } from "react";
 import { Button } from "@/components/ui";
 import { X } from "lucide-react";
 import "@/admin/styles/modals.css";
 
+/**
+ * Modal de alta/edición de equipo.
+ *
+ * @param props.isOpen Si es false no renderiza nada.
+ * @param props.onClose Cierra el modal (botón, overlay o tecla Escape).
+ * @param props.onSubmit Recibe el evento submit ya con preventDefault.
+ * @param props.formData Estado del formulario: name, category, status,
+ *   quantity, lastMaintenance (YYYY-MM-DD).
+ * @param props.onChange Handler change compartido por todos los campos.
+ * @param props.isEditing Cambia títulos/etiquetas entre editar y agregar.
+ */
 const EquipmentModal = ({
   isOpen,
   onClose,
@@ -11,6 +29,16 @@ const EquipmentModal = ({
   onChange,
   isEditing,
 }) => {
+  // Escape cierra el modal (solo mientras está abierto)
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleSubmit = (e) => {
@@ -20,10 +48,23 @@ const EquipmentModal = ({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal-content"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="equipment-modal-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
-          <h3>{isEditing ? "Editar Equipo" : "Agregar Nuevo Equipo"}</h3>
-          <button className="modal-close tap-ripple" onClick={onClose}>
+          <h3 id="equipment-modal-title">
+            {isEditing ? "Editar Equipo" : "Agregar Nuevo Equipo"}
+          </h3>
+          <button
+            type="button"
+            className="modal-close tap-ripple"
+            onClick={onClose}
+            aria-label="Cerrar"
+          >
             <X size={20} />
           </button>
         </div>
@@ -57,6 +98,8 @@ const EquipmentModal = ({
               <option value="Cardio">Cardio</option>
               <option value="Funcional">Funcional</option>
               <option value="Accesorios">Accesorios</option>
+              <option value="Bancos">Bancos</option>
+              <option value="Poleas">Poleas</option>
             </select>
           </div>
 
@@ -84,6 +127,7 @@ const EquipmentModal = ({
                 value={formData.quantity}
                 onChange={onChange}
                 min="1"
+                max="9999"
                 required
               />
             </div>

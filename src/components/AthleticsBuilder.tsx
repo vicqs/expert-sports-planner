@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Plus, Trash2, Settings2 } from "lucide-react";
 import { SYMBOLS } from "../utils/constants";
+import { getCurrentUser } from "../utils/auth";
+import { loadSymbols, buildLegend } from "../utils/symbolConfig";
+import SymbolEditor from "./SymbolEditor";
 
 const TimeInput = ({ value, onChange }) => {
   const parse = (val) => {
@@ -107,7 +110,22 @@ const PaceInput = ({ value, unit, onChange }) => {
   );
 };
 
-const AthleticsBuilder = ({ session, unit = "km", onChange }) => {
+const AthleticsBuilder = ({
+  session,
+  unit = "km",
+  onChange: onSessionChange,
+}) => {
+  const mainBlockRef = useRef<HTMLTextAreaElement>(null);
+  const trainerId = getCurrentUser()?.id ?? null;
+  const [symbols, setSymbols] = useState(() => loadSymbols(trainerId));
+  const [editingSymbols, setEditingSymbols] = useState(false);
+  // Cada cambio guarda también la leyenda de los símbolos usados, para que el
+  // atleta la vea y no cambie si el entrenador edita su simbología después.
+  const onChange = (next, list = symbols) =>
+    onSessionChange({
+      ...next,
+      legend: buildLegend([next.warmup, next.mainBlock, next.cooldown], list),
+    });
   const updateField = (field, value) => {
     onChange({ ...session, [field]: value });
   };
@@ -131,7 +149,11 @@ const AthleticsBuilder = ({ session, unit = "km", onChange }) => {
     paceMod: "", // '↓', '↘', ''
   });
 
-  const [segments, setSegments] = useState<any[]>([]);
+  // Las fichas se guardan en la sesión para que sobrevivan al reabrirla
+  const segments: string[] = Array.isArray(session.mainSegments)
+    ? session.mainSegments
+    : [];
+  const [builderError, setBuilderError] = useState("");
 
   // Sync segments from mainBlock if empty on mount (optional, complex parsing)
   // For now, we start empty or rely on manual addition.
@@ -190,11 +212,35 @@ const AthleticsBuilder = ({ session, unit = "km", onChange }) => {
   };
 
   const addSegment = () => {
-    const str = buildSegmentString();
+    // Valida los campos obligatorios antes de construir el segmento
+    const hasDuration =
+      segmentType === "FARTLEK" ||
+      (segState.distType === "TIME" ? segState.timeVal : segState.distVal);
+    if (!hasDuration) {
+      setBuilderError(
+        segState.distType === "TIME"
+          ? "Indica la duración del segmento."
+          : "Indica la distancia del segmento.",
+      );
+      return;
+    }
+    if (
+      segmentType === "PROGRESSIVE" &&
+      (!segState.paceStart || !segState.paceEnd)
+    ) {
+      setBuilderError("Indica el ritmo inicial y el final.");
+      return;
+    }
+    const str = buildSegmentString().replace(/\s+/g, " ").trim();
     if (!str) return;
-    const newSegments = [...segments, str];
-    setSegments(newSegments);
-    updateField("mainBlock", newSegments.join(" + "));
+    setBuilderError("");
+    // Se agrega al texto existente: nunca borra lo escrito a mano
+    const current = (session.mainBlock || "").trim();
+    onChange({
+      ...session,
+      mainSegments: [...segments, str],
+      mainBlock: current ? `${current} + ${str}` : str,
+    });
 
     // Reset inputs partially
     setSegState((prev) => ({
@@ -209,14 +255,37 @@ const AthleticsBuilder = ({ session, unit = "km", onChange }) => {
   };
 
   const removeSegment = (idx) => {
-    const newSegments = segments.filter((_, i) => i !== idx);
-    setSegments(newSegments);
-    updateField("mainBlock", newSegments.join(" + "));
+    const str = segments[idx];
+    // Quita solo ese segmento del texto, conservando el resto
+    const current = session.mainBlock || "";
+    const next = current.includes(` + ${str}`)
+      ? current.replace(` + ${str}`, "")
+      : current.includes(`${str} + `)
+        ? current.replace(`${str} + `, "")
+        : current.replace(str, "");
+    onChange({
+      ...session,
+      mainSegments: segments.filter((_, i) => i !== idx),
+      mainBlock: next,
+    });
   };
 
+  // Inserta en la posición del cursor (o reemplaza la selección) y devuelve
+  // el foco al campo con el cursor justo después del símbolo.
   const insertSymbol = (sym) => {
     const current = session.mainBlock || "";
-    updateField("mainBlock", current + sym);
+    const el = mainBlockRef.current;
+    const start = el?.selectionStart ?? current.length;
+    const end = el?.selectionEnd ?? current.length;
+    updateField(
+      "mainBlock",
+      current.slice(0, start) + sym + current.slice(end),
+    );
+    const caret = start + sym.length;
+    requestAnimationFrame(() => {
+      el?.focus();
+      el?.setSelectionRange(caret, caret);
+    });
   };
 
   return (
@@ -254,36 +323,110 @@ const AthleticsBuilder = ({ session, unit = "km", onChange }) => {
       {/* Main Block Builder */}
       <div className="main-block-builder">
         <div className="builder-header">
-          <label className="section-label">Bloque Principal</label>
-          <div className="tabs-mini">
+          <label className="section-label" htmlFor="main-block-text">
+            Bloque Principal
+          </label>
+        </div>
+        {/* Final Output */}
+        <div className="final-output-wrapper">
+          <div
+            className="symbol-bar"
+            role="toolbar"
+            aria-label="Símbolos de entrenamiento"
+          >
+            {symbols.map((btn) => (
+              <button
+                key={btn.id}
+                type="button"
+                className="tap-ripple"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => insertSymbol(btn.insert)}
+                title={`${btn.name}: ${btn.meaning || "inserta " + btn.insert.trim()}`}
+                aria-label={`${btn.name}, inserta ${btn.insert.trim()}${btn.meaning ? ". " + btn.meaning : ""}`}
+              >
+                <span className="sym-glyph">{btn.insert.trim()}</span>
+                <span className="sym-name">{btn.name}</span>
+              </button>
+            ))}
             <button
-              className={`tap-ripple ${segmentType === "SIMPLE" ? "active" : ""}`}
-              onClick={() => setSegmentType("SIMPLE")}
+              type="button"
+              className="tap-ripple sym-config"
+              onClick={() => setEditingSymbols((v) => !v)}
+              aria-expanded={editingSymbols}
+              title="Editar mi simbología"
+              aria-label="Editar mi simbología"
             >
-              Continuo
-            </button>
-            <button
-              className={`tap-ripple ${segmentType === "INTERVAL" ? "active" : ""}`}
-              onClick={() => setSegmentType("INTERVAL")}
-            >
-              Intervalos
-            </button>
-            <button
-              className={`tap-ripple ${segmentType === "FARTLEK" ? "active" : ""}`}
-              onClick={() => setSegmentType("FARTLEK")}
-            >
-              Fartlek
-            </button>
-            <button
-              className={`tap-ripple ${segmentType === "PROGRESSIVE" ? "active" : ""}`}
-              onClick={() => setSegmentType("PROGRESSIVE")}
-            >
-              Progresivo
+              <Settings2 size={16} />
+              <span className="sym-name">Editar</span>
             </button>
           </div>
+          {editingSymbols && (
+            <SymbolEditor
+              userId={trainerId}
+              symbols={symbols}
+              onChange={(list) => {
+                setSymbols(list);
+                onChange(session, list);
+              }}
+              onClose={() => setEditingSymbols(false)}
+            />
+          )}
+          <div className="final-output">
+            <span className="symbol">{SYMBOLS.SEPARATOR}</span>
+            <textarea
+              ref={mainBlockRef}
+              rows={2}
+              id="main-block-text"
+              maxLength={600}
+              value={session.mainBlock || ""}
+              onChange={(e) =>
+                updateField("mainBlock", e.target.value.replace(/\n/g, " "))
+              }
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.preventDefault();
+              }}
+              aria-label="Bloque principal (texto final)"
+              placeholder="Escribe el bloque principal o arma segmentos con el asistente..."
+            />
+          </div>
+          <p className="builder-hint">
+            Este texto es lo que verá el atleta. Usa los símbolos de arriba o el
+            asistente de abajo.
+          </p>
         </div>
 
-        <div className="builder-controls">
+        <div className="builder-header assistant-head">
+          <span className="section-label">
+            Asistente de segmentos (opcional)
+          </span>
+          <div className="tabs-mini">
+            {[
+              ["SIMPLE", "Continuo"],
+              ["INTERVAL", "Intervalos"],
+              ["FARTLEK", "Fartlek"],
+              ["PROGRESSIVE", "Progresivo"],
+            ].map(([code, label]) => (
+              <button
+                key={code}
+                type="button"
+                className={`tap-ripple ${segmentType === code ? "active" : ""}`}
+                onClick={() => setSegmentType(code)}
+                aria-pressed={segmentType === code}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div
+          className="builder-controls"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
+              e.preventDefault();
+              addSegment();
+            }
+          }}
+        >
           {segmentType === "INTERVAL" && (
             <div className="control-group">
               <label>Reps</label>
@@ -440,6 +583,11 @@ const AthleticsBuilder = ({ session, unit = "km", onChange }) => {
         </div>
 
         {/* Segments List */}
+        {builderError && (
+          <p role="alert" className="builder-error">
+            {builderError}
+          </p>
+        )}
         {segments.length > 0 && (
           <div className="segments-list">
             {segments.map((seg, i) => (
@@ -457,146 +605,6 @@ const AthleticsBuilder = ({ session, unit = "km", onChange }) => {
             ))}
           </div>
         )}
-
-        {/* Final Output */}
-        <div className="final-output-wrapper">
-          <div className="symbol-bar">
-            <button
-              className="tap-ripple"
-              onClick={() => insertSymbol(SYMBOLS.SEPARATOR)}
-              title="Separador"
-            >
-              ||
-            </button>
-            <button
-              className="tap-ripple"
-              onClick={() => insertSymbol(SYMBOLS.REST_SERIES)}
-              title="Pausa Serie"
-            >
-              ::
-            </button>
-            <button
-              className="tap-ripple"
-              onClick={() => insertSymbol(SYMBOLS.PROGRESSION_DOWN)}
-              title="Progresivo"
-            >
-              ↘
-            </button>
-            <button
-              className="tap-ripple"
-              onClick={() => insertSymbol(SYMBOLS.DOWN)}
-              title="Más rápido"
-            >
-              ↓
-            </button>
-            <button
-              className="tap-ripple"
-              onClick={() => insertSymbol(SYMBOLS.STRONG)}
-              title="Fuerte"
-            >
-              F
-            </button>
-            <button
-              className="tap-ripple"
-              onClick={() => insertSymbol(SYMBOLS.SOFT)}
-              title="Suave"
-            >
-              S
-            </button>
-            <button
-              className="tap-ripple"
-              onClick={() => insertSymbol(SYMBOLS.PACE)}
-              title="Ritmo"
-            >
-              Ritmo
-            </button>
-            <button
-              className="tap-ripple"
-              onClick={() => insertSymbol(SYMBOLS.AVG)}
-              title="Promedio"
-            >
-              Prom
-            </button>
-            <button
-              className="tap-ripple"
-              onClick={() => insertSymbol(SYMBOLS.CHANGE)}
-              title="Cambio"
-            >
-              Cambio
-            </button>
-            <button
-              className="tap-ripple"
-              onClick={() => insertSymbol(SYMBOLS.BEST_PACE)}
-              title="Mejor ritmo"
-            >
-              MRP
-            </button>
-            <button
-              className="tap-ripple"
-              onClick={() => insertSymbol(SYMBOLS.SPRINT)}
-              title="Sprint"
-            >
-              Sprint
-            </button>
-            <button
-              className="tap-ripple"
-              onClick={() => insertSymbol(SYMBOLS.CIRCUIT)}
-              title="Circuito"
-            >
-              Circ
-            </button>
-            <button
-              className="tap-ripple"
-              onClick={() => insertSymbol(SYMBOLS.REST_SERIES)}
-              title="Descanso Series"
-            >
-              D.Ser
-            </button>
-            <button
-              className="tap-ripple"
-              onClick={() => insertSymbol(SYMBOLS.REST_BLOCK)}
-              title="Descanso Bloques"
-            >
-              D.Bloq
-            </button>
-            <button
-              className="tap-ripple"
-              onClick={() => insertSymbol(SYMBOLS.REST_30_SEC)}
-              title="Descanso 30s"
-            >
-              30s
-            </button>
-            <button
-              className="tap-ripple"
-              onClick={() => insertSymbol(" + ")}
-              title="Más"
-            >
-              +
-            </button>
-            <button
-              className="tap-ripple"
-              onClick={() => insertSymbol(" [ ")}
-              title="Abrir"
-            >
-              [
-            </button>
-            <button
-              className="tap-ripple"
-              onClick={() => insertSymbol(" ] ")}
-              title="Cerrar"
-            >
-              ]
-            </button>
-          </div>
-          <div className="final-output">
-            <span className="symbol">{SYMBOLS.SEPARATOR}</span>
-            <input
-              value={session.mainBlock}
-              onChange={(e) => updateField("mainBlock", e.target.value)}
-              placeholder="Bloque principal..."
-            />
-          </div>
-        </div>
       </div>
 
       {/* Cooldown */}
@@ -878,6 +886,11 @@ const AthleticsBuilder = ({ session, unit = "km", onChange }) => {
             background: var(--color-error-bg);
         }
         
+        .builder-error {
+            margin: 0;
+            font-size: 0.85rem;
+            color: var(--color-error, #dc2626);
+        }
         .final-output-wrapper {
             display: flex;
             flex-direction: column;
@@ -898,8 +911,23 @@ const AthleticsBuilder = ({ session, unit = "km", onChange }) => {
             font-size: 0.75rem;
             cursor: pointer;
             color: var(--color-text-muted);
-            min-width: 36px;
-            min-height: 36px;
+            min-width: 44px;
+            min-height: 44px;
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1px;
+            line-height: 1.1;
+        }
+        .symbol-bar button .sym-glyph {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--color-text);
+        }
+        .symbol-bar button .sym-name {
+            font-size: 0.6rem;
+            white-space: nowrap;
         }
         .symbol-bar button:hover {
             background: var(--color-surface);
@@ -1069,7 +1097,8 @@ const AthleticsBuilder = ({ session, unit = "km", onChange }) => {
           }
           
           .symbol-bar button {
-            min-width: 32px;
+            min-width: var(--touch-target-min, 44px);
+            min-height: var(--touch-target-min, 44px);
             font-size: 0.7rem;
           }
           
@@ -1223,7 +1252,7 @@ const AthleticsBuilder = ({ session, unit = "km", onChange }) => {
           .symbol-bar button {
             font-size: 0.65rem;
             padding: 3px 5px;
-            min-width: 28px;
+            min-width: var(--touch-target-min, 44px);
           }
           
           .final-output {
@@ -1243,6 +1272,71 @@ const AthleticsBuilder = ({ session, unit = "km", onChange }) => {
             padding: 0.6rem;
             font-size: 0.8rem;
           }
+        }
+
+        /* --- Bloque principal: texto primero, 16px y 44px en t\u00e1ctil --- */
+        .final-output textarea {
+          flex: 1;
+          min-width: 0;
+          border: none;
+          background: transparent;
+          padding: 0.75rem;
+          font-family: var(--font-mono);
+          color: var(--color-text);
+          font-size: 1rem;
+          line-height: 1.4;
+          resize: vertical;
+          min-height: 64px;
+        }
+        .final-output textarea:focus { outline: none; }
+        .final-output { align-items: stretch; }
+        .builder-hint {
+          margin: 0;
+          font-size: 0.8rem;
+          color: var(--color-text-muted);
+        }
+        .assistant-head {
+          margin: 1.25rem 0 1rem;
+          padding-top: 1rem;
+          border-top: 1px solid var(--color-border);
+        }
+        .tabs-mini button {
+          min-height: var(--touch-target-min, 44px);
+          font-size: 0.85rem;
+        }
+        .time-part,
+        .pace-input-group input,
+        .dist-input input,
+        .input-short,
+        .toggle-input select,
+        .mini-select {
+          font-size: 1rem;
+          min-height: var(--touch-target-min, 44px);
+        }
+        .segment-chip button {
+          min-width: 32px;
+          min-height: 32px;
+          align-items: center;
+          justify-content: center;
+        }
+        @media (max-width: 768px) {
+          .time-part { width: auto; min-width: 36px; font-size: 1rem; }
+          .symbol-bar {
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+          }
+          .symbol-bar button { flex: 0 0 auto; }
+          .tabs-mini button { font-size: 0.8rem; }
+          .final-output { flex-direction: row; flex-wrap: nowrap; }
+          .symbol {
+            border-right: 1px solid var(--color-border);
+            border-bottom: none;
+            border-radius: var(--radius-md) 0 0 var(--radius-md);
+            display: flex;
+            align-items: center;
+          }
+          .btn-add { width: 100%; border-radius: var(--radius-md); margin-left: 0; }
         }
       `}</style>
     </div>

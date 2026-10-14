@@ -188,7 +188,7 @@ Además de emergencia y notas médicas, el atleta gestiona vía `updateUserProfi
 Flujo obligatorio:
 
 1. Se recupera el usuario y se verifica que exista.
-2. Se recalcula el hash SHA-256 de la contraseña actual ingresada y se compara contra `user.passwordHash`. Si no coincide → error `"La contraseña actual no es correcta"`.
+2. Se verifica la contraseña actual con `verifyPassword` (PBKDF2 con comparación en tiempo constante; también acepta SHA-256 heredado) contra `user.passwordHash`. Si no coincide → error `"La contraseña actual no es correcta"`.
 3. Solo si la verificación es exitosa, se genera el hash de la nueva contraseña y se persiste.
 4. Si el usuario editado es el usuario autenticado actual, se actualiza también la sesión activa (`setCurrentUser`).
 

@@ -1,5 +1,21 @@
 import { useState, useEffect, useMemo } from "react";
 import { GYM_EXERCISES } from "@/utils/constants";
+import { MOCK_TRAINER_ID, MOCK_TRAINER_EXERCISES } from "@/utils/mockProfiles";
+
+// localStorage puede estar corrupto o con otra forma: nunca debe romper la UI.
+const readJson = (key: string, fallback: any, expectArray = false) => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    if (expectArray) return Array.isArray(parsed) ? parsed : fallback;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed
+      : fallback;
+  } catch {
+    return fallback;
+  }
+};
 
 /**
  * Hook para gestionar la biblioteca personal de ejercicios y equipamiento del entrenador
@@ -21,15 +37,18 @@ export const useTrainerLibrary = (trainerId) => {
   // Estado: Ejercicios seleccionados por categoría
   const [selectedExercises, setSelectedExercises] = useState(() => {
     if (!trainerId) return {};
-    const stored = localStorage.getItem(`trainer_exercises_${trainerId}`);
-    return stored ? JSON.parse(stored) : {};
+    const stored = readJson(`trainer_exercises_${trainerId}`, {});
+    // Entrenador demo: biblioteca inicial acorde a sus planes de ejemplo
+    if (trainerId === MOCK_TRAINER_ID && Object.keys(stored).length === 0) {
+      return MOCK_TRAINER_EXERCISES;
+    }
+    return stored;
   });
 
   // Estado: IDs de equipamiento seleccionado
   const [selectedEquipment, setSelectedEquipment] = useState(() => {
     if (!trainerId) return [];
-    const stored = localStorage.getItem(`trainer_equipment_${trainerId}`);
-    return stored ? JSON.parse(stored) : [];
+    return readJson(`trainer_equipment_${trainerId}`, [], true);
   });
 
   // Persistir ejercicios en localStorage
@@ -60,12 +79,10 @@ export const useTrainerLibrary = (trainerId) => {
     const systemExercises = { ...GYM_EXERCISES };
 
     // Ejercicios custom del admin
-    const customStored = localStorage.getItem("crm_custom_exercises");
-    const customExercises = customStored ? JSON.parse(customStored) : {};
+    const customExercises = readJson("crm_custom_exercises", {});
 
     // Ejercicios ocultos por el admin
-    const hiddenStored = localStorage.getItem("crm_hidden_exercises");
-    const hiddenExercises = hiddenStored ? JSON.parse(hiddenStored) : {};
+    const hiddenExercises = readJson("crm_hidden_exercises", {});
 
     // Combinar: sistema + custom - ocultos
     const masterList = {};
@@ -90,8 +107,7 @@ export const useTrainerLibrary = (trainerId) => {
    * Obtener lista maestra de equipamiento del gimnasio
    */
   const getMasterEquipment = () => {
-    const stored = localStorage.getItem("crm_equipment");
-    return stored ? JSON.parse(stored) : [];
+    return readJson("crm_equipment", [], true);
   };
 
   /**

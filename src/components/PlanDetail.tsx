@@ -17,7 +17,9 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useMockDatabase } from "../context/MockDatabase";
 import ExerciseSessionView from "./training/ExerciseSessionView";
-import { formatShortDate } from "../utils/dateNav";
+import { formatShortDate, toLocalDateString } from "../utils/dateNav";
+import SymbolLegend from "./SymbolLegend";
+import { getAthleticsParts } from "../utils/athleteHistory";
 
 // `generatePlan()` (src/utils/generator.ts) y `PlanEditor.tsx` producen días
 // con forma `{ dayName, isGym, session }` (donde `session` es null en días de
@@ -46,10 +48,21 @@ const getDayExercises = (day) => {
   return [];
 };
 
+// Días de calendario (hora local, a medianoche) entre el inicio del plan y una
+// fecha; evita que la hora del día en `startDate` desplace el día "de hoy".
+const calendarDaysFrom = (startValue, target: Date = new Date()) => {
+  const s = new Date(startValue);
+  const t = new Date(target);
+  if (isNaN(s.getTime()) || isNaN(t.getTime())) return 0;
+  s.setHours(0, 0, 0, 0);
+  t.setHours(0, 0, 0, 0);
+  return Math.round((t.getTime() - s.getTime()) / 86400000);
+};
+
 const PlanDetail = ({ plan, client, onBack }) => {
   const [activeTab, setActiveTab] = useState("today"); // today, calendar, exercises
   const [selectedWeek, setSelectedWeek] = useState(0);
-  const [selectedDayDetail, setSelectedDayDetail] = useState<any>(null);
+  const [selectedDayRef, setSelectedDayDetail] = useState<any>(null);
   const [noteModal, setNoteModal] = useState<any>(null); // { weekIndex, dayIndex, note }
   const [showFinishModal, setShowFinishModal] = useState(false);
   const [gymMode, setGymMode] = useState(false);
@@ -59,18 +72,23 @@ const PlanDetail = ({ plan, client, onBack }) => {
     updateSessionNote,
     completePlan,
     toggleSetCompletion,
+    toggleSessionPart,
   } = useMockDatabase();
   const { addToast } = useToast();
+
+  // Se lee el día vivo del plan (no una copia) para que lo marcado en el
+  // detalle se refleje de inmediato.
+  const selectedDayDetail = selectedDayRef
+    ? (plan[selectedDayRef.weekIndex]?.days?.[selectedDayRef.dayIndex] ?? null)
+    : null;
 
   // Compute which week/day corresponds to "today" based on the plan start date.
   // Falls back to week 0 / day 0 when there is no start date or plan hasn't started yet.
   const todayIndex = useMemo(() => {
-    if (!client.startDate) return { weekIndex: 0, dayIndex: 0 };
-    const start = new Date(client.startDate);
-    const now = new Date();
-    const diffDays = Math.floor(
-      (now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
-    );
+    if (!client.startDate || plan.length === 0) {
+      return { weekIndex: 0, dayIndex: 0 };
+    }
+    const diffDays = calendarDaysFrom(client.startDate);
     if (diffDays < 0) return { weekIndex: 0, dayIndex: 0 };
     const daysPerWeek = plan[0]?.days?.length || 7;
     const weekIndex = Math.min(
@@ -112,10 +130,11 @@ const PlanDetail = ({ plan, client, onBack }) => {
   const todayCursorDateString = useMemo(() => {
     if (!client.startDate) return null;
     const start = new Date(client.startDate);
+    if (isNaN(start.getTime())) return null;
     const offset = todayCursor.weekIndex * daysPerWeek + todayCursor.dayIndex;
     const d = new Date(start);
     d.setDate(d.getDate() + offset);
-    return d.toISOString().split("T")[0];
+    return toLocalDateString(d);
   }, [client.startDate, todayCursor, daysPerWeek]);
 
   // Convierte una fecha elegida en el selector nativo al par
@@ -124,10 +143,9 @@ const PlanDetail = ({ plan, client, onBack }) => {
   const handlePickDate = (dateStr: string) => {
     if (!client.startDate) return;
     const start = new Date(client.startDate);
+    if (isNaN(start.getTime())) return;
     const picked = new Date(`${dateStr}T00:00:00`);
-    const diffDays = Math.floor(
-      (picked.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
-    );
+    const diffDays = calendarDaysFrom(start, picked);
     const clampedOffset = Math.max(0, diffDays);
     const weekIndex = Math.min(
       Math.floor(clampedOffset / daysPerWeek),
@@ -176,10 +194,15 @@ const PlanDetail = ({ plan, client, onBack }) => {
   };
 
   const handleToggleTodayComplete = () => {
+    const wasCompleted = Boolean(todayDay?.completed);
     toggleSessionCompletion(
       client.id,
       todayCursor.weekIndex,
       todayCursor.dayIndex,
+    );
+    addToast(
+      wasCompleted ? "Sesión desmarcada" : "Sesión completada",
+      wasCompleted ? "info" : "success",
     );
   };
 
@@ -438,30 +461,33 @@ const PlanDetail = ({ plan, client, onBack }) => {
                         </span>
                       </div>
                     )}
-                    {todayDay.session?.warmup && (
-                      <div className="today-exercise-row">
-                        <span className="today-ex-name">Calentamiento</span>
-                        <span className="today-ex-sets">
-                          {todayDay.session.warmup}
+                    {getAthleticsParts(todayDay.session).map((part) => (
+                      <button
+                        key={part.key}
+                        type="button"
+                        className={`today-part-btn tap-ripple ${part.done ? "done" : ""}`}
+                        aria-pressed={part.done}
+                        onClick={() =>
+                          toggleSessionPart(
+                            client.id,
+                            todayCursor.weekIndex,
+                            todayCursor.dayIndex,
+                            part.key,
+                          )
+                        }
+                      >
+                        {part.done ? (
+                          <CheckCircle size={20} />
+                        ) : (
+                          <Circle size={20} />
+                        )}
+                        <span className="today-part-text">
+                          <span className="today-ex-name">{part.label}</span>
+                          <span className="today-ex-sets">{part.text}</span>
                         </span>
-                      </div>
-                    )}
-                    {todayDay.session?.mainBlock && (
-                      <div className="today-exercise-row">
-                        <span className="today-ex-name">Bloque principal</span>
-                        <span className="today-ex-sets">
-                          {todayDay.session.mainBlock}
-                        </span>
-                      </div>
-                    )}
-                    {todayDay.session?.cooldown && (
-                      <div className="today-exercise-row">
-                        <span className="today-ex-name">Enfriamiento</span>
-                        <span className="today-ex-sets">
-                          {todayDay.session.cooldown}
-                        </span>
-                      </div>
-                    )}
+                      </button>
+                    ))}
+                    <SymbolLegend legend={todayDay.session?.legend} />
                   </div>
                 )}
 
@@ -528,14 +554,18 @@ const PlanDetail = ({ plan, client, onBack }) => {
                       <div className="session-preview">
                         <div className="preview-item">
                           <Clock size={14} />
-                          <span>~60 min</span>
+                          <span>
+                            {getSessionType(day) === "GYM"
+                              ? `${getDayExercises(day).length} ejercicios`
+                              : `${getAthleticsParts(day.session).length} partes`}
+                          </span>
                         </div>
                         <div className="preview-item">
                           <Dumbbell size={14} />
                           <span>
                             {getSessionType(day) === "GYM"
-                              ? "Fuerza"
-                              : "Cardio"}
+                              ? day.session?.title || "Gimnasio"
+                              : day.session?.training?.name || "Atletismo"}
                           </span>
                         </div>
                       </div>
@@ -564,7 +594,12 @@ const PlanDetail = ({ plan, client, onBack }) => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setSelectedDayDetail(day)}
+                        onClick={() =>
+                          setSelectedDayDetail({
+                            weekIndex: selectedWeek,
+                            dayIndex: index,
+                          })
+                        }
                       >
                         Ver Detalles
                       </Button>
@@ -659,10 +694,6 @@ const PlanDetail = ({ plan, client, onBack }) => {
                     {getSessionTypeLabel(selectedDayDetail)}
                   </span>
                 </div>
-                <div className="detail-row">
-                  <span className="label">Duración Estimada:</span>
-                  <span className="value">~60 min</span>
-                </div>
 
                 {getSessionType(selectedDayDetail) === "ATHLETICS" && (
                   <>
@@ -676,49 +707,58 @@ const PlanDetail = ({ plan, client, onBack }) => {
                         </span>
                       </div>
                     )}
-                    {selectedDayDetail.session?.warmup && (
-                      <div className="detail-row">
-                        <span className="label">Calentamiento:</span>
-                        <span className="value">
-                          {selectedDayDetail.session.warmup}
-                        </span>
-                      </div>
+                    {getAthleticsParts(selectedDayDetail.session).map(
+                      (part) => (
+                        <button
+                          key={part.key}
+                          type="button"
+                          className={`today-part-btn tap-ripple ${part.done ? "done" : ""}`}
+                          aria-pressed={part.done}
+                          onClick={() =>
+                            toggleSessionPart(
+                              client.id,
+                              selectedDayRef.weekIndex,
+                              selectedDayRef.dayIndex,
+                              part.key,
+                            )
+                          }
+                        >
+                          {part.done ? (
+                            <CheckCircle size={20} />
+                          ) : (
+                            <Circle size={20} />
+                          )}
+                          <span className="today-part-text">
+                            <span className="today-ex-name">{part.label}</span>
+                            <span className="today-ex-sets">{part.text}</span>
+                          </span>
+                        </button>
+                      ),
                     )}
-                    {selectedDayDetail.session?.mainBlock && (
-                      <div className="detail-row">
-                        <span className="label">Bloque principal:</span>
-                        <span className="value">
-                          {selectedDayDetail.session.mainBlock}
-                        </span>
-                      </div>
-                    )}
-                    {selectedDayDetail.session?.cooldown && (
-                      <div className="detail-row">
-                        <span className="label">Enfriamiento:</span>
-                        <span className="value">
-                          {selectedDayDetail.session.cooldown}
-                        </span>
-                      </div>
-                    )}
+                    <SymbolLegend legend={selectedDayDetail.session?.legend} />
                   </>
                 )}
 
-                <h4 className="section-subtitle">Ejercicios</h4>
-                {getDayExercises(selectedDayDetail).length > 0 ? (
-                  <ul className="exercise-list">
-                    {getDayExercises(selectedDayDetail).map((ex, i) => (
-                      <li key={i} className="exercise-item">
-                        <span className="ex-name">{ex.name}</span>
-                        <span className="ex-sets">
-                          {ex.sets} series x {ex.reps} reps
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="no-data">
-                    No hay ejercicios detallados para esta sesión.
-                  </p>
+                {getSessionType(selectedDayDetail) === "GYM" && (
+                  <>
+                    <h4 className="section-subtitle">Ejercicios</h4>
+                    {getDayExercises(selectedDayDetail).length > 0 ? (
+                      <ul className="exercise-list">
+                        {getDayExercises(selectedDayDetail).map((ex, i) => (
+                          <li key={i} className="exercise-item">
+                            <span className="ex-name">{ex.name}</span>
+                            <span className="ex-sets">
+                              {ex.sets} series x {ex.reps} reps
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="no-data">
+                        No hay ejercicios detallados para esta sesión.
+                      </p>
+                    )}
+                  </>
                 )}
 
                 {selectedDayDetail.note && (
@@ -1290,6 +1330,31 @@ const PlanDetail = ({ plan, client, onBack }) => {
             padding: 0.9rem 1rem;
             background: var(--color-bg-subtle);
             border-radius: var(--radius-md);
+        }
+        .today-part-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            width: 100%;
+            min-height: var(--touch-target-min, 44px);
+            padding: 0.9rem 1rem;
+            background: var(--color-bg-subtle);
+            border: 2px solid transparent;
+            border-radius: var(--radius-md);
+            color: inherit;
+            text-align: left;
+            cursor: pointer;
+        }
+        .today-part-btn.done {
+            border-color: var(--color-success, #16a34a);
+        }
+        .today-part-btn.done svg:first-child {
+            color: var(--color-success, #16a34a);
+        }
+        .today-part-text {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
         }
         .today-ex-name {
             font-weight: 600;

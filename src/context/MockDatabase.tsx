@@ -1,6 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { STORAGE_KEYS, getFromStorage, setToStorage } from "../utils/storage";
-import { getAllUsers } from "../utils/auth";
+import { getAllUsers, getCurrentUser } from "../utils/auth";
+import { getAthleticsParts } from "../utils/athleteHistory";
+import {
+  getMeasurements,
+  purgeMeasurements,
+  saveMeasurement,
+} from "../utils/measurements";
 import {
   mockClients,
   mockCompletedClients,
@@ -8,12 +14,16 @@ import {
   mockGymAvailability,
   mockGymBookings,
   mockAppointments,
+  mockAppointmentAvailability,
   mockTrainerUser,
   mockAthlete1User,
   mockAthlete2User,
 } from "../utils/mockProfiles";
 
 const MockDatabaseContext = createContext<any>(null);
+
+const MOCK_SEED_KEY = "mock_seed_version";
+const MOCK_SEED_VERSION = "2";
 
 export const useMockDatabase = () => {
   const context = useContext(MockDatabaseContext);
@@ -89,10 +99,78 @@ export const MockDatabaseProvider = ({
     // si el usuario ya tenía una copia vieja guardada de una sesión anterior.
     const liveUsers = getAllUsers();
     const byId = new Map(liveUsers.map((u: any) => [u.id, u]));
+    // Con una versión de semilla nueva se reemplazan los datos demo guardados;
+    // después se respetan las ediciones del usuario (nombre, empresa, etc.).
+    const freshSeed = localStorage.getItem(MOCK_SEED_KEY) !== MOCK_SEED_VERSION;
     [mockTrainerUser, mockAthlete1User, mockAthlete2User].forEach((u) => {
-      byId.set(u.id, { ...byId.get(u.id), ...u });
+      byId.set(
+        u.id,
+        freshSeed ? { ...byId.get(u.id), ...u } : { ...u, ...byId.get(u.id) },
+      );
     });
+    localStorage.setItem(MOCK_SEED_KEY, MOCK_SEED_VERSION);
     localStorage.setItem("users", JSON.stringify(Array.from(byId.values())));
+
+    // Mediciones demo del Atleta 1 (solo si aún no tiene ninguna).
+    if (getMeasurements(mockAthlete1User.id).length === 0) {
+      const base = {
+        talla: 170,
+        c_torax: 0,
+        d_muneca: 0,
+      };
+      saveMeasurement(mockAthlete1User.id, {
+        id: "demo-meas-1",
+        date: "2026-07-21",
+        sex: "M",
+        age: 36,
+        values: {
+          peso: 78.5,
+          talla: base.talla,
+          c_cintura: 86,
+          c_cadera: 103,
+          c_brazo: 32.5,
+          c_brazoMax: 34.5,
+          c_muslo: 59,
+          c_pantorrilla: 40,
+          c_pantorrillaMax: 40.5,
+          p_triceps: 16,
+          p_biceps: 10,
+          p_pecho: 16,
+          p_axila: 18,
+          p_subescapular: 22,
+          p_suprailiaco: 18,
+          p_abdomen: 30,
+          p_muslo: 23,
+          p_pantorrilla: 13,
+        },
+      });
+      saveMeasurement(mockAthlete1User.id, {
+        id: "demo-meas-2",
+        date: "2026-08-18",
+        sex: "M",
+        age: 36,
+        values: {
+          peso: 78.7,
+          talla: base.talla,
+          c_cintura: 87,
+          c_cadera: 102.5,
+          c_brazo: 32.5,
+          c_brazoMax: 34.8,
+          c_muslo: 58,
+          c_pantorrilla: 39.5,
+          c_pantorrillaMax: 40,
+          p_triceps: 16,
+          p_biceps: 10,
+          p_pecho: 15,
+          p_axila: 18,
+          p_subescapular: 21,
+          p_suprailiaco: 17,
+          p_abdomen: 31,
+          p_muslo: 21,
+          p_pantorrilla: 14,
+        },
+      });
+    }
 
     // Los planes ACTIVOS de los atletas mock (`mockClients`) se refrescan
     // (upsert) en cada carga en lugar de solo agregarse si faltan: sus fechas
@@ -103,9 +181,21 @@ export const MockDatabaseProvider = ({
     // id nos aseguramos de que siempre haya un plan ACTIVO vigente para probar.
     setClients((prev) => {
       const byId = new Map(prev.map((c) => [c.id, c]));
-      mockClients.forEach((c) => byId.set(c.id, c));
+      const now = Date.now();
+      mockClients.forEach((c) => {
+        const existing = byId.get(c.id);
+        // Se conserva el avance del atleta (sesiones, series y partes hechas)
+        // mientras el plan guardado siga vigente; solo se regenera si falta,
+        // venció o hay una versión nueva de la semilla.
+        const stillValid =
+          existing &&
+          existing.status === "ACTIVE" &&
+          existing.endDate &&
+          new Date(existing.endDate).getTime() > now;
+        if (freshSeed || !stillValid) byId.set(c.id, c);
+      });
       mockCompletedClients.forEach((c) => {
-        if (!byId.has(c.id)) byId.set(c.id, c);
+        if (freshSeed || !byId.has(c.id)) byId.set(c.id, c);
       });
       return Array.from(byId.values());
     });
@@ -113,7 +203,16 @@ export const MockDatabaseProvider = ({
     setAthleteRequests((prev) => {
       const existingIds = new Set(prev.map((r) => r.id));
       const toAdd = mockAthleteRequests.filter((r) => !existingIds.has(r.id));
-      return toAdd.length ? [...prev, ...toAdd] : prev;
+      // Refresca el nombre del entrenador demo en solicitudes ya guardadas
+      const refreshed = prev.map((r) =>
+        r.trainerId === mockTrainerUser.trainerId &&
+        r.trainerName !== mockTrainerUser.name
+          ? { ...r, trainerName: mockTrainerUser.name }
+          : r,
+      );
+      const changed = refreshed.some((r, i) => r !== prev[i]);
+      if (!toAdd.length && !changed) return prev;
+      return [...refreshed, ...toAdd];
     });
 
     setGymAvailability((prev) => {
@@ -133,6 +232,16 @@ export const MockDatabaseProvider = ({
     setAppointments((prev) => {
       const existingIds = new Set(prev.map((a) => a.id));
       const toAdd = mockAppointments.filter((a) => !existingIds.has(a.id));
+      return toAdd.length ? [...prev, ...toAdd] : prev;
+    });
+
+    setAppointmentAvailability((prev) => {
+      const existing = new Set(
+        prev.filter((d) => !d.trainerId).map((d) => d.date),
+      );
+      const toAdd = mockAppointmentAvailability.filter(
+        (d) => !existing.has(d.date),
+      );
       return toAdd.length ? [...prev, ...toAdd] : prev;
     });
   }, []);
@@ -223,9 +332,23 @@ export const MockDatabaseProvider = ({
 
   const updateClientPlan = (clientId, planText, planObject) => {
     const client = clients.find((c) => c.id === clientId);
-    const startDate = new Date();
-    const endDate = new Date();
-    endDate.setDate(endDate.getDate() + (client?.planDuration || 4) * 7); // weeks to days
+    // Si el plan ya está ACTIVO se conserva su inicio y progreso (el autoguardado
+    // del editor llama a esta función); solo un plan nuevo arranca desde hoy.
+    const keepRunning = client?.status === "ACTIVE" && !!client?.startDate;
+    const startDate = keepRunning ? new Date(client.startDate) : new Date();
+    const weeks =
+      Array.isArray(planObject) && planObject.length
+        ? planObject.length
+        : client?.planDuration || 4;
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + weeks * 7); // semanas reales del plan
+    let progress = 0;
+    if (keepRunning && Array.isArray(planObject)) {
+      const days = planObject.flatMap((w: any) => w?.days || []);
+      const total = days.filter((d: any) => d?.session).length;
+      const done = days.filter((d: any) => d?.session && d.completed).length;
+      progress = total ? Math.round((done / total) * 100) : 0;
+    }
     // Identidad del atleta (email si existe, si no nombre) para detectar si
     // ya tiene OTRO plan ACTIVO con este entrenador — no puede quedar más de
     // uno vigente al mismo tiempo (ver también el efecto de invariante más
@@ -240,10 +363,13 @@ export const MockDatabaseProvider = ({
             status: "ACTIVE",
             plan: planText,
             planObject: planObject,
-            planCreatedAt: new Date().toISOString(),
+            planCreatedAt: keepRunning
+              ? c.planCreatedAt || new Date().toISOString()
+              : new Date().toISOString(),
             startDate: startDate.toISOString(),
             endDate: endDate.toISOString(),
-            progress: 0,
+            planDuration: weeks,
+            progress,
           };
         }
         // Cualquier OTRO plan ACTIVE del mismo atleta con el mismo
@@ -292,6 +418,10 @@ export const MockDatabaseProvider = ({
           const clonedDays = JSON.parse(JSON.stringify(lastWeek.days)).map(
             (day: any) => {
               const { completed: _completed, note: _note, ...rest } = day;
+              if (rest.session) {
+                const { completedParts: _cp, ...sessionRest } = rest.session;
+                rest.session = sessionRest;
+              }
               if (rest.session?.exercises) {
                 rest.session = {
                   ...rest.session,
@@ -326,55 +456,90 @@ export const MockDatabaseProvider = ({
     );
   };
 
+  // Porcentaje de sesiones completadas (los días de descanso tienen
+  // `session: null` y no cuentan).
+  const computeProgress = (planObject: any[]) => {
+    let total = 0;
+    let done = 0;
+    planObject.forEach((week) =>
+      (week.days || []).forEach((d) => {
+        if (!d.session) return;
+        total += 1;
+        if (d.completed) done += 1;
+      }),
+    );
+    return total > 0 ? Math.round((done / total) * 100) : 0;
+  };
+
+  // Reemplaza un día sin mutar el estado previo (React StrictMode ejecuta los
+  // updaters dos veces; mutar hacía que un toggle se anulara a sí mismo).
+  const withUpdatedDay = (client, weekIndex, dayIndex, update) => {
+    const day = client.planObject?.[weekIndex]?.days?.[dayIndex];
+    if (!day) return client;
+    const newPlanObject = client.planObject.map((week, w) =>
+      w !== weekIndex
+        ? week
+        : {
+            ...week,
+            days: week.days.map((d, i) => (i === dayIndex ? update(d) : d)),
+          },
+    );
+    return {
+      ...client,
+      planObject: newPlanObject,
+      progress: computeProgress(newPlanObject),
+    };
+  };
+
   const toggleSessionCompletion = (clientId, weekIndex, dayIndex) => {
     setClients((prev) =>
-      prev.map((client) => {
-        if (client.id !== clientId) return client;
-
-        const newPlanObject = [...client.planObject];
-        const day = newPlanObject[weekIndex].days[dayIndex];
-
-        // Toggle completion status
-        day.completed = !day.completed;
-
-        // Calculate new progress
-        // `generatePlan()` marca los días de descanso con `session: null`; los
-        // días con entrenamiento (gym o atletismo) tienen `session` definido.
-        const totalSessions = newPlanObject.reduce(
-          (acc, week) => acc + week.days.filter((d) => d.session).length,
-          0,
-        );
-
-        const completedSessions = newPlanObject.reduce(
-          (acc, week) => acc + week.days.filter((d) => d.completed).length,
-          0,
-        );
-
-        const progress =
-          totalSessions > 0
-            ? Math.round((completedSessions / totalSessions) * 100)
-            : 0;
-
-        return {
-          ...client,
-          planObject: newPlanObject,
-          progress: progress,
-        };
-      }),
+      prev.map((client) =>
+        client.id !== clientId
+          ? client
+          : withUpdatedDay(client, weekIndex, dayIndex, (day) => ({
+              ...day,
+              completed: !day.completed,
+            })),
+      ),
     );
   };
 
   const updateSessionNote = (clientId, weekIndex, dayIndex, note) => {
     setClients((prev) =>
-      prev.map((client) => {
-        if (client.id !== clientId) return client;
-        const newPlanObject = [...client.planObject];
-        newPlanObject[weekIndex].days[dayIndex].note = note;
-        return {
-          ...client,
-          planObject: newPlanObject,
-        };
-      }),
+      prev.map((client) =>
+        client.id !== clientId
+          ? client
+          : withUpdatedDay(client, weekIndex, dayIndex, (day) => ({
+              ...day,
+              note,
+            })),
+      ),
+    );
+  };
+
+  // Marca/desmarca una parte de una sesión de atletismo (calentamiento, bloque
+  // principal o enfriamiento). Se guarda en `session.completedParts`. La sesión
+  // queda completada cuando todas las partes están hechas y deja de estarlo si
+  // se desmarca alguna.
+  const toggleSessionPart = (clientId, weekIndex, dayIndex, partKey) => {
+    setClients((prev) =>
+      prev.map((client) =>
+        client.id !== clientId
+          ? client
+          : withUpdatedDay(client, weekIndex, dayIndex, (day) => {
+              if (!day.session) return day;
+              const done = new Set<string>(day.session.completedParts || []);
+              if (done.has(partKey)) done.delete(partKey);
+              else done.add(partKey);
+              const session = {
+                ...day.session,
+                completedParts: Array.from(done),
+              };
+              const keys = getAthleticsParts(session).map((p) => p.key);
+              const allDone = keys.length > 0 && keys.every((k) => done.has(k));
+              return { ...day, session, completed: allDone };
+            }),
+      ),
     );
   };
 
@@ -389,35 +554,30 @@ export const MockDatabaseProvider = ({
     setIndex,
   ) => {
     setClients((prev) =>
-      prev.map((client) => {
-        if (client.id !== clientId) return client;
+      prev.map((client) =>
+        client.id !== clientId
+          ? client
+          : withUpdatedDay(client, weekIndex, dayIndex, (day) => {
+              // Los ejercicios de gimnasio viven en `day.session.exercises`
+              // (shape de `generatePlan()`); se mantiene el fallback a
+              // `day.exercises` por compatibilidad con datos antiguos.
+              const exercises = [
+                ...(day.session?.exercises || day.exercises || []),
+              ];
+              if (!exercises[exerciseIndex]) return day;
+              const exercise = { ...exercises[exerciseIndex] };
 
-        const newPlanObject = [...client.planObject];
-        const day = { ...newPlanObject[weekIndex].days[dayIndex] };
-        // Los ejercicios de gimnasio viven en `day.session.exercises`
-        // (shape de `generatePlan()`); se mantiene el fallback a `day.exercises`
-        // por compatibilidad con datos antiguos que pudieran tener el shape plano.
-        const exercises = [...(day.session?.exercises || day.exercises || [])];
-        const exercise = { ...exercises[exerciseIndex] };
+              const completed = new Set<number>(exercise.completedSets || []);
+              if (completed.has(setIndex)) completed.delete(setIndex);
+              else completed.add(setIndex);
+              exercise.completedSets = Array.from(completed);
 
-        const completed = new Set<number>(exercise.completedSets || []);
-        if (completed.has(setIndex)) completed.delete(setIndex);
-        else completed.add(setIndex);
-        exercise.completedSets = Array.from(completed);
-
-        exercises[exerciseIndex] = exercise;
-        if (day.session) {
-          day.session = { ...day.session, exercises };
-        } else {
-          day.exercises = exercises;
-        }
-        newPlanObject[weekIndex].days[dayIndex] = day;
-
-        return {
-          ...client,
-          planObject: newPlanObject,
-        };
-      }),
+              exercises[exerciseIndex] = exercise;
+              return day.session
+                ? { ...day, session: { ...day.session, exercises } }
+                : { ...day, exercises };
+            }),
+      ),
     );
   };
 
@@ -458,6 +618,23 @@ export const MockDatabaseProvider = ({
 
     if (!slot || slot.reserved >= slot.capacity) {
       return { success: false, message: "Cupos agotados." };
+    }
+
+    // No puede cruzarse con una cita del atleta ese día
+    const gStart = toMinutes(slot.start);
+    const gEnd = toMinutes(slot.end);
+    const clash = appointments.find((a) => {
+      if (a.athleteId !== athleteId || a.date !== date) return false;
+      if (a.status === "CANCELLED") return false;
+      const aStart = toMinutes(a.time);
+      const aEnd = aStart + (Number(a.duration) || 30);
+      return gStart < aEnd && aStart < gEnd;
+    });
+    if (clash) {
+      return {
+        success: false,
+        message: `Tienes una cita a las ${clash.time} que se cruza con este horario.`,
+      };
     }
 
     // Create booking
@@ -522,11 +699,108 @@ export const MockDatabaseProvider = ({
   };
 
   // Appointment Methods
+  const toMinutes = (time: string) => {
+    const [h, m] = String(time || "0:0")
+      .split(":")
+      .map(Number);
+    return (h || 0) * 60 + (m || 0);
+  };
+
+  /** Entrenador dueño de una cita: el guardado o el aceptado del atleta. */
+  const trainerOfAppointment = (a) =>
+    a.trainerId ??
+    athleteRequests.find(
+      (r) => r.athleteId === a.athleteId && r.status === "ACCEPTED",
+    )?.trainerId ??
+    null;
+
+  /**
+   * Busca una cita activa que se cruce (misma fecha, mismo entrenador o
+   * mismo atleta, horarios solapados). `ignoreId` excluye la cita que se
+   * reprograma. Duración por defecto: 30 min.
+   */
+  const findAppointmentConflict = (candidate, ignoreId = null) => {
+    const start = toMinutes(candidate.time);
+    const end = start + (Number(candidate.duration) || 30);
+    const hhmm = (n: number) =>
+      `${String(Math.floor(n / 60)).padStart(2, "0")}:${String(n % 60).padStart(2, "0")}`;
+    // La cita tampoco puede cruzarse con una reserva de gimnasio del atleta.
+    for (const b of gymBookings) {
+      if (b.status === "CANCELLED" || b.date !== candidate.date) continue;
+      if (b.athleteId !== candidate.athleteId) continue;
+      const slot = gymAvailability
+        .find((d) => d.date === b.date)
+        ?.slots.find((s) => s.id === b.slotId);
+      if (!slot) continue;
+      const gStart = toMinutes(slot.start);
+      const gEnd = toMinutes(slot.end);
+      if (start < gEnd && gStart < end) {
+        return { time: hhmm(gStart), end: hhmm(gEnd), gym: true };
+      }
+    }
+    const trainer = trainerOfAppointment(candidate);
+    for (const a of appointments) {
+      if (a.id === ignoreId || a.status === "CANCELLED") continue;
+      if (a.date !== candidate.date) continue;
+      const sameParty =
+        a.athleteId === candidate.athleteId ||
+        (trainer && trainerOfAppointment(a) === trainer);
+      if (!sameParty) continue;
+      const aStart = toMinutes(a.time);
+      const aEnd = aStart + (Number(a.duration) || 30);
+      if (start < aEnd && aStart < end) {
+        const h = (n: number) =>
+          `${String(Math.floor(n / 60)).padStart(2, "0")}:${String(n % 60).padStart(2, "0")}`;
+        return { time: h(aStart), end: h(aEnd) };
+      }
+    }
+    return null;
+  };
+
+  /**
+   * El entrenador efectivo sale de la sesión cuando quien opera es un
+   * entrenador (ignora el id enviado por el cliente). Sin sesión o con
+   * otro rol se usa el id recibido.
+   */
+  const conflictMessage = (c: { time: string; end: string; gym?: boolean }) =>
+    c.gym
+      ? `El atleta tiene una reserva de gimnasio de ${c.time} a ${c.end} ese día que se cruza con este horario.`
+      : `Ya existe una cita de ${c.time} a ${c.end} ese día que se cruza con este horario.`;
+
+  const scopeTrainer = (trainerId) => {
+    const user = getCurrentUser();
+    return user?.role === "TRAINER" ? user.id : trainerId;
+  };
+
   const addAppointment = (appointmentData) => {
+    const user = getCurrentUser();
+    const trainerId =
+      user?.role === "TRAINER"
+        ? user.id
+        : user?.role === "ATHLETE"
+          ? trainerOfAppointment({
+              athleteId: user.id,
+              trainerId: null,
+            })
+          : (appointmentData.trainerId ??
+            trainerOfAppointment(appointmentData));
+    if (user?.role === "ATHLETE" && !trainerId) {
+      return {
+        success: false,
+        error:
+          "Necesitas un entrenador aceptado para agendar citas. Envía una solicitud primero.",
+      };
+    }
+    appointmentData = { ...appointmentData, trainerId };
+    const conflict = findAppointmentConflict(appointmentData);
+    if (conflict) {
+      return { success: false, error: conflictMessage(conflict) };
+    }
     const newAppointment = {
       id: Date.now().toString(),
       status: "SCHEDULED",
       ...appointmentData,
+      trainerId,
     };
     setAppointments((prev) => [...prev, newAppointment]);
     return { success: true, appointment: newAppointment };
@@ -556,34 +830,63 @@ export const MockDatabaseProvider = ({
   // Reprograma una cita existente a una nueva fecha/hora, sin perder
   // el resto de sus datos (atleta, tipo, notas, duración).
   const rescheduleAppointment = (id, newDate, newTime) => {
+    const current = appointments.find((a) => a.id === id);
+    if (!current) return { success: false, error: "Cita no encontrada" };
+    const conflict = findAppointmentConflict(
+      { ...current, date: newDate, time: newTime },
+      id,
+    );
+    if (conflict) {
+      return { success: false, error: conflictMessage(conflict) };
+    }
     setAppointments((prev) =>
       prev.map((a) =>
         a.id === id ? { ...a, date: newDate, time: newTime } : a,
       ),
     );
+    return { success: true };
   };
 
-  const getTrainerAppointments = (date) => {
+  /** Citas del día de un entrenador (sin `trainerId` devuelve todas). */
+  const getTrainerAppointments = (date, trainerId = null) => {
+    trainerId = scopeTrainer(trainerId);
     return appointments.filter(
-      (a) => a.date === date && a.status !== "CANCELLED",
+      (a) =>
+        a.date === date &&
+        a.status !== "CANCELLED" &&
+        (!trainerId || trainerOfAppointment(a) === trainerId),
     );
   };
 
-  // Appointment Availability Management
-  const updateAppointmentAvailability = (date, slots) => {
+  // Appointment Availability Management (por entrenador; las entradas sin
+  // `trainerId` son antiguas y se usan como respaldo)
+  const updateAppointmentAvailability = (date, slots, trainerId = null) => {
+    trainerId = scopeTrainer(trainerId);
     setAppointmentAvailability((prev) => {
-      const existingIndex = prev.findIndex((d) => d.date === date);
+      const existingIndex = prev.findIndex(
+        (d) => d.date === date && (d.trainerId ?? null) === trainerId,
+      );
+      const entry = trainerId ? { date, slots, trainerId } : { date, slots };
       if (existingIndex >= 0) {
         const newSchedule = [...prev];
-        newSchedule[existingIndex] = { date, slots };
+        newSchedule[existingIndex] = entry;
         return newSchedule;
       }
-      return [...prev, { date, slots }];
+      return [...prev, entry];
     });
   };
 
-  const getAppointmentAvailability = (date) => {
-    return appointmentAvailability.find((d) => d.date === date)?.slots || [];
+  const getAppointmentAvailability = (date, trainerId = null) => {
+    trainerId = scopeTrainer(trainerId);
+    const own = trainerId
+      ? appointmentAvailability.find(
+          (d) => d.date === date && d.trainerId === trainerId,
+        )
+      : undefined;
+    const legacy = appointmentAvailability.find(
+      (d) => d.date === date && !d.trainerId,
+    );
+    return (own ?? legacy)?.slots || [];
   };
 
   const getAthleteAppointments = (athleteId) => {
@@ -897,9 +1200,87 @@ export const MockDatabaseProvider = ({
     );
   };
 
+  // Ids con los que un usuario puede aparecer en los datos relacionados
+  const userRefIds = (user) =>
+    new Set([user?.id, user?.trainerId].filter(Boolean));
+
+  const belongsTo = (ids: Set<any>, item) =>
+    ids.has(item.id) ||
+    ids.has(item.athleteId) ||
+    ids.has(item.trainerId) ||
+    ids.has(item.clientId);
+
+  /**
+   * Cuenta los datos asociados a un usuario (para avisar antes de eliminarlo)
+   */
+  const countUserData = (user) => {
+    const ids = userRefIds(user);
+    return {
+      clients: clients.filter((c) => belongsTo(ids, c)).length,
+      requests: athleteRequests.filter((r) => belongsTo(ids, r)).length,
+      gymBookings: gymBookings.filter((b) => belongsTo(ids, b)).length,
+      appointments: appointments.filter((a) => belongsTo(ids, a)).length,
+    };
+  };
+
+  /**
+   * Elimina en cascada los datos de un usuario eliminado y libera los cupos
+   * de gimnasio de sus reservas confirmadas. Es todo-o-nada: si falla la
+   * limpieza de mediciones (localStorage), se restauran los elementos
+   * quitados y se relanza el error.
+   */
+  const purgeUserData = (user) => {
+    const ids = userRefIds(user);
+    const removedClients = clients.filter((c) => belongsTo(ids, c));
+    const removedRequests = athleteRequests.filter((r) => belongsTo(ids, r));
+    const removedAppointments = appointments.filter((a) => belongsTo(ids, a));
+    const removedBookings = gymBookings.filter((b) => belongsTo(ids, b));
+    const releasing = removedBookings.filter((b) => b.status === "CONFIRMED");
+
+    const adjustSlots = (prev, sign: 1 | -1) =>
+      prev.map((d) => {
+        const mine = releasing.filter((b) => b.date === d.date);
+        if (mine.length === 0) return d;
+        return {
+          ...d,
+          slots: d.slots.map((s) => {
+            const n = mine.filter((b) => b.slotId === s.id).length;
+            return n
+              ? { ...s, reserved: Math.max(0, s.reserved - sign * n) }
+              : s;
+          }),
+        };
+      });
+
+    const keep = (removed) => (prev) =>
+      prev.filter((x) => !removed.some((r) => r.id === x.id));
+    const restore = (removed) => (prev) => [...prev, ...removed];
+
+    setClients(keep(removedClients));
+    setAthleteRequests(keep(removedRequests));
+    setAppointments(keep(removedAppointments));
+    setGymBookings(keep(removedBookings));
+    if (releasing.length > 0)
+      setGymAvailability((prev) => adjustSlots(prev, 1));
+
+    try {
+      ids.forEach((id) => purgeMeasurements(id));
+    } catch (err) {
+      setClients(restore(removedClients));
+      setAthleteRequests(restore(removedRequests));
+      setAppointments(restore(removedAppointments));
+      setGymBookings(restore(removedBookings));
+      if (releasing.length > 0)
+        setGymAvailability((prev) => adjustSlots(prev, -1));
+      throw err;
+    }
+  };
+
   return (
     <MockDatabaseContext.Provider
       value={{
+        countUserData,
+        purgeUserData,
         clients,
         addClientRequest,
         updateClientPlan,
@@ -907,6 +1288,7 @@ export const MockDatabaseProvider = ({
         toggleSessionCompletion,
         updateSessionNote,
         toggleSetCompletion,
+        toggleSessionPart,
         getPendingClients,
         getCompletedClients,
         getActivePlans,

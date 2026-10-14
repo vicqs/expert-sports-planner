@@ -68,7 +68,7 @@
 .bar {
   flex: 1;
   max-width: 80px;
-  background: linear-gradient(180deg, #3b82f6 0%, #1e40af 100%);
+  background: linear-gradient(180deg, var(--color-info) 0%, color-mix(in srgb, var(--color-info) 65%, #000) 100%);
   border-radius: 8px 8px 0 0;
   display: flex;
   align-items: flex-start;
@@ -91,27 +91,27 @@
 }
 
 .bar.trainers {
-  background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(180deg, var(--color-primary) 0%, color-mix(in srgb, var(--color-primary) 65%, #000) 100%);
 }
 
 .bar.athletes {
-  background: linear-gradient(180deg, #f093fb 0%, #f5576c 100%);
+  background: linear-gradient(180deg, var(--color-accent-cyan) 0%, color-mix(in srgb, var(--color-accent-cyan) 65%, #000) 100%);
 }
 
 .bar.active {
-  background: linear-gradient(180deg, #43e97b 0%, #38f9d7 100%);
+  background: linear-gradient(180deg, var(--color-success) 0%, color-mix(in srgb, var(--color-success) 65%, #000) 100%);
 }
 
 .bar.completed {
-  background: linear-gradient(180deg, #fa709a 0%, #fee140 100%);
+  background: linear-gradient(180deg, var(--color-primary-hover) 0%, color-mix(in srgb, var(--color-primary-hover) 65%, #000) 100%);
 }
 
 .bar.available {
-  background: linear-gradient(180deg, #4facfe 0%, #00f2fe 100%);
+  background: linear-gradient(180deg, var(--color-success) 0%, color-mix(in srgb, var(--color-success) 65%, #000) 100%);
 }
 
 .bar.maintenance {
-  background: linear-gradient(180deg, #fbc2eb 0%, #a6c1ee 100%);
+  background: linear-gradient(180deg, var(--color-warning) 0%, color-mix(in srgb, var(--color-warning) 65%, #000) 100%);
 }
 
 .chart-labels {
@@ -290,4 +290,12 @@
   .summary-stat .stat-value {
     font-size: 1.25rem;
   }
+}
+
+/* Gráfico de muchas barras (registros por mes) en pantallas angostas */
+@media (max-width: 480px) {
+  .bar-chart { gap: 0.2rem; }
+  .bar { min-width: 0; }
+  .bar span { font-size: 0.625rem; }
+  .chart-labels span { flex: 1; min-width: 0; text-align: center; font-size: 0.625rem; }
 }

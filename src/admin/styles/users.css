@@ -156,9 +156,18 @@
   color: #3730a3;
 }
 
-.status-badge.inactive {
+.status-badge.inactive,
+.status-badge.expired,
+.status-badge.cancelled {
   background: #fee2e2;
   color: #991b1b;
+}
+
+.users-table td:nth-child(2) {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .plan-text {
@@ -212,9 +221,9 @@
     padding: 0.75rem;
   }
 
-  .users-table th:nth-child(4),
-  .users-table td:nth-child(4) {
-    display: none; /* Ocultar columna de fecha en tablet */
+  .users-table th:nth-child(6),
+  .users-table td:nth-child(6) {
+    display: none; /* Ocultar columna de fecha (Registro) en tablet */
   }
 }
 
@@ -239,9 +248,9 @@
 
   .users-table th:nth-child(3),
   .users-table td:nth-child(3),
-  .users-table th:nth-child(4),
-  .users-table td:nth-child(4) {
-    display: none; /* Ocultar estado y fecha en móvil */
+  .users-table th:nth-child(6),
+  .users-table td:nth-child(6) {
+    display: none; /* Ocultar Rol y Registro en móvil (visibles en el detalle) */
   }
 
   .user-cell {
@@ -361,4 +370,24 @@
   gap: 0.5rem;
   color: var(--color-text-secondary);
   font-size: 0.9rem;
+}
+
+/* Columna de acciones siempre visible: queda fija al borde derecho mientras
+   el resto de la tabla se desplaza horizontalmente. */
+.users-table th:last-child,
+.users-table td:last-child {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  white-space: nowrap;
+  background: var(--color-surface);
+  box-shadow: -6px 0 8px -6px rgba(0, 0, 0, 0.15);
+}
+
+.users-table thead th:last-child {
+  background: var(--color-bg-subtle);
+}
+
+.users-table tbody tr:hover td:last-child {
+  background: var(--color-surface-hover);
 }

@@ -27,6 +27,29 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+/* Al abrir el sidebar, el botón se fusiona con él (el botón de cierre lo reemplaza) */
+.sidebar-toggle.hidden-open {
+  top: 1.5rem;
+  left: calc(
+    var(--admin-sidebar-w, 280px) - 1.25rem - var(--touch-target-min, 44px)
+  );
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.sidebar-toggle.hidden-open .hamburger-icon span:nth-child(1) {
+  transform: translateY(6px) rotate(45deg);
+}
+
+.sidebar-toggle.hidden-open .hamburger-icon span:nth-child(2) {
+  opacity: 0;
+}
+
+.sidebar-toggle.hidden-open .hamburger-icon span:nth-child(3) {
+  transform: translateY(-6px) rotate(-45deg);
+}
+
 .hamburger-icon {
   display: flex;
   flex-direction: column;
@@ -70,7 +93,7 @@
   top: 0;
   left: 0;
   bottom: 0;
-  width: 280px;
+  width: var(--admin-sidebar-w, 280px);
   background: var(--color-bg);
   border-right: 1px solid var(--color-border);
   z-index: 1000;
@@ -112,7 +135,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.5rem 1.25rem;
+  padding: 0 1.25rem;
+  min-height: calc(var(--touch-target-min, 44px) + 3rem);
+  box-sizing: border-box;
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -144,11 +169,9 @@
   color: var(--color-text);
 }
 
-/* Ocultar botón close en desktop */
-@media (min-width: 1200px) {
-  .sidebar-close {
-    display: none;
-  }
+/* El botón de hamburguesa se transforma en X, se oculta el close propio */
+.sidebar-close {
+  display: none;
 }
 
 /* Navegación */
@@ -279,33 +302,21 @@
 
 /* Ajustes responsive */
 @media (max-width: 768px) {
-  .admin-sidebar {
-    width: 92%;
-    max-width: 320px;
+  :root {
+    --admin-sidebar-w: min(92vw, 320px);
   }
 }
 
 @media (max-width: 480px) {
-  .admin-sidebar {
-    width: 95%;
-    max-width: 95vw;
-  }
-
-  .hamburger-icon {
-    width: 18px;
-    gap: 3px;
+  :root {
+    --admin-sidebar-w: 95vw;
   }
 }
 
 /* Dispositivos muy pequeños (iPhone SE, etc) */
 @media (max-width: 375px) {
-  .admin-sidebar {
-    width: 96%;
-    max-width: 96vw;
-  }
-
-  .sidebar-header {
-    padding: 1.25rem 1rem;
+  :root {
+    --admin-sidebar-w: 96vw;
   }
 
   .sidebar-item {

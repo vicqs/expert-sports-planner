@@ -19,6 +19,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { useTheme } from "../hooks/useTheme";
+import { getNextSessionLabel } from "../utils/athleteHistory";
 import { ExplorarTab, ProgresoTab, PerfilTab } from "./athlete/AthleteTabs";
 import { getAvatarById } from "./ui/AvatarSelector";
 
@@ -34,6 +35,7 @@ const AthleteDashboard = ({
   onImmersiveChange?: (immersive: boolean) => void;
 }) => {
   const {
+    clients,
     getActivePlans,
     autoCompletePlans,
     getAthleteTrainer,
@@ -119,10 +121,14 @@ const AthleteDashboard = ({
   }
 
   if (view === "plan-detail" && selectedPlan) {
+    // Se lee la versión viva del plan (no el snapshot del click) para que las
+    // series/partes/sesiones marcadas se reflejen al instante.
+    const liveClient =
+      clients.find((c) => c.id === selectedPlan.id) || selectedPlan;
     return (
       <PlanDetail
-        plan={selectedPlan.planObject}
-        client={selectedPlan}
+        plan={liveClient.planObject || []}
+        client={liveClient}
         onBack={handleBack}
       />
     );
@@ -325,6 +331,8 @@ const AthleteDashboard = ({
                               duration: `${client.planDuration || 4} semanas`,
                               progress: client.progress || 0,
                               status: "active",
+                              coachName: myTrainer?.name,
+                              nextSession: getNextSessionLabel(client),
                             }}
                             onClick={() => handlePlanClick(client)}
                           />

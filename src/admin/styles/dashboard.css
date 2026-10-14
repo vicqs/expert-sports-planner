@@ -38,8 +38,13 @@
 }
 
 @media (max-width: 1199px) {
+  .admin-main {
+    /* Reservar espacio para el botón hamburguesa fijo (1rem + 44px + 1rem) */
+    padding-top: calc(var(--touch-target-min, 44px) + 2rem) !important;
+  }
+
   .admin-header {
-    padding-top: 2.5rem;
+    padding-top: 0;
   }
 }
 

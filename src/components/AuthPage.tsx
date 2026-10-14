@@ -298,18 +298,20 @@ const AuthPage = ({ onSuccess }: { onSuccess?: (role?: string) => void }) => {
           </p>
         </div>
 
-        <div className="dev-quick-access">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            leftIcon={<Shield size={16} />}
-            onClick={handleQuickAdminLogin}
-            disabled={loading}
-          >
-            Acceso temporal como Super Admin (dev)
-          </Button>
-        </div>
+        {import.meta.env.DEV && (
+          <div className="dev-quick-access">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              leftIcon={<Shield size={16} />}
+              onClick={handleQuickAdminLogin}
+              disabled={loading}
+            >
+              Acceso temporal como Super Admin (dev)
+            </Button>
+          </div>
+        )}
       </div>
 
       <style>{`

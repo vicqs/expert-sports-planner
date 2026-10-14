@@ -63,7 +63,7 @@ Clase interna (no exportada) con métodos `get`, `post`, `put`, `delete` sobre u
 
 - `getAuthHeaders()` añade `Authorization: Bearer <token>` si `getCurrentSession()` devuelve un objeto con `token`.
 - `getCurrentSession` es un alias de `getCurrentUser` ([auth.ts](../src/utils/auth.ts)), que lee `currentUser` de `localStorage`.
-- **Hoy no existe token**: el login ([`loginUser`](../src/utils/auth.ts)) compara un hash SHA-256 local y guarda el objeto `User` sin `token`, por lo que el encabezado nunca se envía.
+- **Hoy no existe token**: el login ([`loginUser`](../src/utils/auth.ts)) verifica un hash PBKDF2 local (con SHA-256 heredado como respaldo) y guarda el objeto `User` sin `token`, por lo que el encabezado nunca se envía.
 - **Interceptores:** no existen. No hay refresco de token, reintentos ni manejo global de `401/403`. El comentario del store menciona a los interceptores como uso futuro.
 
 ### 2.3 Variables de entorno relacionadas

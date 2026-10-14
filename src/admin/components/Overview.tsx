@@ -1,3 +1,15 @@
+/**
+ * Overview - Panel General del Admin.
+ *
+ * Responsabilidad: tarjetas de métricas (usuarios, planes, trials,
+ * equipamiento, ejercicios, reservas), accesos al modo demo ("Ver como
+ * Entrenador/Atleta"), previsualización del loader y OverviewInsights.
+ * Lo usa: AdminDashboard (vista "overview").
+ * Lee: MockDatabase (conteos de data mock) y utils/constants. Duración del
+ * trial vía getTrialDays (localStorage "admin_trial_days").
+ * Efectos: startPreview cambia a un perfil demo en memoria y registra la
+ * acción en la bitácora (logAdminAction).
+ */
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, Button, Modal } from "@/components/ui";
@@ -19,12 +31,23 @@ import {
   TRAINING_TYPES,
 } from "@/utils/constants";
 import { useAuth } from "@/context/AuthContext";
+import { logAdminAction } from "@/admin/utils/auditLog";
 import { useMockDatabase } from "@/context/MockDatabase";
 import { MOCK_PROFILES } from "@/utils/mockProfiles";
+import { getTrialDays } from "@/utils/auth";
 import "@/admin/styles/overview.css";
+import OverviewInsights from "@/admin/components/OverviewInsights";
 
-const Overview = ({ stats }) => {
-  const { startPreview } = useAuth();
+/**
+ * Panel General.
+ *
+ * @param props.stats Estadísticas de AdminDashboard (users, plans, equipment,
+ *   bookings y opcionalmente exercises.total).
+ * @param props.onNavigate Callback `(viewId) => void` para saltar a otra
+ *   sección (por defecto no hace nada).
+ */
+const Overview = ({ stats, onNavigate = (_view: string) => {} }) => {
+  const { startPreview, currentUser } = useAuth();
   const { clients, gymBookings, appointments } = useMockDatabase();
   const [profilesOpen, setProfilesOpen] = useState(true);
   const [showLoaderPreview, setShowLoaderPreview] = useState(false);
@@ -32,6 +55,8 @@ const Overview = ({ stats }) => {
   // Conteos de data mock por perfil (planes, reservas de gym, citas), para
   // que el admin pueda verificar de un vistazo que los datos de prueba de
   // cada atleta sí existen, sin tener que entrar al "Ver como".
+  // Los planes incluyen el histórico (id `${userId}-completed-1`); reservas y
+  // citas excluyen las canceladas.
   const mockDataCounts = (userId) => ({
     plans: clients.filter(
       (c) => c.id === userId || c.id === `${userId}-completed-1`,
@@ -92,6 +117,7 @@ const Overview = ({ stats }) => {
                 }}
               >
                 {MOCK_PROFILES.map((profile) => {
+                  // El perfil de entrenador no tiene conteos de atleta
                   const counts =
                     profile.key !== "trainer"
                       ? mockDataCounts(profile.user.id)
@@ -107,7 +133,14 @@ const Overview = ({ stats }) => {
                     >
                       <Button
                         variant="secondary"
-                        onClick={() => startPreview(profile.user)}
+                        onClick={() => {
+                          logAdminAction(
+                            (currentUser?.id as string) || "admin",
+                            "Vista previa iniciada",
+                            profile.user?.name,
+                          );
+                          startPreview(profile.user);
+                        }}
                         title={profile.description}
                       >
                         Ver como {profile.label}
@@ -178,7 +211,7 @@ const Overview = ({ stats }) => {
           <div className="stat-content">
             <h3>{stats.users.activeTrials || 0}</h3>
             <p>Trials Activos</p>
-            <small>Plan FREE de 14 días</small>
+            <small>Plan FREE de {getTrialDays()} días</small>
           </div>
         </Card>
 
@@ -191,7 +224,8 @@ const Overview = ({ stats }) => {
             <p>Equipamiento Registrado</p>
             <small>
               {stats.equipment.available} Disponible •{" "}
-              {stats.equipment.maintenance} Mantenimiento
+              {stats.equipment.maintenance} Mantenimiento •{" "}
+              {stats.equipment.outOfService || 0} Fuera de servicio
             </small>
           </div>
         </Card>
@@ -202,6 +236,7 @@ const Overview = ({ stats }) => {
           </div>
           <div className="stat-content">
             <h3>
+              {/* Total de ejercicios del catálogo base si no viene en stats */}
               {stats.exercises?.total ||
                 Object.values(GYM_EXERCISES).reduce(
                   (acc, cat) => acc + cat.length,
@@ -229,6 +264,8 @@ const Overview = ({ stats }) => {
           </div>
         </Card>
       </div>
+
+      <OverviewInsights stats={stats} onNavigate={onNavigate} />
 
       <div className="quick-stats-row">
         <Card className="quick-stat">

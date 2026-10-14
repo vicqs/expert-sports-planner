@@ -2,6 +2,8 @@
 // PLAN CONFIGURATION CONSTANTS
 // ============================================================
 
+import { CATALOG_ADDITIONS } from "@/utils/exerciseCatalogNames";
+
 /**
  * Default plan configuration
  */
@@ -137,7 +139,7 @@ export const SYMBOLS = {
   REST_30_SEC: '(30")',
 };
 
-export const GYM_EXERCISES = {
+const BASE_GYM_EXERCISES: Record<string, string[]> = {
   LOWER: [
     "ABDUCTORES CON BANDA ELÁSTICA",
     "ABDUCTORES EN MÁQUINA",
@@ -477,20 +479,42 @@ export const GYM_EXERCISES = {
   ],
 };
 
-export const ALL_GYM_EXERCISES = [
-  ...GYM_EXERCISES.LOWER,
-  ...GYM_EXERCISES.UPPER_PUSH,
-  ...GYM_EXERCISES.UPPER_PULL,
-  ...GYM_EXERCISES.CORE,
-].sort();
+/**
+ * Catálogo completo de ejercicios del sistema por categoría: los 4 bloques
+ * base (LOWER, UPPER_PUSH, UPPER_PULL, CORE, escritos arriba y en ese orden,
+ * del que dependen los planes autogenerados) más los ejercicios importados
+ * (exerciseCatalogNames.ts) y las categorías nuevas FULL_BODY, PLIOMETRICO,
+ * CARDIO y MOVILIDAD. Los importados se añaden siempre al final.
+ */
+export const GYM_EXERCISES: Record<string, string[]> = (() => {
+  const merged: Record<string, string[]> = {};
+  Object.entries(BASE_GYM_EXERCISES).forEach(([cat, list]) => {
+    merged[cat] = [...list];
+  });
+  Object.entries(CATALOG_ADDITIONS).forEach(([cat, list]) => {
+    merged[cat] = [...(merged[cat] || []), ...list];
+  });
+  return merged;
+})();
 
-// Metadata enriquecida (opcional) para ejercicios del SISTEMA, keyeada por el
-// nombre exacto tal como aparece en GYM_EXERCISES. No es obligatorio que un
-// ejercicio tenga entrada aquí — si no la tiene, la UI simplemente lo muestra
-// como nombre plano (comportamiento original, sin romper nada existente).
-// Se agregan solo algunos ejemplos reales por categoría; el resto se puede
-// enriquecer desde el panel Admin > Ejercicios (mismo shape, persistido en
-// crm_custom_exercise_meta) sin tocar este archivo.
+/** Etiquetas legibles de cada categoría del catálogo. */
+export const EXERCISE_CATEGORY_LABELS: Record<string, string> = {
+  LOWER: "Tren Inferior",
+  UPPER_PUSH: "Tren Superior (Empuje)",
+  UPPER_PULL: "Tren Superior (Tracción)",
+  CORE: "Core",
+  FULL_BODY: "Cuerpo completo (olímpicos y potencia)",
+  PLIOMETRICO: "Pliométrico",
+  CARDIO: "Cardio",
+  MOVILIDAD: "Movilidad y estiramientos",
+};
+
+export const ALL_GYM_EXERCISES = Object.values(GYM_EXERCISES).flat().sort();
+
+// Metadata curada a mano (tiene prioridad sobre el catálogo importado en
+// exerciseCatalogData.ts). Claves por nombre exacto; músculos, equipo y partes
+// del cuerpo en español. Se puede ampliar/editar desde Admin > Ejercicios
+// (persistido en crm_custom_exercise_meta) sin tocar este archivo.
 export const EXERCISE_METADATA: Record<
   string,
   {
@@ -506,10 +530,10 @@ export const EXERCISE_METADATA: Record<
   "BANCO PLANO CON BARRA": {
     exerciseId: "EIeI8Vf",
     gifUrl: "https://static.exercisedb.dev/media/EIeI8Vf.gif",
-    targetMuscles: ["pectorals"],
-    bodyParts: ["chest"],
-    equipments: ["barbell"],
-    secondaryMuscles: ["triceps", "shoulders"],
+    targetMuscles: ["pectorales"],
+    bodyParts: ["pecho"],
+    equipments: ["barra"],
+    secondaryMuscles: ["tríceps", "hombros"],
     instructions: [
       "Paso 1: Acuéstate boca arriba en el banco con los pies apoyados en el suelo.",
       "Paso 2: Sujeta la barra con agarre pronado, un poco más ancho que los hombros.",
@@ -521,10 +545,10 @@ export const EXERCISE_METADATA: Record<
     ],
   },
   "SENTADILLA COMPLETA (MNC)": {
-    targetMuscles: ["quadriceps"],
-    bodyParts: ["upper legs"],
-    equipments: ["barbell"],
-    secondaryMuscles: ["glutes", "hamstrings", "calves"],
+    targetMuscles: ["cuádriceps"],
+    bodyParts: ["piernas"],
+    equipments: ["barra"],
+    secondaryMuscles: ["glúteos", "isquiotibiales", "pantorrillas"],
     instructions: [
       "Paso 1: Coloca la barra sobre los trapecios, pies al ancho de hombros.",
       "Paso 2: Baja las caderas flexionando rodillas y cadera manteniendo la espalda neutra.",
@@ -533,10 +557,10 @@ export const EXERCISE_METADATA: Record<
     ],
   },
   DOMINADAS: {
-    targetMuscles: ["lats"],
-    bodyParts: ["back"],
-    equipments: ["body weight"],
-    secondaryMuscles: ["biceps", "forearms"],
+    targetMuscles: ["dorsales"],
+    bodyParts: ["espalda"],
+    equipments: ["peso corporal"],
+    secondaryMuscles: ["bíceps", "antebrazos"],
     instructions: [
       "Paso 1: Cuelga de la barra con agarre pronado, manos al ancho de hombros.",
       "Paso 2: Tira de tu cuerpo hacia arriba hasta que la barbilla supere la barra.",
@@ -544,10 +568,10 @@ export const EXERCISE_METADATA: Record<
     ],
   },
   "PLANCHA FRONTAL": {
-    targetMuscles: ["abs"],
-    bodyParts: ["waist"],
-    equipments: ["body weight"],
-    secondaryMuscles: ["shoulders", "glutes"],
+    targetMuscles: ["abdominales"],
+    bodyParts: ["core"],
+    equipments: ["peso corporal"],
+    secondaryMuscles: ["hombros", "glúteos"],
     instructions: [
       "Paso 1: Apóyate sobre antebrazos y puntas de pies, cuerpo en línea recta.",
       "Paso 2: Contrae el abdomen y los glúteos, evitando que la cadera caiga.",
